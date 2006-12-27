@@ -1,0 +1,6 @@
+syntax: glob
+
+*.d
+*.o
+jmswm
+src/*
