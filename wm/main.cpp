@@ -9,6 +9,52 @@
 #include <getopt.h>
 #include <stdlib.h>
 
+#include <boost/bind.hpp>
+
+void move_left(WM &wm)
+{
+  if (WView *view = wm.selected_view())
+  {
+    WView::iterator it = view->prior_column(view->selected_position(), true);
+    view->select_column(it);
+  }
+}
+
+void move_right(WM &wm)
+{
+  if (WView *view = wm.selected_view())
+  {
+    WView::iterator it = view->next_column(view->selected_position(), true);
+    view->select_column(it);
+  }
+}
+
+void move_up(WM &wm)
+{
+  if (WView *view = wm.selected_view())
+  {
+    if (WColumn *column = view->selected_column())
+    {
+      WColumn::iterator it = column->prior_frame(column->selected_position(), true);
+      column->select_frame(it);
+    }
+  }
+}
+
+void move_down(WM &wm)
+{
+  if (WView *view = wm.selected_view())
+  {
+    if (WColumn *column = view->selected_column())
+    {
+      WColumn::iterator it = column->next_frame(column->selected_position(), true);
+      column->select_frame(it);
+    }
+  }
+}
+
+
+
 int main(int argc, char **argv)
 {
 
@@ -51,7 +97,7 @@ int main(int argc, char **argv)
   WFrameStyle::Spec style_spec;
   
   style_spec.label_font = "fixed 11";
-  style_spec.client_background_color = "black";
+  style_spec.client_background_color = "red";
 
   style_spec.active_selected.highlight_color = "gold1";
   style_spec.active_selected.shadow_color = "gold1";
@@ -83,6 +129,14 @@ int main(int argc, char **argv)
   
   WM wm(xdisplay.display(), eb, style_spec);
 
+  wm.bind_key(WKeySequence("control-f"),
+              boost::bind(&move_right, boost::ref(wm)));
+  wm.bind_key(WKeySequence("control-b"),
+              boost::bind(&move_left, boost::ref(wm)));
+  wm.bind_key(WKeySequence("control-p"),
+              boost::bind(&move_up, boost::ref(wm)));
+  wm.bind_key(WKeySequence("control-n"),
+              boost::bind(&move_down, boost::ref(wm)));
   event_base_dispatch(eb);
 
   return EXIT_FAILURE;

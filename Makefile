@@ -10,7 +10,8 @@ UTIL_OBJECTS := util/close_on_exec.o util/log.o
 
 DRAW_OBJECTS := draw/draw.o
 
-WM_OBJECTS := wm/client.o wm/frame.o wm/view.o wm/xwindow.o wm/event.o wm/main.o wm/wm.o
+WM_OBJECTS := wm/client.o wm/frame.o wm/view.o wm/xwindow.o wm/event.o wm/main.o \
+              wm/wm.o wm/key.o
 
 OBJECTS := $(UTIL_OBJECTS) $(DRAW_OBJECTS) $(WM_OBJECTS)
 

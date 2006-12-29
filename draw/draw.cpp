@@ -236,28 +236,71 @@ void fill_rect(WDrawable &d, const WColor &background,
               rect.width, rect.height);
 }
 
-void draw_rect_border(WDrawable &d, const WColor &border_color,
-                      int border_width,
-                      const WRect &rect)
+void draw_horizontal_line(WDrawable &d, const WColor &c,
+                          int x, int y, int length)
 {
-  XftColor xftc;
-  wcolor_to_xftcolor(border_color, xftc);
-  XftDrawRect(d.xft_draw(), &xftc, rect.x, rect.y, rect.width, border_width);
-  XftDrawRect(d.xft_draw(), &xftc, rect.x, rect.y + rect.height - border_width,
-              rect.width, border_width);
-  XftDrawRect(d.xft_draw(), &xftc, rect.x, rect.y + border_width, border_width,
-              rect.height - 2 * border_width);
-  XftDrawRect(d.xft_draw(), &xftc, rect.x + rect.width - border_width,
-              rect.y + border_width, border_width,
-              rect.height - 2 * border_width);
+  fill_rect(d, c, WRect(x, y, length, 1));
 }
 
-void draw_tile(WDrawable &d,
-               const WColor &border_color,
-               const WColor &background,
-               int border_width,
-               const WRect &rect)
+void draw_vertical_line(WDrawable &d, const WColor &c,
+                          int x, int y, int length)
 {
-  draw_rect_border(d, border_color, border_width, rect);
-  fill_rect(d, background, rect.inside_border(border_width));
+  fill_rect(d, c, WRect(x, y, 1, length));
+}
+
+void draw_border(WDrawable &d,
+                 const WColor &highlight_color, int highlight_pixels,
+                 const WColor &shadow_color, int shadow_pixels,
+                 const WRect &rect)
+{
+  int a, b;
+
+  a = (shadow_pixels != 0);
+  b = 0;
+  for (int i = 0; i < highlight_pixels; ++i)
+  {
+    draw_horizontal_line(d, highlight_color, rect.x + i, rect.y + i,
+                         rect.width - a - i);
+    draw_vertical_line(d, highlight_color, rect.x + i, rect.y + i + 1,
+                       rect.height - b - 1 - i);
+
+    if (a < shadow_pixels)
+      ++a;
+
+    if (b < shadow_pixels)
+      ++b;
+  }
+
+  a = (highlight_pixels != 0);
+  b = 0;
+  for (int i = 0; i < shadow_pixels; ++i)
+  {
+    draw_horizontal_line(d, shadow_color,
+                         rect.x + a,
+                         rect.y + rect.height - 1 - i,
+                         rect.width - a - i);
+    draw_vertical_line(d, shadow_color,
+                       rect.x + rect.width - 1 - i,
+                       rect.y + b,
+                       rect.height - b - 1 - i);
+
+    if (a < highlight_pixels)
+      ++a;
+
+    if (b < highlight_pixels)
+      ++b;
+  }
+}
+
+void draw_border(WDrawable &d,
+                 const WColor &c, int width,
+                 const WRect &rect)
+{
+  fill_rect(d, c, WRect(rect.x, rect.y, width, rect.height));
+  fill_rect(d, c, WRect(rect.x + width, rect.y, rect.width - width, width));
+  
+  fill_rect(d, c, WRect(rect.x + rect.width - width, rect.y + width, width,
+                        rect.height - width));
+  fill_rect(d, c, WRect(rect.x + width, rect.y + rect.height - width,
+                        rect.width - width, width));
 }

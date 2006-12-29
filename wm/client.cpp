@@ -6,27 +6,50 @@
 
 #include <util/log.hpp>
 
+WClient::WClient(WM &wm, Window w)
+  : wm_(wm),
+    dirty_state(CLIENT_NOT_DIRTY),
+    xwin_(w)
+{}
+
+WFrame *WClient::visible_frame()
+{
+  ViewFrameMap::iterator it = view_frames_.find(wm().selected_view());
+  if (it != view_frames_.end())
+    return it->second;
+  else
+    return 0;
+}
+
+
 void WM::manage_client(Window w, bool map_request)
 {
   XWindowAttributes attr;
 
   /* Window might be destroyed while this function is running */
-  XSelectInput(xc.display(), w, WM_EVENT_MASK_CLIENTWIN);
+  XSelectInput(display(), w, WM_EVENT_MASK_CLIENTWIN);
   
-  if (!XGetWindowAttributes(xc.display(), w, &attr))
+  if (!XGetWindowAttributes(display(), w, &attr))
   {
     /* Window disappeared */
-    XSelectInput(xc.display(), w, 0);
+    XSelectInput(display(), w, 0);
     return;
   }
 
   /* Unmanaged window */
   if (attr.override_redirect)
   {
-    XSelectInput(xc.display(), w, 0);
+    XSelectInput(display(), w, 0);
     return;
   }
 
+  /* Check WM_STATE and attr.map_state == IsViewable*/
+  int wm_state;
+  if (!map_request
+      && attr.map_state != IsViewable
+      && (!get_window_WM_STATE(w, wm_state)
+          || (wm_state != NormalState && wm_state != IconicState)))
+    return;
 
   std::auto_ptr<WClient> c(new WClient(*this, w));
 
@@ -37,21 +60,21 @@ void WM::manage_client(Window w, bool map_request)
 
   XSetWindowAttributes fwa;
   fwa.event_mask = WM_EVENT_MASK_FRAMEWIN;
-  fwa.background_pixel = frame_style.frame_background_color->pixel();
-  c->frame_xwin = XCreateWindow(xc.display(), xc.root_window(),
-                                attr.x, /* x */ attr.y, /* y */
-                                100, /* width */ 100, /* height */
-                                0, /* border width */
-                                xc.default_depth(),
-                                InputOutput,
-                                xc.default_visual(),
-                                CWEventMask | CWBackPixel,
-                                &fwa);
+  //fwa.background_pixel = frame_style.frame_background_color->pixel();
+  c->frame_xwin_ = XCreateWindow(display(), root_window(),
+                                 attr.x, /* x */ attr.y, /* y */
+                                 100, /* width */ 100, /* height */
+                                 0, /* border width */
+                                 default_depth(),
+                                 InputOutput,
+                                 default_visual(),
+                                 CWEventMask /*| CWBackPixel*/,
+                                 &fwa);
 
   c->current_frame_bounds = WRect(attr.x, attr.y, 100, 100);
   c->current_client_bounds = WRect(0, 0, attr.width, attr.height);
 
-  XAddToSaveSet(xc.display(), w);
+  XAddToSaveSet(display(), w);
 
   c->initial_border_width = attr.border_width;
   
@@ -59,21 +82,21 @@ void WM::manage_client(Window w, bool map_request)
   {
     XWindowChanges wc;
     wc.border_width = 0;
-    XConfigureWindow(xc.display(), w, CWBorderWidth, &wc);
+    XConfigureWindow(display(), w, CWBorderWidth, &wc);
   }
   
-  XSelectInput(xc.display(), w, WM_EVENT_MASK_CLIENTWIN & ~StructureNotifyMask);
+  XSelectInput(display(), w, WM_EVENT_MASK_CLIENTWIN & ~StructureNotifyMask);
 
   /* FIXME -- set proper x and y */
-  XReparentWindow(xc.display(), c->xwin, c->frame_xwin, 0, 0);
+  XReparentWindow(display(), c->xwin_, c->frame_xwin_, 0, 0);
 
-  XSelectInput(xc.display(), c->xwin, WM_EVENT_MASK_CLIENTWIN);
+  XSelectInput(display(), c->xwin_, WM_EVENT_MASK_CLIENTWIN);
 
-  if (!XGetWindowAttributes(xc.display(), w, &attr))
+  if (!XGetWindowAttributes(display(), w, &attr))
   {
     /* Window disappeared while reparenting */
-    XSelectInput(xc.display(), w, 0);
-    XDestroyWindow(xc.display(), c->frame_xwin);
+    XSelectInput(display(), w, 0);
+    XDestroyWindow(display(), c->frame_xwin_);
     return;
   }
 
@@ -83,8 +106,8 @@ void WM::manage_client(Window w, bool map_request)
 
   /* FIXME: get other information, like the protocols, class name, etc. */
 
-  managed_clients.insert(std::make_pair(c->xwin, c.get()));
-  framewin_map.insert(std::make_pair(c->frame_xwin, c.get()));
+  managed_clients.insert(std::make_pair(c->xwin_, c.get()));
+  framewin_map.insert(std::make_pair(c->frame_xwin_, c.get()));
 
   if (attr.map_state == IsUnmapped)
     c->client_map_state = WClient::STATE_UNMAPPED;
@@ -102,8 +125,8 @@ void WClient::update_name_from_server()
 {
   /* Check netwm name first */
 
-  if (!xwindow_get_utf8_property(wm.xc.display(), xwin, wm.atom_net_wm_name, name)
-      && !xwindow_get_utf8_property(wm.xc.display(), xwin, XA_WM_NAME, name))
+  if (!xwindow_get_utf8_property(wm().display(), xwin_, wm().atom_net_wm_name, name_)
+      && !xwindow_get_utf8_property(wm().display(), xwin_, XA_WM_NAME, name_))
   {
     DEBUG("Failed to get client name");
   }
@@ -120,25 +143,34 @@ void WClient::update_role_from_server()
 
 void WM::place_client(WClient *c)
 {
-  WColumn *column;
+  WView::iterator column;
 
-  WView *view = selected_view;
+  WView *view = selected_view();
 
-  WView::ColumnList::iterator it = view->columns.end();
-
-  if (view->selected_column)
-    it = boost::next(view->columns.current(*view->selected_column));
+  /* TODO: Use a better policy */
+  if (view->columns.size() < 3)
+  {
+    WView::iterator it = view->next_column(view->selected_position(), false);
   
-  column = view->create_column(0, it);
+    column = view->create_column(it);
+  } else
+  {
+    column = view->selected_position();
+  }
 
-  column->add_client(c, column->frames.end());
+  WColumn::iterator it = column->next_frame(column->selected_position(), false);
+  
+  WColumn::iterator frame = column->add_client(c, it);
+
+  /* TODO: don't always focus this client */
+  view->select_frame(&*frame);
 }
 
 void WM::unmanage_client(WClient *client)
 {
-  for (WClient::ViewFrameMap::iterator it = client->view_frames.begin(),
+  for (WClient::ViewFrameMap::iterator it = client->view_frames_.begin(),
          next;
-       it != client->view_frames.end();
+       it != client->view_frames_.end();
        it = next)
   {
     next = boost::next(it);
@@ -150,39 +182,60 @@ void WM::unmanage_client(WClient *client)
     delete f;
   }
 
+  if (client_to_focus == client)
+    client_to_focus = 0;
+
   /* TODO: check if different error handling needs to be used here */
 
-  XReparentWindow(xc.display(), client->xwin, xc.root_window(),
+  XReparentWindow(display(), client->xwin_, root_window(),
                   0, 0);
-  XDestroyWindow(xc.display(), client->frame_xwin);
+  XDestroyWindow(display(), client->frame_xwin_);
   
-  managed_clients.erase(client->xwin);
-  framewin_map.erase(client->frame_xwin);
+  managed_clients.erase(client->xwin_);
+  framewin_map.erase(client->frame_xwin_);
 
-  XRemoveFromSaveSet(xc.display(), client->xwin);
+  XRemoveFromSaveSet(display(), client->xwin_);
 
-  XSelectInput(xc.display(), client->xwin, 0);
+  XSelectInput(display(), client->xwin_, 0);
   
   delete client;
 }
 
-void WClient::set_WM_STATE(int state)
+void WM::set_window_WM_STATE(Window w, int state)
 {
   long data[] = { state, None };
-  XChangeProperty(wm.xc.display(), xwin, wm.atom_wm_state, wm.atom_wm_state, 32,
+  XChangeProperty(display(), w, atom_wm_state, atom_wm_state, 32,
                   PropModeReplace, reinterpret_cast<unsigned char *>(data), 2);
+}
+
+bool WM::get_window_WM_STATE(Window w, int &state_ret)
+{
+  CARD32 *p=NULL;
+    
+  if (!xwindow_get_property(display(), w, atom_wm_state,
+                            atom_wm_state, 
+                            2L, false, (unsigned char **)&p))
+    return false;
+  
+  state_ret=*p;
+    
+  XFree((void*)p);
+  
+  return true;
 }
 
 void WClient::set_iconic_state(iconic_state_t state)
 {
   if (state != current_iconic_state)
   {
-    set_WM_STATE(state == ICONIC_STATE_NORMAL ? NormalState : IconicState);
+    wm().set_window_WM_STATE(xwin_,
+                           state == ICONIC_STATE_NORMAL ?
+                           NormalState : IconicState);
     current_iconic_state = state;
   }
 }
 
-void WClient::handle_pending_work()
+void WClient::perform_deferred_work()
 {
   if (dirty_state == CLIENT_NOT_DIRTY)
     return;
@@ -197,9 +250,7 @@ void WClient::handle_pending_work()
 
       if (current_frame_bounds != f->bounds)
       {
-        DEBUG("moving frame to %d, %d, %d %d", f->bounds.x, f->bounds.y,
-              f->bounds.width, f->bounds.height);
-        XMoveResizeWindow(wm.xc.display(), frame_xwin,
+        XMoveResizeWindow(wm().display(), frame_xwin_,
                           f->bounds.x, f->bounds.y,
                           f->bounds.width, f->bounds.height);
         current_frame_bounds = f->bounds;
@@ -207,10 +258,7 @@ void WClient::handle_pending_work()
 
       if (current_client_bounds != desired_client_bounds)
       {
-        DEBUG("moving client to %d, %d, %d, %d", desired_client_bounds.x,
-              desired_client_bounds.y, desired_client_bounds.width,
-              desired_client_bounds.height);
-        XMoveResizeWindow(wm.xc.display(), xwin,
+        XMoveResizeWindow(wm().display(), xwin_,
                           desired_client_bounds.x,
                           desired_client_bounds.y,
                           desired_client_bounds.width,
@@ -220,15 +268,13 @@ void WClient::handle_pending_work()
 
       if (client_map_state != STATE_MAPPED)
       {
-        DEBUG("mapping client");
-        XMapWindow(wm.xc.display(), xwin);
+        XMapWindow(wm().display(), xwin_);
         client_map_state = STATE_MAPPED;
       }
 
       if (frame_map_state != STATE_MAPPED)
       {
-        DEBUG("mapping frame");
-        XMapWindow(wm.xc.display(), frame_xwin);
+        XMapWindow(wm().display(), frame_xwin_);
         frame_map_state = STATE_MAPPED;
       }
 
@@ -240,19 +286,17 @@ void WClient::handle_pending_work()
 
       if (frame_map_state != STATE_UNMAPPED)
       {
-        DEBUG("unmapping frame");
-        XUnmapWindow(wm.xc.display(), frame_xwin);
+        XUnmapWindow(wm().display(), frame_xwin_);
         frame_map_state = STATE_UNMAPPED;
       }
 
       if (client_map_state != STATE_UNMAPPED)
       {
-        DEBUG("unmapping client");
         /* TODO: perhaps avoid disabling events */
-        XSelectInput(wm.xc.display(), xwin,
+        XSelectInput(wm().display(), xwin_,
                      WM_EVENT_MASK_CLIENTWIN & ~StructureNotifyMask);
-        XUnmapWindow(wm.xc.display(), xwin);
-        XSelectInput(wm.xc.display(), xwin, WM_EVENT_MASK_CLIENTWIN);
+        XUnmapWindow(wm().display(), xwin_);
+        XSelectInput(wm().display(), xwin_, WM_EVENT_MASK_CLIENTWIN);
         client_map_state = STATE_UNMAPPED;
       }
     }
@@ -263,7 +307,7 @@ void WClient::handle_pending_work()
 
   dirty_state = CLIENT_NOT_DIRTY;
 
-  wm.dirty_clients.erase(wm.dirty_clients.current(*this));
+  wm().dirty_clients.erase(wm().dirty_clients.current(*this));
 }
 
 void WClient::handle_configure_request(const XConfigureRequestEvent &ev)
@@ -276,8 +320,8 @@ void WClient::notify_client_of_root_position()
   XEvent ce;
     
   ce.xconfigure.type=ConfigureNotify;
-  ce.xconfigure.event=xwin;
-  ce.xconfigure.window=xwin;
+  ce.xconfigure.event=xwin_;
+  ce.xconfigure.window=xwin_;
   ce.xconfigure.x=current_frame_bounds.x + current_client_bounds.x;
   ce.xconfigure.y=current_frame_bounds.y + current_client_bounds.y;
   ce.xconfigure.width=current_client_bounds.width;
@@ -288,8 +332,19 @@ void WClient::notify_client_of_root_position()
 
   /* TODO: determine if it is really necessary to disable these
      events */
-  XSelectInput(wm.xc.display(), xwin,
+  XSelectInput(wm().display(), xwin_,
                WM_EVENT_MASK_CLIENTWIN&~StructureNotifyMask);
-  XSendEvent(wm.xc.display(), xwin, False, StructureNotifyMask, &ce);
-  XSelectInput(wm.xc.display(), xwin, WM_EVENT_MASK_CLIENTWIN);
+  XSendEvent(wm().display(), xwin_, False, StructureNotifyMask, &ce);
+  XSelectInput(wm().display(), xwin_, WM_EVENT_MASK_CLIENTWIN);
+}
+
+void WClient::focus()
+{
+  /* TODO: handle WM_TAKE_FOCUS */
+  xwindow_set_input_focus(wm().display(), xwin_);
+}
+
+void WM::schedule_focus_client(WClient *client)
+{
+  client_to_focus = client;
 }

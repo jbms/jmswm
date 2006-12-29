@@ -11,53 +11,64 @@ int WM::bar_height() const
 
 WRect WFrame::client_bounds() const
 {
-  WRect r(client.wm.frame_style.bar_border_width
-          + client.wm.frame_style.client_border_width,
-          client.wm.frame_style.bar_height()
-          + client.wm.frame_style.client_border_width,
-          bounds.width - 2 * client.wm.frame_style.bar_border_width
-          - 2 * client.wm.frame_style.client_border_width,
-          bounds.height - client.wm.frame_style.bar_height()
-            - 2 * client.wm.frame_style.client_border_width
-          - client.wm.frame_style.bar_border_width);
+  WFrameStyle &style = wm().frame_style;
+
+  WRect r;
+
+  int tl_off = style.highlight_pixels + style.padding_pixels + style.spacing;
+  int br_off = style.shadow_pixels + style.padding_pixels + style.spacing;
+
+  r.x = tl_off;
+  r.width = bounds.width - r.x - br_off;
+  r.y = tl_off + wm().bar_height() + style.spacing;
+  r.height = bounds.height - r.y - br_off;
+  
   return r;
 }
 
+/* TODO: maybe optimize this */
 void WFrame::draw()
 {
-  WM &wm = client.wm;
-  FrameStyle &style = wm.frame_style;
+  WDrawable &d = wm().buffer_pixmap.drawable();
+  WFrameStyle &style = wm().frame_style;
 
-  FrameColors &colors = (this == column->selected_frame ?
-                         (column == column->view->selected_column ?
-                          style.active_colors : style.inactive_selected_colors)
-                         : style.inactive_colors);
+  WFrameStyleSpecialized &substyle
+    = (this == column()->selected_frame() ?
+       (column() == column()->view()->selected_column() ?
+        style.active_selected : style.inactive_selected)
+       : style.inactive);
 
-  WRect tile(0, 0, bounds.width, style.bar_height());
+  WRect rect(0, 0, bounds.width, bounds.height);
 
-  draw_tile(wm.buffer_pixmap.drawable(), *colors.frame_border_color,
-            *colors.bar_background_color, style.bar_border_width, tile);
+  fill_rect(d, substyle.background_color, rect);
 
-  tile.width -= 2 * style.bar_border_width;
-  tile.x = style.bar_border_width;
+  draw_border(d, substyle.highlight_color, style.highlight_pixels,
+              substyle.shadow_color, style.shadow_pixels,
+              rect);
 
-  draw_label(wm.buffer_pixmap.drawable(), client.name,
-             *style.bar_font, *colors.bar_foreground_color,
-             tile);
+  WRect rect2 = rect.inside_tl_br_border(style.highlight_pixels,
+                                         style.shadow_pixels);
 
-  tile = WRect(0, style.bar_height() - 1, bounds.width,
-               bounds.height - style.bar_height() + 1);
+  draw_border(d, substyle.padding_color, style.padding_pixels, rect2);
 
-  draw_rect_border(wm.buffer_pixmap.drawable(), *colors.frame_border_color,
-                   style.bar_border_width, tile);
+  WRect rect3(rect2.x + style.spacing, rect2.y + style.spacing,
+              rect2.width - 2 * style.spacing,
+              wm().bar_height());
 
-  draw_tile(wm.buffer_pixmap.drawable(), *colors.client_border_color,
-            *style.frame_background_color, style.client_border_width,
-            tile.inside_border(style.bar_border_width));
+  fill_rect(d, substyle.label_background_color, rect3);
 
-  XCopyArea(wm.xc.display(), wm.buffer_pixmap.drawable().drawable(),
-            client.frame_xwin,
-            wm.dc.gc(),
+  draw_label(d, client().name(), style.label_font, substyle.label_foreground_color,
+             rect3.inside_lr_tb_border(style.label_horizontal_spacing,
+                                       style.label_vertical_spacing));
+  
+  WRect client_rect = client_bounds();
+
+  fill_rect(d, style.client_background_color, client_rect);
+
+  
+  XCopyArea(wm().display(), d.drawable(),
+            client().frame_xwin(),
+            wm().dc.gc(),
             0, 0, bounds.width, bounds.height,
             0, 0);
 }

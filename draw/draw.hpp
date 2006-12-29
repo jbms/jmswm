@@ -48,6 +48,7 @@ public:
   int screen_width();
   int screen_height();
   int default_depth();
+  
 };
 
 class WDrawContext
@@ -155,11 +156,24 @@ public:
     : x(x), y(y), width(width), height(height)
   {}
 
-  WRect inside_border(int border_width) const
+  WRect inside_border(int l, int t, int r, int b) const
   {
-    return WRect(x + border_width, y + border_width,
-                 width - 2 * border_width,
-                 height - 2 * border_width);
+    return WRect(x + l, y + t, width - l - r, height - t - b);
+  }
+
+  WRect inside_border(int w) const
+  {
+    return inside_border(w, w, w, w);
+  }
+
+  WRect inside_lr_tb_border(int lr, int tb) const
+  {
+    return inside_border(lr, tb, lr, tb);
+  }
+
+  WRect inside_tl_br_border(int tl, int br) const
+  {
+    return inside_border(tl, tl, br, br);
   }
 };
 
@@ -240,5 +254,10 @@ void draw_border(WDrawable &d,
                  const WColor &highlight_color, int highlight_pixels,
                  const WColor &shadow_color, int shadow_pixels,
                  const WRect &rect);
+
+void draw_border(WDrawable &d,
+                 const WColor &c, int width,
+                 const WRect &rect);
+
 
 #endif /* _DRAW_HPP */

@@ -28,7 +28,7 @@ void WM::handle_configure_request(const XConfigureRequestEvent &ev)
     wc.y=ev.y;
     wc.width=ev.width;
     wc.height=ev.height;
-    XConfigureWindow(xc.display(), ev.window, ev.value_mask, &wc);
+    XConfigureWindow(display(), ev.window, ev.value_mask, &wc);
   }
 }
 
@@ -39,7 +39,7 @@ void WM::handle_expose(const XExposeEvent &ev)
     if (ev.count > 0)
       return;
     
-    client->mark_dirty(WClient::CLIENT_DRAWING_NEEDED);
+    client->schedule_drawing();
   }
 }
 
@@ -59,7 +59,7 @@ void WM::handle_property_notify(const XPropertyEvent &ev)
         || ev.atom == atom_net_wm_name)
     {
       client->update_name_from_server();
-      client->mark_dirty(WClient::CLIENT_DRAWING_NEEDED);
+      client->schedule_drawing();
     }
   }
 }
@@ -73,4 +73,13 @@ void WM::handle_unmap_notify(const XUnmapEvent &ev)
 
   if (WClient *client = client_of_win(ev.window))
     unmanage_client(client);
+}
+
+void WM::handle_enter_notify(const XCrossingEvent &ev)
+{
+  if (WClient *client = client_of_framewin(ev.window))
+  {
+    if (WFrame *frame = client->visible_frame())
+      frame->view()->select_frame(frame);
+  }
 }

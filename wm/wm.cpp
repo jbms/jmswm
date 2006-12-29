@@ -1,7 +1,9 @@
 
+#include <boost/foreach.hpp>
 #include <wm/wm.hpp>
 #include <boost/utility.hpp>
 #include <util/log.hpp>
+#include <wm/xwindow.hpp>
 
 static const char *event_type_to_string(int type)
 {
@@ -92,15 +94,15 @@ static int xwindow_error_handler(Display *dpy, XErrorEvent *ev)
   return 0;
 }
 
-static void xwindow_handle_event(int, short, void *wm_ptr)
+void WM::xwindow_handle_event(int, short, void *wm_ptr)
 {
   XEvent ev;
   WM &wm = *(WM *)wm_ptr;
 
-  if (!XPending(wm.xc.display()))
+  if (!XPending(wm.display()))
     return;
   do {
-    XNextEvent(wm.xc.display(), &ev);
+    XNextEvent(wm.display(), &ev);
     
     DEBUG("Got event: %s", event_type_to_string(ev.type));
 
@@ -124,11 +126,20 @@ static void xwindow_handle_event(int, short, void *wm_ptr)
     case UnmapNotify:
       wm.handle_unmap_notify(ev.xunmap);
       break;
+    case EnterNotify:
+      wm.handle_enter_notify(ev.xcrossing);
+      break;
+    case MappingNotify:
+      wm.handle_mapping_notify(ev.xmapping);
+      break;
+    case KeyPress:
+      wm.handle_keypress(ev.xkey);
+      break;
     default:
       DEBUG("  Unhandled event: %s", event_type_to_string(ev.type));
       break;
     }
-  } while (XPending(wm.xc.display()));
+  } while (XPending(wm.display()));
   
   wm.flush();
 }
@@ -140,18 +151,21 @@ static void set_root_window_cursor(WXContext &xc)
   XFreeCursor(xc.display(), cur);
 }
 
+
 WM::WM(Display *dpy, event_base *eb, const WFrameStyle::Spec &style_spec)
-  : xc(dpy),
-    dc(xc),
-    frame_style(style_spec),
-    buffer_pixmap(dc),
+  : WXContext(dpy),
     eb(eb),
-    selected_view(0)
+    dc(*this),
+    buffer_pixmap(dc),
+    client_to_focus(0),
+    frame_style(dc, style_spec),
+    selected_view_(0),
+    key_binding_state(0)
 {
   XSetErrorHandler(xwindow_error_handler);
 
   event_set(&x_connection_event, ConnectionNumber(dpy),
-            EV_PERSIST | EV_READ, &xwindow_handle_event, this);
+            EV_PERSIST | EV_READ, &WM::xwindow_handle_event, this);
   
   if (event_base_set(eb, &x_connection_event) != 0)
     ERROR_SYS("event_base_set");
@@ -160,35 +174,54 @@ WM::WM(Display *dpy, event_base *eb, const WFrameStyle::Spec &style_spec)
     ERROR_SYS("event_add");
 
 #define DECLARE_ATOM(var, str) \
-  var = XInternAtom(xc.display(), str, False);
+  var = XInternAtom(display(), str, False);
 #include "atoms.h"
 #undef DECLARE_ATOM
 
   redirect_error = false;
-  XSync(xc.display(), False);
+  XSync(display(), False);
   XSetErrorHandler(&xwindow_redirect_error_handler);
-  XSelectInput(xc.display(), xc.root_window(), WM_EVENT_MASK_ROOT);
-  XSync(xc.display(), False);
+  XSelectInput(display(), root_window(), WM_EVENT_MASK_ROOT);
+  XSync(display(), False);
   XSetErrorHandler(&xwindow_error_handler);
 
   if (redirect_error)
     ERROR("Failed to set root window event mask for screen %d.",
-          xc.screen_number());
+          screen_number());
 
-  set_root_window_cursor(xc);
+  set_root_window_cursor(*this);
 
-  buffer_pixmap.reset(xc.screen_width(), xc.screen_height());
+  buffer_pixmap.reset(screen_width(), screen_height());
+
+  initialize_key_handler();
 
   /* Add a default view */
-  selected_view = new WView(*this, "def");
+  select_view(new WView(*this, "def"));
 
   /* Manage existing clients */
-
-  /* TODO: actually do this */
+  /* FIXME: improve this */
+  {
+    Window junk1, junk2;
+    Window *top_level_windows = 0;
+    unsigned int top_level_window_count = 0;
+    XQueryTree(display(), root_window(), &junk1, &junk2,
+               &top_level_windows, &top_level_window_count);
+    for (unsigned int i = 0; i < top_level_window_count; ++i)
+    {
+      manage_client(top_level_windows[i], false);
+    }
+    XFree(top_level_windows);
+  }
 
   flush();
-
 }
+
+WM::~WM()
+{
+  deinitialize_key_handler();
+  event_del(&x_connection_event);
+}
+
 
 void WM::flush(void)
 {
@@ -197,9 +230,15 @@ void WM::flush(void)
        it = next)
   {
     next = boost::next(it);
+    it->perform_deferred_work();
+  }
 
-    it->handle_pending_work();
+  if (client_to_focus)
+  {
+    client_to_focus->focus();
+    client_to_focus = 0;
   }
   
-  XFlush(xc.display());
+  XFlush(display());
 }
+
