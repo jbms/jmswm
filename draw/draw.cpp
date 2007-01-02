@@ -226,6 +226,109 @@ void draw_label(WDrawable &d, const utf8_string &text,
   g_object_unref(pl);
 }
 
+int draw_label_with_background(WDrawable &d,
+                               const utf8_string &text,
+                               const WFont &font,
+                               const WColor &foreground,
+                               const WColor &background,
+                               const WRect &rect,
+                               int label_horizontal_padding,
+                               int label_vertical_padding,
+                               bool right_aligned)
+{
+  PangoLayout *pl = pango_layout_new(d.draw_context().pango_context());
+  pango_layout_set_text(pl, text.data(), text.length());
+  pango_layout_set_font_description(pl, font.pango_font_description());
+  pango_layout_set_width(pl, (rect.width - 2 * label_horizontal_padding)
+                         * PANGO_SCALE);
+  pango_layout_set_single_paragraph_mode(pl, TRUE);
+  pango_layout_set_ellipsize(pl, PANGO_ELLIPSIZE_MIDDLE);
+
+  PangoLayoutLine *line = pango_layout_get_line(pl, 0);
+
+  PangoRectangle ink_rect;
+  pango_layout_line_get_pixel_extents(line, &ink_rect, 0);
+
+  int width = ink_rect.width;
+  
+  int frame_width = width + 2 * label_horizontal_padding;
+
+  int base_x = rect.x;
+
+  if (right_aligned)
+    base_x += (rect.width - frame_width);
+
+  XftColor xftc;
+  wcolor_to_xftcolor(foreground, xftc);
+
+  int y = (rect.y + label_vertical_padding
+           + (rect.height - 2 * label_vertical_padding - font.height()) / 2
+           + font.ascent());
+  int x = base_x + label_horizontal_padding;
+
+
+  /* Draw background */
+  fill_rect(d, background,
+            WRect(base_x, rect.y,
+                  frame_width,
+                  rect.height));
+
+  pango_xft_render_layout_line(d.xft_draw(), &xftc, line,
+                               x * PANGO_SCALE, y * PANGO_SCALE);
+  g_object_unref(pl);
+
+  return width;
+}
+
+void draw_label_with_cursor(WDrawable &d, const utf8_string &text,
+                            const WFont &font, const WColor &c,
+                            const WColor &cursor_foreground,
+                            const WColor &cursor_background,
+                            const WRect &rect,
+                            int cursor_position)
+{
+  PangoLayout *pl = pango_layout_new(d.draw_context().pango_context());
+  pango_layout_set_text(pl, text.data(), text.length());
+  pango_layout_set_font_description(pl, font.pango_font_description());
+  pango_layout_set_width(pl, rect.width * PANGO_SCALE);
+  pango_layout_set_single_paragraph_mode(pl, TRUE);
+  pango_layout_set_ellipsize(pl, PANGO_ELLIPSIZE_MIDDLE);
+
+  PangoAttrList *attr_list = pango_attr_list_new();
+  PangoAttribute *attr1
+    = pango_attr_background_new(cursor_background.red(),
+                                cursor_background.green(),
+                                cursor_background.blue());
+  attr1->start_index = cursor_position;
+  attr1->end_index = cursor_position + 1;
+  pango_attr_list_insert(attr_list, attr1);
+
+  PangoAttribute *attr2
+    = pango_attr_foreground_new(cursor_foreground.red(),
+                                cursor_foreground.green(),
+                                cursor_foreground.blue());
+  attr2->start_index = cursor_position;
+  attr2->end_index = cursor_position + 1;
+  pango_attr_list_insert(attr_list, attr2);
+  
+  pango_layout_set_attributes(pl, attr_list);
+
+  XftColor xftc;
+  wcolor_to_xftcolor(c, xftc);
+
+  int y = (rect.y + (rect.height - font.height()) / 2 + font.ascent());
+  int x = rect.x;
+
+  pango_xft_render_layout_line(d.xft_draw(), &xftc, pango_layout_get_line(pl, 0),
+                               x * PANGO_SCALE, y * PANGO_SCALE);
+  g_object_unref(pl);
+
+  // It appears that pango_attribute_destroy must not be called on
+  // attr1, attr2.
+  pango_attr_list_unref(attr_list);
+}
+
+
 void fill_rect(WDrawable &d, const WColor &background,
                const WRect &rect)
 {

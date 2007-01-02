@@ -4,26 +4,28 @@
 all: jmswm
 
 clean:
-	rm -f $(OBJECTS) libdraw.a libutil.a jmswm
+	rm -f $(OBJECTS) libdraw.a libutil.a libmenu.a xjmswm
 
 UTIL_OBJECTS := util/close_on_exec.o util/log.o
 
 DRAW_OBJECTS := draw/draw.o
 
-WM_OBJECTS := wm/client.o wm/frame.o wm/view.o wm/xwindow.o wm/event.o wm/main.o \
-              wm/wm.o wm/key.o
+MENU_OBJECTS := menu/menu.o
 
-OBJECTS := $(UTIL_OBJECTS) $(DRAW_OBJECTS) $(WM_OBJECTS)
+WM_OBJECTS := wm/client.o wm/frame.o wm/view.o wm/xwindow.o wm/event.o wm/main.o \
+              wm/wm.o wm/key.o wm/persistence.o wm/sizehint.o wm/bar.o
+
+OBJECTS := $(UTIL_OBJECTS) $(DRAW_OBJECTS) $(WM_OBJECTS) $(MENU_OBJECTS)
 
 SOURCES := $(OBJECTS:%.o=%.cpp)
 
-LDFLAGS += -levent
+LDLIBS += -levent -lboost_serialization
 
-LDFLAGS += -lX11 $(shell pkg-config --libs pango xft pangoxft)
+LDLIBS += -lX11 -lXrandr $(shell pkg-config --libs pango xft pangoxft)
 
 CXXFLAGS += -g -Wall -Werror $(shell pkg-config --cflags pango xft pangoxft)
 
-CPPFLAGS += -I. -I/home/jbms/src/boost -I/home/jbms/src/boost-sandbox
+CPPFLAGS += -I.
 
 $(OBJECTS): Makefile
 
@@ -32,10 +34,11 @@ $(OBJECTS): Makefile
 
 
 libdraw.a: $(DRAW_OBJECTS)
+libmenu.a: $(MENU_OBJECTS)
 libutil.a: $(UTIL_OBJECTS)
 
-jmswm: $(WM_OBJECTS) libdraw.a libutil.a
-	$(LINK.cpp) -o $@ $(WM_OBJECTS) libdraw.a libutil.a
+jmswm: $(WM_OBJECTS) libdraw.a libutil.a libmenu.a
+	$(LINK.cpp) $(WM_OBJECTS) libdraw.a libutil.a libmenu.a $(LOADLIBES) $(LDLIBS) -o $@
 
 $(OBJECTS:.o=.d): %.d: %.cpp Makefile
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -M -MF $@ -MP $< -MT $(@:.d=.o)

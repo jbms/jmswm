@@ -175,6 +175,12 @@ public:
   {
     return inside_border(tl, tl, br, br);
   }
+
+  bool contains_point(int px, int py)
+  {
+    return (px >= x && px < x + width
+            && py >= y && py < y + height);
+  }
 };
 
 inline bool operator==(WRect const &a, WRect const &b)
@@ -239,6 +245,27 @@ public:
 void draw_label(WDrawable &d, const utf8_string &text,
                 const WFont &font, const WColor &c,
                 const WRect &rect);
+
+/**
+ * Returns the width used.  Note that rect.width is the maximum width,
+ * not the width to use.
+ */
+int draw_label_with_background(WDrawable &d,
+                               const utf8_string &text,
+                               const WFont &font,
+                               const WColor &foreground,
+                               const WColor &background,
+                               const WRect &rect,
+                               int label_horizontal_padding,
+                               int label_vertical_padding,
+                               bool right_aligned);
+
+void draw_label_with_cursor(WDrawable &d, const utf8_string &text,
+                            const WFont &font, const WColor &c,
+                            const WColor &cursor_foreground,
+                            const WColor &cursor_background,
+                            const WRect &rect,
+                            int cursor_position);
 
 void fill_rect(WDrawable &d, const WColor &background,
                const WRect &rect);

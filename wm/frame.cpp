@@ -6,7 +6,23 @@
 int WM::bar_height() const
 {
   return frame_style.label_font.height()
-    + frame_style.label_vertical_spacing * 2;
+    + frame_style.label_vertical_padding * 2;
+}
+
+static int top_left_offset(const WM &wm)
+{
+  const WFrameStyle &style = wm.frame_style;
+  int tl_off = style.highlight_pixels + style.padding_pixels + style.spacing;
+
+  return tl_off;
+}
+
+static int bottom_right_offset(const WM &wm)
+{
+  const WFrameStyle &style = wm.frame_style;
+  int br_off = style.shadow_pixels + style.padding_pixels + style.spacing;
+
+  return br_off;
 }
 
 WRect WFrame::client_bounds() const
@@ -15,8 +31,8 @@ WRect WFrame::client_bounds() const
 
   WRect r;
 
-  int tl_off = style.highlight_pixels + style.padding_pixels + style.spacing;
-  int br_off = style.shadow_pixels + style.padding_pixels + style.spacing;
+  int tl_off = top_left_offset(wm());
+  int br_off = bottom_right_offset(wm());
 
   r.x = tl_off;
   r.width = bounds.width - r.x - br_off;
@@ -24,6 +40,11 @@ WRect WFrame::client_bounds() const
   r.height = bounds.height - r.y - br_off;
   
   return r;
+}
+
+int WM::shaded_height() const
+{
+  return bar_height() + top_left_offset(*this) + bottom_right_offset(*this);
 }
 
 /* TODO: maybe optimize this */
@@ -51,19 +72,21 @@ void WFrame::draw()
 
   draw_border(d, substyle.padding_color, style.padding_pixels, rect2);
 
-  WRect rect3(rect2.x + style.spacing, rect2.y + style.spacing,
-              rect2.width - 2 * style.spacing,
-              wm().bar_height());
+  WRect rect3 = rect2.inside_border(style.padding_pixels + style.spacing);
+  rect3.height = wm().bar_height();
 
   fill_rect(d, substyle.label_background_color, rect3);
 
   draw_label(d, client().name(), style.label_font, substyle.label_foreground_color,
-             rect3.inside_lr_tb_border(style.label_horizontal_spacing,
-                                       style.label_vertical_spacing));
-  
-  WRect client_rect = client_bounds();
+             rect3.inside_lr_tb_border(style.label_horizontal_padding,
+                                       style.label_vertical_padding));
 
-  fill_rect(d, style.client_background_color, client_rect);
+  if (!shaded())
+  {
+    WRect client_rect = client_bounds();
+
+    fill_rect(d, style.client_background_color, client_rect);
+  }
 
   
   XCopyArea(wm().display(), d.drawable(),

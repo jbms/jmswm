@@ -8,8 +8,9 @@
 
 WClient::WClient(WM &wm, Window w)
   : wm_(wm),
-    dirty_state(CLIENT_NOT_DIRTY),
-    xwin_(w)
+    scheduled_tasks(0),
+    xwin_(w),
+    flags_(0)
 {}
 
 WFrame *WClient::visible_frame()
@@ -100,11 +101,11 @@ void WM::manage_client(Window w, bool map_request)
     return;
   }
 
+  c->update_size_hints_from_server();
+  c->update_protocols_from_server();
   c->update_name_from_server();
   c->update_class_from_server();
   c->update_role_from_server();
-
-  /* FIXME: get other information, like the protocols, class name, etc. */
 
   managed_clients.insert(std::make_pair(c->xwin_, c.get()));
   framewin_map.insert(std::make_pair(c->frame_xwin_, c.get()));
@@ -118,7 +119,48 @@ void WM::manage_client(Window w, bool map_request)
 
   c->current_iconic_state = WClient::ICONIC_STATE_UNKNOWN;
 
-  place_client(c.release());
+  WClient *ptr = c.release();
+
+  if (map_request || !place_existing_client(ptr))
+    place_client(ptr);
+}
+
+void WClient::update_size_hints_from_server()
+{
+  long junk;
+  /* Get window manager size hints */
+  if (!XGetWMNormalHints(wm().display(), xwin_,
+                         &size_hints_, &junk))
+    size_hints_.flags = 0;
+
+  /* Have all columns containing this client update positions, so that
+     minimum size and aspect ratio hints are handled. */
+  for (ViewFrameMap::iterator it = view_frames_.begin();
+       it != view_frames_.end();
+       ++it)
+  {
+    it->second->column()->schedule_update_positions();
+  }
+}
+
+void WClient::update_protocols_from_server()
+{
+  Atom *protocols;
+  int count;
+  
+  flags_ &= ~PROTOCOL_FLAGS;
+  
+  if (XGetWMProtocols(wm().display(), xwin_, &protocols, &count))
+  {
+    for (int i = 0; i < count; ++i)
+    {
+      if (protocols[i] == wm().atom_wm_delete_window)
+        flags_ |= WM_DELETE_WINDOW_FLAG;
+      else if (protocols[i] == wm().atom_wm_take_focus)
+        flags_ |= WM_TAKE_FOCUS_FLAG;
+    }
+    XFree(protocols);
+  }
 }
 
 void WClient::update_name_from_server()
@@ -128,17 +170,38 @@ void WClient::update_name_from_server()
   if (!xwindow_get_utf8_property(wm().display(), xwin_, wm().atom_net_wm_name, name_)
       && !xwindow_get_utf8_property(wm().display(), xwin_, XA_WM_NAME, name_))
   {
-    DEBUG("Failed to get client name");
+    return;
   }
-  
+
+  schedule_draw();
 }
 
 void WClient::update_class_from_server()
 {
+  XClassHint class_hint;
+  class_hint.res_name = 0;
+  class_hint.res_class = 0;
+
+  XGetClassHint(wm().display(), xwin_, &class_hint);
+
+  if (class_hint.res_name)
+  {
+    instance_name_ = class_hint.res_name;
+    XFree(class_hint.res_name);
+  }
+
+  if (class_hint.res_class)
+  {
+    instance_name_ = class_hint.res_class;
+    XFree(class_hint.res_class);
+  }
 }
 
 void WClient::update_role_from_server()
 {
+  /* FIXME: this should not use utf8 */
+  xwindow_get_utf8_property(wm().display(), xwin_, wm().atom_wm_window_role,
+                            window_role_);
 }
 
 void WM::place_client(WClient *c)
@@ -147,23 +210,32 @@ void WM::place_client(WClient *c)
 
   WView *view = selected_view();
 
+  if (!view)
+  {
+    view = new WView(*this, "def");
+    select_view(view);
+  }
+
   /* TODO: Use a better policy */
   if (view->columns.size() < 3)
   {
-    WView::iterator it = view->next_column(view->selected_position(), false);
-  
+    WView::iterator it = view->selected_position();
+    if (it != view->columns.end())
+      ++it;
     column = view->create_column(it);
   } else
   {
     column = view->selected_position();
   }
 
-  WColumn::iterator it = column->next_frame(column->selected_position(), false);
+  WColumn::iterator it = column->selected_position();
+  if (it != column->frames.end())
+    ++it;
   
-  WColumn::iterator frame = column->add_client(c, it);
+  WColumn::iterator frame = column->add_frame(new WFrame(*c), it);
 
   /* TODO: don't always focus this client */
-  view->select_frame(&*frame);
+  view->select_frame(&*frame, true);
 }
 
 void WM::unmanage_client(WClient *client)
@@ -182,9 +254,6 @@ void WM::unmanage_client(WClient *client)
     delete f;
   }
 
-  if (client_to_focus == client)
-    client_to_focus = 0;
-
   /* TODO: check if different error handling needs to be used here */
 
   XReparentWindow(display(), client->xwin_, root_window(),
@@ -195,6 +264,9 @@ void WM::unmanage_client(WClient *client)
   framewin_map.erase(client->frame_xwin_);
 
   XRemoveFromSaveSet(display(), client->xwin_);
+
+  /* Remove WM_STATE property per ICCCM */
+  XDeleteProperty(display(), client->xwin_, atom_wm_state);
 
   XSelectInput(display(), client->xwin_, 0);
   
@@ -224,6 +296,20 @@ bool WM::get_window_WM_STATE(Window w, int &state_ret)
   return true;
 }
 
+void WM::send_client_message(Window w, Atom a, Time timestamp)
+{
+  XClientMessageEvent ev;
+    
+  ev.type=ClientMessage;
+  ev.window=w;
+  ev.message_type=atom_wm_protocols;
+  ev.format=32;
+  ev.data.l[0]=a;
+  ev.data.l[1]=timestamp;
+    
+  XSendEvent(display(), w, False, 0L, (XEvent*)&ev);
+}
+
 void WClient::set_iconic_state(iconic_state_t state)
 {
   if (state != current_iconic_state)
@@ -235,79 +321,148 @@ void WClient::set_iconic_state(iconic_state_t state)
   }
 }
 
-void WClient::perform_deferred_work()
+void WClient::set_frame_map_state(map_state_t state)
 {
-  if (dirty_state == CLIENT_NOT_DIRTY)
-    return;
+  if (state != frame_map_state)
+  {
+    switch (state)
+    {
+    case STATE_MAPPED:
+      XMapWindow(wm().display(), frame_xwin_);
+      
+      /* Lower the frame window; frames should not obscure any other
+         windows (such as the menu). */
+      XLowerWindow(wm().display(), frame_xwin_);
+      break;
+    case STATE_UNMAPPED:
+      XUnmapWindow(wm().display(), frame_xwin_);
+      break;
+    }
+    frame_map_state = state;
+  }
+}
 
+void WClient::set_client_map_state(map_state_t state)
+{
+  if (state != client_map_state)
+  {
+    switch (state)
+    {
+    case STATE_MAPPED:
+      XMapWindow(wm().display(), xwin_);
+      break;
+    case STATE_UNMAPPED:
+      /* TODO: perhaps avoid disabling events */
+      XSelectInput(wm().display(), xwin_,
+                   WM_EVENT_MASK_CLIENTWIN & ~StructureNotifyMask);
+      XUnmapWindow(wm().display(), xwin_);
+      XSelectInput(wm().display(), xwin_, WM_EVENT_MASK_CLIENTWIN);
+      break;
+    }
+    client_map_state = state;
+  }
+}
+
+void WClient::perform_scheduled_tasks()
+{
+  assert(scheduled_tasks != 0);
+  
+  wm().scheduled_task_clients.erase(wm().scheduled_task_clients.current(*this));
+
+  
   WFrame *f = visible_frame();
 
-  if (dirty_state == CLIENT_POSITIONING_NEEDED)
+  if (scheduled_tasks & UPDATE_SERVER_FLAG)
   {
+    map_state_t desired_client_state, desired_frame_state;
+    iconic_state_t desired_iconic_state;
+    
     if (f)
     {
-      WRect desired_client_bounds = f->client_bounds();
-
+      desired_frame_state = STATE_MAPPED;
       if (current_frame_bounds != f->bounds)
       {
+        /* Check if a warp should be performed */
+        if (!(scheduled_tasks & WARP_POINTER_FLAG)
+            && frame_map_state == STATE_MAPPED
+            && f == wm().selected_frame())
+        {
+          Window root;
+          Window child;
+          int root_x, root_y, win_x, win_y;
+          unsigned int mask;
+          XQueryPointer(wm().display(), wm().root_window(),
+                        &root, &child, &root_x, &root_y,
+                        &win_x, &win_y, &mask);
+          if (current_frame_bounds.contains_point(root_x, root_y)
+              && !f->bounds.contains_point(root_x, root_y))
+            scheduled_tasks |= WARP_POINTER_FLAG;
+        }
+        
         XMoveResizeWindow(wm().display(), frame_xwin_,
                           f->bounds.x, f->bounds.y,
                           f->bounds.width, f->bounds.height);
         current_frame_bounds = f->bounds;
       }
 
-      if (current_client_bounds != desired_client_bounds)
+      if (!f->shaded())
       {
-        XMoveResizeWindow(wm().display(), xwin_,
-                          desired_client_bounds.x,
-                          desired_client_bounds.y,
-                          desired_client_bounds.width,
-                          desired_client_bounds.height);
-        current_client_bounds = desired_client_bounds;
-      }
-
-      if (client_map_state != STATE_MAPPED)
+        desired_client_state = STATE_MAPPED;
+        desired_iconic_state = ICONIC_STATE_NORMAL;
+        
+        WRect desired_client_bounds
+          = compute_actual_client_bounds(f->client_bounds());
+        
+        if (current_client_bounds != desired_client_bounds)
+        {
+          XMoveResizeWindow(wm().display(), xwin_,
+                            desired_client_bounds.x,
+                            desired_client_bounds.y,
+                            desired_client_bounds.width,
+                            desired_client_bounds.height);
+          current_client_bounds = desired_client_bounds;
+        }
+      } else
       {
-        XMapWindow(wm().display(), xwin_);
-        client_map_state = STATE_MAPPED;
+        desired_client_state = STATE_UNMAPPED;
+        desired_iconic_state = ICONIC_STATE_ICONIC;
       }
-
-      if (frame_map_state != STATE_MAPPED)
-      {
-        XMapWindow(wm().display(), frame_xwin_);
-        frame_map_state = STATE_MAPPED;
-      }
-
-      set_iconic_state(ICONIC_STATE_NORMAL);
     } else
     {
+      desired_frame_state = STATE_UNMAPPED;
+      desired_client_state = STATE_UNMAPPED;
+      desired_iconic_state = ICONIC_STATE_ICONIC;
+    }
 
-      set_iconic_state(ICONIC_STATE_ICONIC);
+    set_client_map_state(desired_client_state);
+    set_frame_map_state(desired_frame_state);
+    set_iconic_state(desired_iconic_state);
+  }
 
-      if (frame_map_state != STATE_UNMAPPED)
-      {
-        XUnmapWindow(wm().display(), frame_xwin_);
-        frame_map_state = STATE_UNMAPPED;
-      }
+  if (f && (scheduled_tasks & (UPDATE_SERVER_FLAG | DRAW_FLAG)))
+    f->draw();
 
-      if (client_map_state != STATE_UNMAPPED)
-      {
-        /* TODO: perhaps avoid disabling events */
-        XSelectInput(wm().display(), xwin_,
-                     WM_EVENT_MASK_CLIENTWIN & ~StructureNotifyMask);
-        XUnmapWindow(wm().display(), xwin_);
-        XSelectInput(wm().display(), xwin_, WM_EVENT_MASK_CLIENTWIN);
-        client_map_state = STATE_UNMAPPED;
-      }
+  if (f && f == wm().selected_frame())
+
+  {
+    if (scheduled_tasks & SET_INPUT_FOCUS_FLAG)
+    {
+      /* TODO: handle WM_TAKE_FOCUS */
+      /* TODO: fix this hack */
+      if (f->shaded())
+        xwindow_set_input_focus(wm().display(), frame_xwin_);
+      else
+        xwindow_set_input_focus(wm().display(), xwin_);
+    }
+
+    if (scheduled_tasks & WARP_POINTER_FLAG)
+    {
+      XWarpPointer(wm().display(), None, frame_xwin_, 0, 0, 0, 0,
+                   0, 0);
     }
   }
 
-  if (f)
-    f->draw();
-
-  dirty_state = CLIENT_NOT_DIRTY;
-
-  wm().dirty_clients.erase(wm().dirty_clients.current(*this));
+  scheduled_tasks = 0;
 }
 
 void WClient::handle_configure_request(const XConfigureRequestEvent &ev)
@@ -338,13 +493,23 @@ void WClient::notify_client_of_root_position()
   XSelectInput(wm().display(), xwin_, WM_EVENT_MASK_CLIENTWIN);
 }
 
-void WClient::focus()
+void WClient::kill()
 {
-  /* TODO: handle WM_TAKE_FOCUS */
-  xwindow_set_input_focus(wm().display(), xwin_);
+  XKillClient(wm().display(), xwin_);
 }
 
-void WM::schedule_focus_client(WClient *client)
+void WClient::destroy()
 {
-  client_to_focus = client;
+  XDestroyWindow(wm().display(), xwin_);
+}
+
+void WClient::request_close()
+{
+  if (flags_ & WM_DELETE_WINDOW_FLAG)
+  {
+    wm().send_client_message(xwin_, wm().atom_wm_delete_window);
+  } else
+  {
+    destroy();
+  }
 }

@@ -16,11 +16,4 @@ unsigned long xwindow_get_property(Display *dpy,
 
 void xwindow_set_input_focus(Display *dpy, Window w);
 
-void xwindow_grab_key(Display *dpy, Window win,
-                      int keycode, int modifiers,
-                      bool owner_events = false,
-                      int pointer_mode = GrabModeAsync,
-                      int keyboard_mode = GrabModeAsync);
-
-
 #endif /* _UTIL_XWINDOW_HPP */

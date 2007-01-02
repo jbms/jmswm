@@ -1,0 +1,57 @@
+
+Core functionality:
+
+- Handling more window properties
+
+- Transient handling (maybe)
+
+- Proper use of window properties/standard conformance
+
+- Status bar support
+
+DONE - Restart support (saving all state in window properties)
+
+Need to know the name of the selected view, selected column number
+
+Need to know the frame information for every client:
+
+  for each frame:
+
+   view name
+   column number
+   position in column
+   priority
+   whether it is selected
+   other flags (shaded, bar visible, etc.)
+
+- Robustness against focus-stealing clients
+
+- Robustness against too many frames per column or columns per view
+
+- Handle focus change on shading
+
+- Solution to shading and auto-sizing: keep a priority value for each frame
+
+- If the pointer is in a window before a repositiong, it is warped to
+  remain in it after.
+
+
+Suppose all positioning is deferred:
+
+
+  - Pointer positioning:
+
+ 
+  If we are positioning the focused client, and the frame window is already mapped:
+
+    Query pointer position.
+
+    If frame window previously contained it, and now it won't, warp.
+
+
+
+  Always warp when starting up.
+
+
+
+

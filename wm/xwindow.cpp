@@ -2,6 +2,9 @@
 #include <wm/xwindow.hpp>
 #include <X11/Xutil.h>
 
+/* FIXME: this function should be fixed to do correct conversion,
+   check the type atom, etc. */
+
 /*
  * This function is based on code from Ion.
  * Copyright (c) Tuomo Valkonen 1999-2006.
@@ -38,6 +41,8 @@ bool xwindow_get_utf8_property(Display *dpy,
 
   return true;
 }
+
+/* FIXME: the interface to this function should be improved */
 
 /* Based on Ion code */
 /* Copyright (c) Tuomo Valkonen 1999-2006. */
@@ -95,13 +100,3 @@ void xwindow_set_input_focus(Display *dpy, Window w)
   //XSetInputFocus(dpy, w, RevertToParent, CurrentTime);
   XSetInputFocus(dpy, w, RevertToPointerRoot, CurrentTime);
 }
-
-void xwindow_grab_key(Display *dpy, Window win,
-                      int keycode, int modifiers,
-                      bool owner_events,
-                      int pointer_mode,
-                      int keyboard_mode)
-{
-  
-}
-

@@ -1,0 +1,41 @@
+
+class WMenu
+{
+  Window xwin_;
+  WM &wm;
+
+  WTopLevelKeyMap *keymap;
+
+  void handle_screen_size_changed(void);
+  void handle_keypress(XKeyEvent);
+  void handle_expose(ev.xexpose);
+};
+
+
+
+
+events for menu to handle:
+
+xrandr
+keypress
+expose
+
+
+mappingnotify -- partially
+
+
+actions:
+
+
+bool read_string( SuccessAction(string), FailAction(void) )
+
+returns true if it is started, false if menu is already in use.
+
+
+
+Note: in general, menu callbacks must not contain any references
+to WM non-persistent objects, like clients, frames, columns,
+views.
+
+
+

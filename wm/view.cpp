@@ -6,7 +6,9 @@
 #include <util/log.hpp>
 
 WView::WView(WM &wm, const utf8_string &name)
-  : wm_(wm),  name_(name), selected_column_(0)
+  : wm_(wm),  name_(name),
+    scheduled_update_positions(false),    
+    selected_column_(0)
 {
   compute_bounds();
 
@@ -23,6 +25,8 @@ void WView::compute_bounds()
 {
   bounds.width = wm().screen_width();
   bounds.height = wm().screen_height();
+  if (wm().bar_visible())
+    bounds.height -= wm().bar.height();
   bounds.x = 0;
   bounds.y = 0;
 }
@@ -35,72 +39,88 @@ int WView::available_column_width() const
   return bounds.width;
 }
 
-
-WView::iterator WView::create_column(WView::iterator position, float fraction)
+WView::iterator WView::default_insert_position()
 {
-  if (fraction == 0)
-    fraction = 1.0f / (columns.size() + 1);
+  iterator it = selected_position();
+  if (it != columns.end())
+    ++it;
+  return it;
+}
 
-  int added_width;
 
-  if (columns.empty())
-    added_width = bounds.width;
-  else
-    added_width = (int)(available_column_width() * fraction / (1.0f - fraction));
 
+WView::iterator WView::create_column(WView::iterator position)
+{
   WColumn *column = new WColumn(this);
-  column->bounds.width = added_width;
-
   iterator it = columns.insert(position, *column);
 
   if (!selected_column())
     select_column(it);
 
-  update_positions();
+  schedule_update_positions();
 
   return it;
 }
 
-void WView::update_positions()
+void WView::perform_scheduled_tasks()
 {
+  assert(scheduled_update_positions);
+  
+  wm().scheduled_task_views.erase(wm().scheduled_task_views.current(*this));
+
+  scheduled_update_positions = false;
+  
   if (columns.empty())
     return;
-  
-  int x = bounds.x;
+
+  float total_priority = 0.0f;
+
   int available_width = available_column_width();
   int remaining_width = available_width;
   
-  int actual_width = 0;
   BOOST_FOREACH (WColumn &c, columns)
-    actual_width += c.bounds.width;
+    total_priority += c.priority();
 
-  for (iterator it = columns.begin(); it != columns.end(); ++it)
+  int x = bounds.x;
+
+  BOOST_FOREACH (WColumn &c, columns)
   {
-    WColumn &c = *it;
     c.bounds.x = x;
     int width;
-    if (boost::next(it) == columns.end())
+    if (&c == &columns.back())
       width = remaining_width;
     else
-      width = c.bounds.width * available_width / actual_width;
+      width = (int)(c.priority() / total_priority * available_width);
     remaining_width -= width;
     x += width;
     c.bounds.width = width;
     c.bounds.y = bounds.y;
     c.bounds.height = bounds.height;
-    c.update_positions();
+    c.schedule_update_positions();
   }
 }
 
-WFrame::WFrame(WClient &client, WColumn *column)
-  : client_(client), column_(column), rolled_(false),
-    bar_visible_(false)
+WFrame::WFrame(WClient &client)
+  : client_(client), column_(0), shaded_(false),
+    bar_visible_(false), priority_(initial_priority),
+    initial_position(-1)
 {
 }
 
 WColumn::WColumn(WView *view)
-  : view_(view), selected_frame_(0)
+  : view_(view), selected_frame_(0), scheduled_update_positions(false),
+    priority_(initial_priority)
 {}
+
+void WColumn::set_priority(float value)
+{
+  if (value < minimum_priority)
+    value = minimum_priority;
+  if (value > maximum_priority)
+    value = maximum_priority;
+  priority_ = value;
+  view()->schedule_update_positions();
+}
 
 /**
  * This returns a bogus value if there are no frames.
@@ -110,60 +130,126 @@ int WColumn::available_frame_height() const
   return bounds.height;
 }
 
-WColumn::iterator WColumn::add_client(WClient *client, WColumn::iterator position)
+WColumn::iterator WColumn::default_insert_position()
 {
-  WFrame *frame = new WFrame(*client, this);
+  iterator it = selected_position();
+  if (it != frames.end())
+    ++it;
+  return it;
+}
 
-  client->view_frames_.insert(std::make_pair(view(), frame));
-
-  int height;
-
-  if (frames.empty())
-    height = bounds.height;
-  else
-    height = available_frame_height() / frames.size();
-  
-  frame->bounds.height = height;
+WColumn::iterator WColumn::add_frame(WFrame *frame, WColumn::iterator position)
+{
+  frame->column_ = this;
+  frame->client().view_frames_.insert(std::make_pair(view(), frame));
 
   iterator it = frames.insert(position, *frame);
 
   if (!selected_frame())
     select_frame(it);
 
-  update_positions();
+  schedule_update_positions();
 
   return it;
 }
 
-void WColumn::update_positions()
+/**
+ * Note: If all frames are set to shaded, the last one is
+ * automatically unshaded.
+ *
+ * Policy for handling a maximum size hint:
+ *
+ * If 
+ *
+ * TODO: handle the case where there are too many frames to show even
+ * the bars
+ */
+void WColumn::perform_scheduled_tasks()
 {
+  assert(scheduled_update_positions);
+  
+  wm().scheduled_task_columns.erase(wm().scheduled_task_columns.current(*this));
+  scheduled_update_positions = false;
+  
   if (frames.empty())
     return;
 
-  int y = bounds.y;
   int available_height = available_frame_height();
-  int remaining_height = available_height;
 
-  int actual_height = 0;
+  WFrame *last_unshaded = 0;
+  float total_priority = 0.0f;
+  
   BOOST_FOREACH (WFrame &f, frames)
-    actual_height += f.bounds.height;
-
-  for (iterator it = frames.begin(); it != frames.end(); ++it)
   {
-    WFrame &f = *it;
+    if (!f.shaded())
+      last_unshaded = &f;
+    else
+    {
+      /*
+      if (&f == &frames.back() && !last_unshaded)
+      {
+        f.shaded_ = false;
+        last_unshaded = &f;
+      }
+      */
+    }
+    
+    if (f.shaded())
+      available_height -= wm().shaded_height();
+    else
+      total_priority += f.priority();
+  }
+
+  int remaining_height = available_height;
+  int y = bounds.y;
+
+  BOOST_FOREACH (WFrame &f, frames)
+  {
     f.bounds.y = y;
     int height;
-    if (boost::next(it) == frames.end())
+    if (f.shaded())
+      height = wm().shaded_height();
+    else if (&f == last_unshaded)
       height = remaining_height;
     else
-      height = f.bounds.height * available_height / actual_height;
+      height = (int)(f.priority() / total_priority * available_height);
     y += height;
-    remaining_height -= height;
+    if (!f.shaded())
+      remaining_height -= height;
     f.bounds.height = height;
     f.bounds.x = bounds.x;
     f.bounds.width = bounds.width;
-    f.client().schedule_positioning();
+    f.client().schedule_update_server();
   }
+}
+
+WColumn::~WColumn()
+{
+  assert(frames.empty());
+  
+  WView::iterator cur_col_it = view()->make_iterator(this);
+      
+  if (this == view()->selected_column())
+  {
+    WView::iterator col_it = cur_col_it;
+    if (col_it == view()->columns.begin())
+      col_it = boost::next(col_it);
+    else
+      col_it = boost::prior(col_it);
+    if (col_it != view()->columns.end())
+      view()->select_column(col_it);
+    else
+      view()->select_column(0);
+  }
+      
+  view()->columns.erase(cur_col_it);
+  view()->schedule_update_positions();
+}
+
+WFrame::~WFrame()
+{
+  if (column())
+    remove();
 }
 
 void WFrame::remove()
@@ -180,59 +266,68 @@ void WFrame::remove()
     if (it != column()->frames.end())
       column()->select_frame(it);
     else
-    {
-      /* The column is empty, so it must be removed. */
-      WView::ColumnList::iterator cur_col_it
-        = view()->make_iterator(column());
-      
-      if (column() == view()->selected_column())
-      {
-        WView::ColumnList::iterator col_it = cur_col_it;
-        if (col_it == view()->columns.begin())
-          col_it = boost::next(col_it);
-        else
-          col_it = boost::prior(col_it);
-        if (col_it != view()->columns.end())
-          view()->select_column(col_it);
-        else
-          view()->select_column(0);
-      }
-      
-      view()->columns.erase(cur_col_it);
-      view()->update_positions();
-      delete column();
-      column_ = 0;
-      return;
-    }
+      column()->select_frame(0);
+
   }
   column()->frames.erase(cur_frame_it);
-  column()->update_positions();
+  column()->schedule_update_positions();
+
+  if (column()->frames.empty())
+    delete column();
+
   column_ = 0;
 }
 
-void WColumn::select_frame(WFrame *frame)
+void WFrame::set_shaded(bool value)
+{
+  shaded_ = value;
+
+  if (column())
+  {
+    column()->schedule_update_positions();
+    if (this == view()->selected_frame())
+      client().schedule_set_input_focus();
+  }
+}
+
+void WFrame::set_priority(float value)
+{
+  if (value < minimum_priority)
+    value = minimum_priority;
+  if (value > maximum_priority)
+    value = maximum_priority;
+  priority_ = value;
+  if (column())
+    column()->schedule_update_positions();
+}
+
+void WColumn::select_frame(WFrame *frame, bool warp)
 {
   if (frame == selected_frame_)
     return;
 
   if (selected_frame_)
-    selected_frame_->client().schedule_drawing();
+    selected_frame_->client().schedule_draw();
 
   selected_frame_ = frame;
 
   if (frame)
   {
-    frame->client().schedule_drawing();
+    frame->client().schedule_draw();
 
     if (view() == wm().selected_view()
         && this == view()->selected_column())
-      wm().schedule_focus_client(&frame->client());
+    {
+      frame->client().schedule_set_input_focus();
+      if (warp)
+        frame->client().schedule_warp_pointer();
+    }
   }
 }
 
-void WColumn::select_frame(iterator it)
+void WColumn::select_frame(iterator it, bool warp)
 {
-  select_frame(get_frame(it));
+  select_frame(get_frame(it), warp);
 }
 
 WColumn::iterator WColumn::next_frame(iterator it, bool wrap)
@@ -298,7 +393,7 @@ WView::iterator WView::prior_column(iterator it, bool wrap)
 }
 
 
-void WView::select_column(WColumn *column)
+void WView::select_column(WColumn *column, bool warp)
 {
   if (column == selected_column())
     return;
@@ -306,7 +401,7 @@ void WView::select_column(WColumn *column)
   if (selected_column())
   {
     if (WFrame *f = selected_column()->selected_frame())
-      f->client().schedule_drawing();
+      f->client().schedule_draw();
   }
 
   selected_column_ = column;
@@ -315,38 +410,49 @@ void WView::select_column(WColumn *column)
   {
     if (WFrame *f = column->selected_frame())
     {
-      f->client().schedule_drawing();
+      f->client().schedule_draw();
 
       if (this == wm().selected_view())
-        wm().schedule_focus_client(&f->client());
+      {
+        f->client().schedule_set_input_focus();
+        if (warp)
+          f->client().schedule_warp_pointer();
+      }
     }
   }
 }
 
-void WView::select_column(WView::iterator it)
+void WView::select_column(WView::iterator it, bool warp)
 {
-  select_column(get_column(it));
+  select_column(get_column(it), warp);
 }
 
-void WView::select_frame(WFrame *frame)
+void WView::select_frame(WFrame *frame, bool warp)
 {
   if (!frame)
     select_column(0);
 
   else
   {
-    frame->column()->select_frame(frame);
-    select_column(frame->column());
+    frame->column()->select_frame(frame, warp);
+    select_column(frame->column(), warp);
   }
 }
 
 void WM::select_view(WView *view)
 {
+  if (view == selected_view_)
+    return;
+  
   if (selected_view_)
   {
     BOOST_FOREACH(WColumn &c, selected_view_->columns)
       BOOST_FOREACH(WFrame &f, c.frames)
-        f.client().schedule_positioning();
+        f.client().schedule_update_server();
+
+    /* Remove the old selected view if it is empty */
+    if (selected_view_->columns.empty())
+      delete selected_view_;
   }
 
   selected_view_ = view;
@@ -355,14 +461,26 @@ void WM::select_view(WView *view)
   {
     BOOST_FOREACH(WColumn &c, selected_view_->columns)
       BOOST_FOREACH(WFrame &f, c.frames)
-        f.client().schedule_positioning();
+        f.client().schedule_update_server();
 
-    if (WColumn *column = view->selected_column())
+    if (WFrame *frame = view->selected_frame())
     {
-      if (WFrame *frame = column->selected_frame())
-      {
-        schedule_focus_client(&frame->client());
-      }
+      frame->client().schedule_set_input_focus();
+      frame->client().schedule_warp_pointer();
     }
   }
+}
+
+WFrame *WM::selected_frame()
+{
+  if (WView *view = selected_view())
+    return view->selected_frame();
+  return 0;
+}
+
+WColumn *WM::selected_column()
+{
+  if (WView *view = selected_view())
+    return view->selected_column();
+  return 0;
 }
