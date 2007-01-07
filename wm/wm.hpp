@@ -32,6 +32,10 @@
 
 #include <boost/signal.hpp>
 
+#include <util/weak_iptr.hpp>
+
+#include <util/time.hpp>
+
 
 const long WM_UNMANAGED_CLIENT_EVENT_MASK = (StructureNotifyMask |
                                              PropertyChangeMask);
@@ -119,6 +123,10 @@ private:
   EventService &event_service_;
   FileEvent x_connection_event;
   SignalEvent sigint_event;
+  TimerEvent mouse_focus_frame_event;
+  weak_iptr<WFrame> mouse_focus_frame;
+
+  void handle_mouse_focus_frame_event();
 
   bool hasXrandr;
   int xrandr_event_base, xrandr_error_base;
@@ -422,7 +430,9 @@ public:
 
 class WClient
 /* For the WM scheduled work clients list */
-  : public boost::intrusive::ilist_auto_base_hook<0>
+  : public boost::intrusive::ilist_auto_base_hook<0>,
+
+    public weak_iptr<WClient>::base
 {
 private:
   WM &wm_;
@@ -619,7 +629,12 @@ public:
 class WFrame
   :
   /* For WColumn::frames */
-  public boost::intrusive::ilist_base_hook<0, false>
+  public boost::intrusive::ilist_base_hook<0, false>,
+
+  /* For WColumn::frames_by_activity */
+  public boost::intrusive::ilist_base_hook<1, false>,
+
+  public weak_iptr<WFrame>::base
 {
 private:
   WClient &client_;
@@ -644,15 +659,15 @@ public:
   friend class WColumn;
   friend class WM;
 
-  const static float initial_priority = 1.0f;
-  const static float minimum_priority = 0.1f;
-  const static float maximum_priority = 10.0f;
-
 private:
   
   bool shaded_;
   bool decorated_;
   float priority_;
+  
+  /* Note: this is only valid if this frame is currently focused in
+     its column. */
+  time_point last_focused;
 
 public:
   /* Used only for persistence: -1 implies no initial position */
@@ -690,7 +705,9 @@ class WColumn
   /* For WView::columns */
   public boost::intrusive::ilist_base_hook<0, false>,
   /* For WM::scheduled_task_columns */
-  public boost::intrusive::ilist_auto_base_hook<1>
+  public boost::intrusive::ilist_auto_base_hook<1>,
+
+  public weak_iptr<WColumn>::base
 {
   friend class WFrame;
 public:
@@ -721,6 +738,13 @@ public:
     true /* constant-time size */
     > FrameList;
   FrameList frames;
+
+  typedef boost::intrusive::ilist<
+    boost::intrusive::ilist_base_hook<1, false>::value_traits<WFrame>,
+    true /* constant-time size */
+    > FrameListByActivity;
+  FrameListByActivity frames_by_activity;
+  
   typedef FrameList::iterator iterator;
 private:
   WFrame *selected_frame_;
@@ -793,7 +817,9 @@ public:
 class WView
   :
   /* For WM::deferred_task_views */
-  public boost::intrusive::ilist_auto_base_hook<1>
+  public boost::intrusive::ilist_auto_base_hook<1>,
+
+  public weak_iptr<WView>::base
 {
 private:
   WM &wm_;
@@ -890,6 +916,8 @@ public:
       return column->selected_frame();
     return 0;
   }
+
+  void place_frame_in_smallest_column(WFrame *frame);
 
   /**
    * }}}

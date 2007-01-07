@@ -5,6 +5,12 @@
 
 #include <util/log.hpp>
 
+const static float frame_initial_priority = 0.34f;
+const static float frame_minimum_priority = 0.1f;
+const static float frame_maximum_priority = 1.0f;
+
+
+
 WView::WView(WM &wm, const utf8_string &name)
   : wm_(wm),  name_(name),
     scheduled_update_positions(false),    
@@ -106,7 +112,7 @@ void WView::perform_scheduled_tasks()
 
 WFrame::WFrame(WClient &client)
   : client_(client), column_(0), shaded_(false),
-    decorated_(true), priority_(initial_priority),
+    decorated_(true), priority_(frame_initial_priority),
     initial_position(-1)
 {}
 
@@ -148,6 +154,9 @@ WColumn::iterator WColumn::add_frame(WFrame *frame, WColumn::iterator position)
 
   iterator it = frames.insert(position, *frame);
 
+  // TODO: decide on policy for placement in frames_by_activity list
+  frames_by_activity.push_front(*frame);
+
   if (!selected_frame())
     select_frame(it);
 
@@ -166,6 +175,8 @@ WColumn::iterator WColumn::add_frame(WFrame *frame, WColumn::iterator position)
  *
  * TODO: handle the case where there are too many frames to show even
  * the bars
+ *
+ * First set the shading status of all frames based on activity.
  */
 void WColumn::perform_scheduled_tasks()
 {
@@ -177,48 +188,84 @@ void WColumn::perform_scheduled_tasks()
   if (frames.empty())
     return;
 
+  // TODO: maybe change frame priority to a minimum height in pixels,
+  // so that xrandr screen size changes automatically result in
+  // possibly useful behavior.
+
   int available_height = available_frame_height();
 
-  WFrame *last_unshaded = 0;
+  int shaded_height = wm().shaded_height();
+
+  float reserved_height = available_height
+    - shaded_height * frames.size();
+
   float total_priority = 0.0f;
-  
+
+  int total_unshaded_height = available_height;
+
+  if (selected_frame_)
+  {
+    // TODO: avoid this code duplication
+    float required_height = selected_frame_->priority() * available_height;
+    reserved_height -= required_height;
+    reserved_height += shaded_height;
+    total_priority += selected_frame_->priority();
+    
+    selected_frame_->shaded_ = false;
+  }
+
+  BOOST_FOREACH (WFrame &f, frames_by_activity)
+  {
+    if (&f == selected_frame_)
+      continue;
+    
+    // TODO: use size hints as follows: if minimum height is equal to
+    // maximum height, use the minimum height as the required height
+    // here, instead of basing it on the priority value.  As a result,
+    // priority will be ignored for such clients.
+    
+    float required_height = f.priority() * available_height;
+    
+    if (required_height <= reserved_height)
+      f.shaded_ = false;
+    else
+      f.shaded_ = true;
+
+    if (!f.shaded_)
+    {
+      reserved_height -= required_height;
+      reserved_height += shaded_height;
+      total_priority += f.priority();
+    } else
+    {
+      total_unshaded_height -= shaded_height;
+    }
+  }
+
+  WFrame *last_unshaded = 0;
   BOOST_FOREACH (WFrame &f, frames)
   {
     if (!f.shaded())
       last_unshaded = &f;
-    else
-    {
-      /*
-      if (&f == &frames.back() && !last_unshaded)
-      {
-        f.shaded_ = false;
-        last_unshaded = &f;
-      }
-      */
-    }
-    
-    if (f.shaded())
-      available_height -= wm().shaded_height();
-    else
-      total_priority += f.priority();
   }
 
-  int remaining_height = available_height;
   int y = bounds.y;
+
+  int remaining_unshaded_height = total_unshaded_height;
 
   BOOST_FOREACH (WFrame &f, frames)
   {
     f.bounds.y = y;
     int height;
     if (f.shaded())
-      height = wm().shaded_height();
+      height = shaded_height;
     else if (&f == last_unshaded)
-      height = remaining_height;
+      height = remaining_unshaded_height;
     else
-      height = (int)(f.priority() / total_priority * available_height);
+      height = (int)(f.priority() / total_priority * total_unshaded_height);
     y += height;
     if (!f.shaded())
-      remaining_height -= height;
+      remaining_unshaded_height -= height;
     f.bounds.height = height;
     f.bounds.x = bounds.x;
     f.bounds.width = bounds.width;
@@ -260,6 +307,7 @@ WFrame::~WFrame()
 
 void WFrame::remove()
 {
+  client().schedule_update_server();
   client().view_frames_.erase(view());
   WColumn::iterator cur_frame_it = column()->make_iterator(this);
   if (column()->selected_frame() == this)
@@ -276,6 +324,7 @@ void WFrame::remove()
 
   }
   column()->frames.erase(cur_frame_it);
+  column()->frames_by_activity.erase(column()->frames_by_activity.current(*this));
   column()->schedule_update_positions();
 
   if (column()->frames.empty())
@@ -316,10 +365,10 @@ void WFrame::set_decorated(bool value)
 
 void WFrame::set_priority(float value)
 {
-  if (value < minimum_priority)
-    value = minimum_priority;
-  if (value > maximum_priority)
-    value = maximum_priority;
+  if (value < frame_minimum_priority)
+    value = frame_minimum_priority;
+  if (value > frame_maximum_priority)
+    value = frame_maximum_priority;
   priority_ = value;
   if (column())
     column()->schedule_update_positions();
@@ -327,16 +376,29 @@ void WFrame::set_priority(float value)
 
 void WColumn::select_frame(WFrame *frame, bool warp)
 {
+  static const time_duration minimum_activity_duration = time_duration::seconds(1);
+  
   if (frame == selected_frame_)
     return;
 
+  time_point current_time = time_point::current();
+
   if (selected_frame_)
+  {
     selected_frame_->client().schedule_draw();
+
+    if (current_time - selected_frame_->last_focused > minimum_activity_duration)
+      frames_by_activity.splice(frames_by_activity.begin(),
+                                frames_by_activity,
+                                frames_by_activity.current(*selected_frame_));
+  }
 
   selected_frame_ = frame;
 
   if (frame)
   {
+    frame->last_focused = current_time;
+    
     frame->client().schedule_draw();
 
     if (view() == wm().selected_view()
@@ -347,6 +409,8 @@ void WColumn::select_frame(WFrame *frame, bool warp)
         frame->client().schedule_warp_pointer();
     }
   }
+
+  schedule_update_positions();
 }
 
 void WColumn::select_frame(iterator it, bool warp)
@@ -523,4 +587,23 @@ WColumn *WM::selected_column()
   if (WView *view = selected_view())
     return view->selected_column();
   return 0;
+}
+
+void WView::place_frame_in_smallest_column(WFrame *frame)
+{
+  iterator col;
+  // 3 should not be hardcoded here
+  if (columns.size() < 3)
+    col = create_column(columns.end());
+  else
+  {
+    col = columns.begin();
+    for (iterator it = boost::next(col); it != columns.end(); ++it)
+    {
+      if (col->frames.size() > it->frames.size())
+        col = it;
+    }
+  }
+
+  col->add_frame(frame, col->frames.end());
 }

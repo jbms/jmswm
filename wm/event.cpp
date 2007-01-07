@@ -2,7 +2,9 @@
 #include <wm/wm.hpp>
 #include <X11/extensions/Xrandr.h>
 
-#if 0
+//#define DEBUG_DISPLAY_XEVENTS
+
+#ifdef DEBUG_DISPLAY_XEVENTS
 static const char *event_type_to_string(int type)
 {
   static const char *name_arr[] = {
@@ -120,8 +122,10 @@ void WM::xwindow_handle_event()
     XNextEvent(display(), &ev);
 
     update_timestamp(last_timestamp, &ev);
-    
-    //DEBUG("Got event: %s 0x%08x", event_type_to_string(ev.type), ev.xany.window);
+
+#ifdef DEBUG_DISPLAY_XEVENTS
+    DEBUG("Got event: %s 0x%08x", event_type_to_string(ev.type), ev.xany.window);
+#endif 
 
     switch (ev.type)
     {
@@ -255,8 +259,22 @@ void WM::handle_enter_notify(const XCrossingEvent &ev)
   if (WClient *client = client_of_framewin(ev.window))
   {
     if (WFrame *frame = client->visible_frame())
-      frame->view()->select_frame(frame);
+    {
+      mouse_focus_frame.reset(frame);
+
+      // 100ms delay, for now
+      mouse_focus_frame_event.wait_for(0, 100000);
+    }
   }
+}
+
+void WM::handle_mouse_focus_frame_event()
+{
+  if (WFrame *frame = mouse_focus_frame.get())
+  {
+    frame->view()->select_frame(frame);
+  }
+  mouse_focus_frame.reset(0);
 }
 
 void WM::handle_xrandr_event(const XEvent &ev)

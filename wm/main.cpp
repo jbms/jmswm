@@ -352,6 +352,37 @@ void switch_to_view_by_letter(WM &wm, char c)
   }
 }
 
+class PreviousViewInfo
+{
+  utf8_string previous_view_;
+  WM &wm_;
+  boost::signals::connection conn_;
+
+  void select_view(WView *new_view, WView *old_view)
+  {
+    if (old_view)
+      previous_view_ = old_view->name();
+  }
+  
+public:
+  PreviousViewInfo(WM &wm)
+    : wm_(wm),
+      conn_(wm_.select_view_hook.connect
+            (boost::bind(&PreviousViewInfo::select_view, this, _1, _2)))
+  {}
+
+  ~PreviousViewInfo()
+  {
+    conn_.disconnect();
+  }
+  
+  const utf8_string &name() const { return previous_view_; }
+  void switch_to()
+  {
+    switch_to_view(wm_, previous_view_);
+  }
+};
+
 static utf8_string fullscreen_client_suffix(WClient *client)
 {
   return client->instance_name();
@@ -518,6 +549,80 @@ void update_client_visible_name_and_context(WClient *client)
         client->set_visible_name(client->name().substr(0, pos));
     } else
       client->set_visible_name(client->name());
+  }
+}
+
+void move_frame_to_view(const weak_iptr<WFrame> &weak_frame,
+                        const utf8_string &view_name)
+{
+  if (WFrame *frame = weak_frame.get())
+  {
+    // TODO: make this logic a separate function, possibly of class WM
+    WView *view = frame->wm().view_by_name(view_name);
+    if (!view)
+    {
+      if (!frame->wm().valid_view_name(view_name))
+        return;
+      view = new WView(frame->wm(), view_name);
+    }
+    if (frame->client().frame_by_view(view))
+      return;
+    
+    frame->remove();
+    view->place_frame_in_smallest_column(frame);
+  }
+}
+
+
+void move_current_frame_to_other_view_interactive(WM &wm)
+{
+  if (WFrame *frame = wm.selected_frame())
+  {
+    wm.menu.read_string("Move to view: ",
+                        boost::bind(&move_frame_to_view, weak_iptr<WFrame>(frame),
+                                    _1));
+  }
+}
+
+void copy_frame_to_view(const weak_iptr<WFrame> &weak_frame,
+                        const utf8_string &view_name)
+{
+  if (WFrame *frame = weak_frame.get())
+  {
+    // TODO: make this logic a separate function, possibly of class WM
+    WView *view = frame->wm().view_by_name(view_name);
+    if (!view)
+    {
+      if (!frame->wm().valid_view_name(view_name))
+        return;
+      view = new WView(frame->wm(), view_name);
+    }
+    if (frame->client().frame_by_view(view))
+      return;
+
+    WFrame *new_frame = new WFrame(frame->client());
+    view->place_frame_in_smallest_column(new_frame);
+  }
+}
+
+void copy_current_frame_to_other_view_interactive(WM &wm)
+{
+  if (WFrame *frame = wm.selected_frame())
+  {
+    wm.menu.read_string("Duplicate to view: ",
+                        boost::bind(&copy_frame_to_view, weak_iptr<WFrame>(frame),
+                                    _1));
+  }
+}
+
+void remove_current_frame(WM &wm)
+{
+  if (WFrame *frame = wm.selected_frame())
+  {
+    if (frame->client().view_frames().size() > 1)
+    {
+      delete frame;
+    }
   }
 }
 
@@ -1024,6 +1129,14 @@ int main(int argc, char **argv)
     str += c;
     wm.bind(str, boost::bind(switch_to_view_by_letter, _1, c));
   }
+
+  PreviousViewInfo prev_info(wm);
+
+  wm.bind("mod4-r", boost::bind(&PreviousViewInfo::switch_to, boost::ref(prev_info)));
+
+  wm.bind("mod4-k m", move_current_frame_to_other_view_interactive);
+  wm.bind("mod4-k n", copy_current_frame_to_other_view_interactive);
+  wm.bind("mod4-k k", remove_current_frame);
 
   do
   {

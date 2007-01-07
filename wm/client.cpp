@@ -401,24 +401,24 @@ void WClient::perform_scheduled_tasks()
     if (f)
     {
       desired_frame_state = STATE_MAPPED;
+
+      /* Check if a warp should be performed */
+      if (!(scheduled_tasks & WARP_POINTER_FLAG)
+          && f == wm().selected_frame())
+      {
+        Window root;
+        Window child;
+        int root_x, root_y, win_x, win_y;
+        unsigned int mask;
+        XQueryPointer(wm().display(), wm().root_window(),
+                      &root, &child, &root_x, &root_y,
+                      &win_x, &win_y, &mask);
+        if (!f->bounds.contains_point(root_x, root_y))
+          scheduled_tasks |= WARP_POINTER_FLAG;
+      }
+
       if (current_frame_bounds != f->bounds)
       {
-        /* Check if a warp should be performed */
-        if (!(scheduled_tasks & WARP_POINTER_FLAG)
-            && frame_map_state == STATE_MAPPED
-            && f == wm().selected_frame())
-        {
-          Window root;
-          Window child;
-          int root_x, root_y, win_x, win_y;
-          unsigned int mask;
-          XQueryPointer(wm().display(), wm().root_window(),
-                        &root, &child, &root_x, &root_y,
-                        &win_x, &win_y, &mask);
-          if (current_frame_bounds.contains_point(root_x, root_y)
-              && !f->bounds.contains_point(root_x, root_y))
-            scheduled_tasks |= WARP_POINTER_FLAG;
-        }
         
         XMoveResizeWindow(wm().display(), frame_xwin_,
                           f->bounds.x, f->bounds.y,
@@ -479,7 +479,7 @@ void WClient::perform_scheduled_tasks()
     if (scheduled_tasks & WARP_POINTER_FLAG)
     {
       XWarpPointer(wm().display(), None, frame_xwin_, 0, 0, 0, 0,
-                   0, 0);
+                   f->bounds.width / 2, f->bounds.height / 2);
     }
   }
 
