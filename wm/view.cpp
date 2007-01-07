@@ -8,16 +8,20 @@
 WView::WView(WM &wm, const utf8_string &name)
   : wm_(wm),  name_(name),
     scheduled_update_positions(false),    
-    selected_column_(0)
+    selected_column_(0),
+    bar_visible_(true)
 {
   compute_bounds();
 
   /* TODO: maybe check if the name is already in use */
   wm_.views_.insert(std::make_pair(name, this));
+
+  wm_.create_view_hook(this);
 }
 
 WView::~WView()
 {
+  wm().destroy_view_hook(this);
   wm_.views_.erase(name_);
 }
 
@@ -25,7 +29,7 @@ void WView::compute_bounds()
 {
   bounds.width = wm().screen_width();
   bounds.height = wm().screen_height();
-  if (wm().bar_visible())
+  if (bar_visible())
     bounds.height -= wm().bar.height();
   bounds.x = 0;
   bounds.y = 0;
@@ -102,10 +106,9 @@ void WView::perform_scheduled_tasks()
 
 WFrame::WFrame(WClient &client)
   : client_(client), column_(0), shaded_(false),
-    bar_visible_(false), priority_(initial_priority),
+    decorated_(true), priority_(initial_priority),
     initial_position(-1)
-{
-}
+{}
 
 WColumn::WColumn(WView *view)
   : view_(view), selected_frame_(0), scheduled_update_positions(false),
@@ -241,9 +244,12 @@ WColumn::~WColumn()
     else
       view()->select_column(0);
   }
-      
+  
   view()->columns.erase(cur_col_it);
   view()->schedule_update_positions();
+
+  if (view()->columns.empty() && view() != wm().selected_view())
+    delete view();
 }
 
 WFrame::~WFrame()
@@ -280,13 +286,31 @@ void WFrame::remove()
 
 void WFrame::set_shaded(bool value)
 {
-  shaded_ = value;
-
-  if (column())
+  if (shaded_ != value)
   {
-    column()->schedule_update_positions();
-    if (this == view()->selected_frame())
-      client().schedule_set_input_focus();
+    shaded_ = value;
+
+    if (column())
+    {
+      column()->schedule_update_positions();
+      if (this == view()->selected_frame())
+        client().schedule_set_input_focus();
+    }
+  }
+}
+
+void WFrame::set_decorated(bool value)
+{
+  if (decorated_ != value)
+  {
+    decorated_ = value;
+
+    /* FIXME: if frame positioning in columns is changed to depend on
+       whether the frame is decorated, this will need to call
+       column()->schedule_update_positions(), and possibly set input
+       focus as well. */
+    if (column())
+      client().schedule_update_server();
   }
 }
 
@@ -439,10 +463,24 @@ void WView::select_frame(WFrame *frame, bool warp)
   }
 }
 
+void WView::set_bar_visible(bool value)
+{
+  if (bar_visible_ != value)
+  {
+    bar_visible_ = value;
+    if (this == wm().selected_view())
+      wm().bar.schedule_update_server();
+    compute_bounds();
+    schedule_update_positions();
+  }
+}
+
 void WM::select_view(WView *view)
 {
   if (view == selected_view_)
     return;
+
+  select_view_hook(view, selected_view_);
   
   if (selected_view_)
   {
@@ -469,6 +507,8 @@ void WM::select_view(WView *view)
       frame->client().schedule_warp_pointer();
     }
   }
+
+  bar.scheduled_update_server = true;
 }
 
 WFrame *WM::selected_frame()

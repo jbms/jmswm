@@ -2,7 +2,7 @@
 #define _WM_HPP
 
 #include <sys/types.h>
-#include <event.h>
+#include <util/event.hpp>
 
 #include <boost/intrusive/ilist.hpp>
 #include <map>
@@ -18,7 +18,6 @@
 #include <draw/draw.hpp>
 
 #include <signal.h>
-#include <sys/types.h>
 
 #include <util/log.hpp>
 
@@ -30,6 +29,8 @@
 
 #include <menu/menu.hpp>
 #include <wm/bar.hpp>
+
+#include <boost/signal.hpp>
 
 
 const long WM_UNMANAGED_CLIENT_EVENT_MASK = (StructureNotifyMask |
@@ -67,7 +68,8 @@ WM_DEFINE_STYLE_TYPE(WFrameStyleSpecialized,
                      ((WColor, ascii_string, background_color))
                          
                      ((WColor, ascii_string, label_foreground_color))
-                     ((WColor, ascii_string, label_background_color)),
+                     ((WColor, ascii_string, label_background_color))
+                     ((WColor, ascii_string, label_extra_color)),
 
                      /* regular features */
                      ()
@@ -95,6 +97,7 @@ WM_DEFINE_STYLE_TYPE(WFrameStyle,
                      ((int, spacing))
                      ((int, label_horizontal_padding))
                      ((int, label_vertical_padding))
+                     ((int, label_component_spacing))
 
                      )
 
@@ -103,7 +106,8 @@ class WM : public WXContext
 public:
 
   WM(int argc, char **argv,
-     Display *dpy, event_base *eb, const WFrameStyle::Spec &style_spec,
+     Display *dpy, EventService &event_service_,
+     const WFrameStyle::Spec &style_spec,
      const WBarStyle::Spec &bar_style_spec);
   ~WM();
 
@@ -112,9 +116,10 @@ public:
    */
 private:
 
-  struct event_base *eb_;
-  struct event x_connection_event;
-  struct event sigint_event;
+  EventService &event_service_;
+  FileEvent x_connection_event;
+  SignalEvent sigint_event;
+
   bool hasXrandr;
   int xrandr_event_base, xrandr_error_base;
   Time last_timestamp;
@@ -124,7 +129,7 @@ private:
 
 public:
 
-  struct event_base *eb() { return eb_; }
+  EventService &event_service() { return event_service_; }
 
   Time get_timestamp();
   
@@ -225,6 +230,11 @@ public:
   WView *selected_view() { return selected_view_; }
   void select_view(WView *view);
 
+  // Note: the second argument is the previously selected view.
+  boost::signal<void (WView *, WView *)> select_view_hook;
+  boost::signal<void (WView *)> create_view_hook;
+  boost::signal<void (WView *)> destroy_view_hook;
+
   const ViewMap &views() { return views_; }
 
   WView *view_by_name(const utf8_string &name) const
@@ -247,7 +257,7 @@ public:
    */
 private:
 
-  static void xwindow_handle_event(int, short, void *wm_ptr);
+  void xwindow_handle_event();
 
   void handle_map_request(const XMapRequestEvent &ev);
   void handle_configure_request(const XConfigureRequestEvent &ev);
@@ -296,6 +306,10 @@ public:
   void unmanage_client(WClient *client);
   
   void place_client(WClient *client);
+
+  boost::signal<void (WClient *)> manage_client_hook;
+  boost::signal<void (WClient *)> unmanage_client_hook;
+  boost::signal<void (WClient *)> update_client_name_hook;
 
   /**
    * }}}
@@ -443,6 +457,13 @@ public:
   
   const ViewFrameMap &view_frames() const { return view_frames_; }
   WFrame *visible_frame();
+  WFrame *frame_by_view(WView *v)
+  {
+    ViewFrameMap::iterator it = view_frames_.find(v);
+    if (it == view_frames_.end())
+      return 0;
+    return it->second;
+  }
   
   /**
    * }}}
@@ -530,6 +551,15 @@ private:
 
   utf8_string name_;
 
+  utf8_string visible_name_;
+
+  /**
+   * For terminals and file editors, this should be the current
+   * directory.  For web browsers, it might be set to the current URL.
+   * Otherwise, it can be empty.
+   */
+  utf8_string context_info_;
+
   void update_name_from_server();
   void update_class_from_server();
   void update_role_from_server();
@@ -546,6 +576,12 @@ public:
   const ascii_string &window_role() const { return window_role_; }
 
   const utf8_string &name() const { return name_; }
+
+  const utf8_string &visible_name() const { return visible_name_; }
+  const utf8_string &context_info() const { return context_info_; }
+
+  void set_visible_name(const utf8_string &s);
+  void set_context_info(const utf8_string &s);
 
   /**
    * }}}
@@ -615,7 +651,7 @@ public:
 private:
   
   bool shaded_;
-  bool bar_visible_;
+  bool decorated_;
   float priority_;
 
 public:
@@ -632,6 +668,10 @@ public:
   bool shaded() const { return shaded_; }
 
   void set_shaded(bool value);
+
+  bool decorated() const { return decorated_; }
+
+  void set_decorated(bool value);
 
   WRect client_bounds() const;
 
@@ -853,6 +893,18 @@ public:
 
   /**
    * }}}
+   */
+
+  /**
+   * {{{ Bar
+   */
+private:
+  bool bar_visible_;
+public:
+  bool bar_visible() const { return bar_visible_; }
+  void set_bar_visible(bool value);
+  /**
+   *
    */
 
 };

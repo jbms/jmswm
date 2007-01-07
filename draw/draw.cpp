@@ -127,6 +127,7 @@ WFont::WFont(WDrawContext &c, const ascii_string &name)
 
   ascent_ = PANGO_PIXELS(pango_font_metrics_get_ascent(m));
   descent_ = PANGO_PIXELS(pango_font_metrics_get_descent(m));
+  approx_width_ = PANGO_PIXELS(pango_font_metrics_get_approximate_char_width(m));
   pango_font_metrics_unref(m);
 }
 
@@ -277,7 +278,7 @@ int draw_label_with_background(WDrawable &d,
                                x * PANGO_SCALE, y * PANGO_SCALE);
   g_object_unref(pl);
 
-  return width;
+  return frame_width;
 }
 
 void draw_label_with_cursor(WDrawable &d, const utf8_string &text,

@@ -1,14 +1,19 @@
-
 #include <menu/menu.hpp>
 
 #include <ctype.h>
 
 #include <wm/wm.hpp>
 
+#include <boost/bind.hpp>
+
 const static long MENU_WINDOW_EVENT_MASK = ExposureMask | KeyPressMask;
 
 WMenu::WMenu(WM &wm_, const WModifierInfo &mod_info)
-  : wm_(wm_), bindctx(wm_, mod_info, None, false),
+  : wm_(wm_),
+    completions_valid(false),
+    bindctx(wm_, mod_info, None, false),
+    completion_delay(wm_.event_service(),
+                     boost::bind(&WMenu::update_completions, this)),
     initialized(false)
 {}
 
@@ -41,8 +46,9 @@ void WMenu::initialize()
 }
 
 bool WMenu::read_string(const utf8_string &prompt,
-                 const boost::function<void (const utf8_string &)> &success_action,
-                 const boost::function<void (void)> &failure_action)
+                        const SuccessAction &success_action,
+                        const FailureAction &failure_action,
+                        const Completer &completer)
 {
 
   if (active)
@@ -52,24 +58,80 @@ bool WMenu::read_string(const utf8_string &prompt,
 
   this->success_action = success_action;
   this->failure_action = failure_action;
+  this->completer = completer;
 
-  current_input.clear();
-  cursor_position = 0;
+  input.text.clear();
+  input.cursor_position = 0;
 
   this->prompt = prompt;
 
   scheduled_update_server = true;
   scheduled_draw = true;
+
+  completions.clear();
   
   compute_bounds();
+  handle_input_changed();
 
   return true;
 }
 
 void WMenu::compute_bounds()
 {
+  // Fixme: don't use shaded_height()
+  int height = wm().shaded_height();
   bounds.width = wm().screen_width();
-  bounds.height = wm().shaded_height();
+
+  /* Determine how many columns to use */
+
+  if (!completions.empty())
+  {
+    WFrameStyle &style = wm().frame_style;
+    
+    int maximum_width = 0;
+    for (CompletionList::iterator it = completions.begin();
+         it != completions.end();
+         ++it)
+    {
+      if ((int)it->first.size() > maximum_width)
+        maximum_width = (int)it->first.size();
+    }
+
+    int maximum_pixels = maximum_width * style.label_font.approximate_width();
+
+    int available_width = bounds.width - style.highlight_pixels
+      - style.shadow_pixels
+      - 2 * style.padding_pixels;
+
+    // FIXME: use a style entry instead of a constant here for padding
+    int column_width = maximum_pixels + 10 + style.spacing * 2
+      + 2 * style.label_horizontal_padding;
+
+    if (column_width > available_width)
+      column_width = available_width;
+
+    completion_columns = available_width / column_width;
+
+    completion_column_width = column_width;
+
+    int line_height = style.label_vertical_padding * 2
+      + style.label_font.height();
+
+    int available_height = (wm_.screen_height() - height) * 2 / 3;
+
+    int max_lines = available_height / line_height;
+
+    completion_lines = (completions.size() + completion_columns - 1)
+      / completion_columns;
+    if (completion_lines > max_lines)
+      completion_lines = max_lines;
+
+    height += style.highlight_pixels + style.shadow_pixels
+      + 2 * style.padding_pixels + 2 * style.spacing
+      + completion_lines * line_height;
+  }
+  
+  bounds.height = height;
   bounds.x = 0;
   bounds.y = wm().screen_height() - bounds.height;
 }
@@ -151,51 +213,100 @@ void WMenu::flush()
 void WMenu::draw()
 {
   WDrawable &d = wm().buffer_pixmap.drawable();
-  WRect rect(0, 0, bounds.width, bounds.height);
 
   WFrameStyle &style = wm().frame_style;
 
   WFrameStyleSpecialized &substyle
     = style.inactive;
-  
-  fill_rect(d, substyle.background_color, rect);
 
-  draw_border(d, substyle.highlight_color, style.highlight_pixels,
-              substyle.shadow_color, style.shadow_pixels,
-              rect);
+  // Draw completions
+  {
+    WRect rect(0, 0, bounds.width, bounds.height - wm_.shaded_height());
 
-  WRect rect2 = rect.inside_tl_br_border(style.highlight_pixels,
-                                         style.shadow_pixels);
+    WColor c(wm_.dc, "grey10");
 
-  draw_border(d, substyle.padding_color, style.padding_pixels, rect2);
+    fill_rect(d, c, rect);
 
-  WRect rect3 = rect2.inside_border(style.padding_pixels + style.spacing);
-  rect3.height = wm().bar_height();
+    draw_border(d, substyle.highlight_color, style.highlight_pixels,
+                substyle.shadow_color, style.shadow_pixels,
+                rect);
 
-  fill_rect(d, substyle.label_background_color, rect3);
+    WRect rect2 = rect.inside_tl_br_border(style.highlight_pixels,
+                                           style.shadow_pixels);
 
-  utf8_string text;
-  text = prompt;
+    draw_border(d, substyle.padding_color, style.padding_pixels, rect2);
 
-  if (!prompt.empty())
-    text += ": ";
+    
+    int max_pos_index = completion_lines * completion_columns;
 
-  int cursor_base = text.length();
+    int line_height = style.label_vertical_padding * 2
+      + style.label_font.height();
+    
+    // FIXME: allow an offset
+    if (max_pos_index > (int)completions.size())
+      max_pos_index = (int)completions.size();
 
-  text += current_input;
+    int base_y = rect2.y + style.spacing;
 
-  int actual_cursor_position = cursor_base + cursor_position;
+    for (int pos_index = 0; pos_index < max_pos_index; ++pos_index)
+    {
+      int row = pos_index / completion_columns;
+      int col = pos_index % completion_columns;
 
-  text += ' ';
+      WRect label_rect(rect2.x + completion_column_width * col,
+                       base_y + line_height * row,
+                       completion_column_width, line_height);
 
-  draw_label_with_cursor
-    (d, text, style.label_font,
-     substyle.label_foreground_color,
-     substyle.label_background_color,
-     substyle.label_foreground_color,
-     rect3.inside_lr_tb_border(style.label_horizontal_padding,
-                               style.label_vertical_padding),
-     actual_cursor_position);
+      label_rect = label_rect.inside_lr_tb_border
+        (style.spacing + style.label_horizontal_padding,
+         style.spacing + style.label_vertical_padding);
+
+      draw_label(d, completions[pos_index].first, style.label_font,
+                 substyle.label_background_color, label_rect);
+    }
+  }
+
+  // Draw input area
+  {
+    WRect rect(0, bounds.height - wm_.shaded_height(), bounds.width, bounds.height);
+
+    fill_rect(d, substyle.background_color, rect);
+
+    draw_border(d, substyle.highlight_color, style.highlight_pixels,
+                substyle.shadow_color, style.shadow_pixels,
+                rect);
+
+    WRect rect2 = rect.inside_tl_br_border(style.highlight_pixels,
+                                           style.shadow_pixels);
+
+    draw_border(d, substyle.padding_color, style.padding_pixels, rect2);
+
+    WRect rect3 = rect2.inside_border(style.padding_pixels + style.spacing);
+    rect3.height = wm().bar_height();
+
+    //fill_rect(d, substyle.label_background_color, rect3);
+    fill_rect(d, substyle.background_color, rect3);
+
+    utf8_string text;
+    text = prompt;
+
+    int cursor_base = text.length();
+
+    text += input.text;
+
+    int actual_cursor_position = cursor_base + input.cursor_position;
+
+    text += ' ';
+
+    draw_label_with_cursor
+      (d, text, style.label_font,
+       substyle.label_background_color,
+       substyle.label_foreground_color,
+       substyle.label_background_color,
+       rect3.inside_lr_tb_border(style.label_horizontal_padding,
+                                 style.label_vertical_padding),
+       actual_cursor_position);
+  }
 
   XCopyArea(wm().display(), d.drawable(),
             xwin(),
@@ -204,6 +315,35 @@ void WMenu::draw()
             0, 0);
 }
 
+void WMenu::update_completions()
+{
+  WARN("here");
+  CompletionList new_list;
+
+  completer(new_list, input);
+
+  completions = new_list;
+  completions_valid = true;
+  scheduled_draw = true;
+  scheduled_update_server = true;
+  selected_completion = -1;
+  compute_bounds();
+}
+
+void WMenu::handle_input_changed()
+{
+  scheduled_draw = true;
+
+  if (completer.empty())
+    return;
+  
+  completions_valid = false;
+
+  // 100ms delay
+  completion_delay.wait_for(0, 100000);
+
+  WARN("here");
+}
 
 void WMenu::handle_keypress(const XKeyEvent &ev)
 {
@@ -224,10 +364,10 @@ void WMenu::handle_keypress(const XKeyEvent &ev)
 
     if (isgraph(c) || c == ' ')
     {
-      current_input.insert(cursor_position, buffer, 1);
-      cursor_position++;
+      input.text.insert(input.cursor_position, buffer, 1);
+      input.cursor_position++;
 
-      scheduled_draw = true;
+      handle_input_changed();
     }
   }
 }
@@ -239,11 +379,11 @@ void menu_backspace(WM &wm)
   if (!menu.active)
     return;
   
-  if (menu.cursor_position > 0)
+  if (menu.input.cursor_position > 0)
   {
-    menu.current_input.erase(menu.cursor_position - 1, 1);
-    menu.cursor_position--;
-    menu.scheduled_draw = true;
+    menu.input.text.erase(menu.input.cursor_position - 1, 1);
+    menu.input.cursor_position--;
+    menu.handle_input_changed();
   }
 }
 
@@ -255,11 +395,13 @@ void menu_enter(WM &wm)
     return;
 
   if (menu.success_action)
-    menu.success_action(menu.current_input);
+    menu.success_action(menu.input.text);
 
   menu.active = false;
   
   menu.scheduled_update_server = true;
+
+  menu.completion_delay.cancel();
 }
 
 void menu_abort(WM &wm)
@@ -275,6 +417,8 @@ void menu_abort(WM &wm)
   menu.active = false;
   
   menu.scheduled_update_server = true;
+
+  menu.completion_delay.cancel();
 }
 
 void menu_forward_char(WM &wm)
@@ -284,10 +428,10 @@ void menu_forward_char(WM &wm)
   if (!menu.active)
     return;
 
-  if (menu.cursor_position < menu.current_input.size())
+  if (menu.input.cursor_position < menu.input.text.size())
   {
-    ++menu.cursor_position;
-    menu.scheduled_draw = true;
+    ++menu.input.cursor_position;
+    menu.handle_input_changed();
   }
 
 }
@@ -299,10 +443,10 @@ void menu_backward_char(WM &wm)
   if (!menu.active)
     return;
 
-  if (menu.cursor_position > 0)
+  if (menu.input.cursor_position > 0)
   {
-    --menu.cursor_position;
-    menu.scheduled_draw = true;
+    --menu.input.cursor_position;
+    menu.handle_input_changed();
   }
 }
 
@@ -313,10 +457,10 @@ void menu_beginning_of_line(WM &wm)
   if (!menu.active)
     return;
 
-  if (menu.cursor_position > 0)
+  if (menu.input.cursor_position > 0)
   {
-    menu.cursor_position = 0;
-    menu.scheduled_draw = true;
+    menu.input.cursor_position = 0;
+    menu.handle_input_changed();
   }
 }
 
@@ -327,8 +471,8 @@ void menu_end_of_line(WM &wm)
   if (!menu.active)
     return;
 
-  menu.cursor_position = menu.current_input.size();
-  menu.scheduled_draw = true;
+  menu.input.cursor_position = menu.input.text.size();
+  menu.handle_input_changed();
 }
 
 void menu_delete(WM &wm)
@@ -338,10 +482,10 @@ void menu_delete(WM &wm)
   if (!menu.active)
     return;
 
-  if (menu.cursor_position < menu.current_input.size())
+  if (menu.input.cursor_position < menu.input.text.size())
   {
-    menu.current_input.erase(menu.cursor_position, 1);
-    menu.scheduled_draw = true;
+    menu.input.text.erase(menu.input.cursor_position, 1);
+    menu.handle_input_changed();
   }
 }
 
@@ -352,9 +496,9 @@ void menu_kill_line(WM &wm)
   if (!menu.active)
     return;
 
-  if (menu.cursor_position < menu.current_input.size())
+  if (menu.input.cursor_position < menu.input.text.size())
   {
-    menu.current_input.erase(menu.cursor_position);
-    menu.scheduled_draw = true;
+    menu.input.text.erase(menu.input.cursor_position);
+    menu.handle_input_changed();
   }
 }

@@ -35,7 +35,8 @@ int WBar::height()
 
 bool WM::bar_visible()
 {
-  /* FIXME: change this to depend on the current view */
+  if (selected_view())
+    return selected_view()->bar_visible();
   return true;
 }
 
@@ -98,28 +99,44 @@ void WBar::draw()
   WRect rect3 = rect2.inside_border(style.padding_pixels + style.spacing);
   rect3.height = label_height();
 
-  for (int position = 0; position < 2; ++position)
+  for (CellList::iterator it = cells[LEFT].begin();
+       it != cells[LEFT].end();
+       ++it)
   {
-    for (CellList::iterator it = cells[position].begin();
-         it != cells[position].end();
-         ++it)
-    {
-      Cell &c = *it;
-      int width = draw_label_with_background(d, c.text,
-                                             style.label_font,
-                                             *c.foreground_color,
-                                             *c.background_color,
-                                             rect3,
-                                             style.label_horizontal_padding,
-                                             style.label_vertical_padding,
-                                             position == RIGHT);
+    Cell &c = *it;
+    int width = draw_label_with_background(d, c.text,
+                                           style.label_font,
+                                           *c.foreground_color,
+                                           *c.background_color,
+                                           rect3,
+                                           style.label_horizontal_padding,
+                                           style.label_vertical_padding,
+                                           false);
 
-      rect3.width -= (width + style.cell_spacing);
+    rect3.width -= (width + style.cell_spacing);
 
-      if (position == LEFT)
-        rect3.x += width + style.cell_spacing;
-    }
+    rect3.x += width + style.cell_spacing;
   }
+
+  for (CellList::iterator it = cells[RIGHT].end();
+       it != cells[RIGHT].begin();
+       )
+  {
+    --it;
+    
+    Cell &c = *it;
+    int width = draw_label_with_background(d, c.text,
+                                           style.label_font,
+                                           *c.foreground_color,
+                                           *c.background_color,
+                                           rect3,
+                                           style.label_horizontal_padding,
+                                           style.label_vertical_padding,
+                                           true);
+
+    rect3.width -= (width + style.cell_spacing);
+  }
+
 
   XCopyArea(wm().display(), d.drawable(),
             xwin(),
@@ -260,6 +277,7 @@ WBar::CellRef WBar::insert_after(const CellRef &ref,
                            const WColor &background_color,
                            const utf8_string &text)
 {
+  assert(ref.cell->position == position);
   boost::shared_ptr<Cell> cell(new Cell(*this,
                                         position, foreground_color,
                                         background_color,
@@ -278,6 +296,7 @@ WBar::CellRef WBar::insert_before(const CellRef &ref,
                                   const WColor &background_color,
                                   const utf8_string &text)
 {
+  assert(ref.cell->position == position);
   boost::shared_ptr<Cell> cell(new Cell(*this,
                                         position, foreground_color,
                                         background_color,
@@ -288,4 +307,37 @@ WBar::CellRef WBar::insert_before(const CellRef &ref,
     scheduled_draw = true;
   
   return CellRef(cell);
+}
+
+WBar::CellRef WBar::insert(InsertPosition pos,
+                           const WColor &foreground_color,
+                           const WColor &background_color,
+                           const utf8_string &text)
+{
+  switch (pos.relative)
+  {
+  case InsertPosition::BEFORE:
+    return insert_before(pos.ref,
+                         pos.ref.cell->position,
+                         foreground_color,
+                         background_color,
+                         text);
+  case InsertPosition::AFTER:
+    return insert_after(pos.ref,
+                        pos.ref.cell->position,
+                        foreground_color,
+                        background_color,
+                        text);
+  case InsertPosition::BEGIN:
+    return insert_begin(pos.side,
+                        foreground_color,
+                        background_color,
+                        text);
+  case InsertPosition::END:
+  default:
+    return insert_end(pos.side,
+                      foreground_color,
+                      background_color,
+                      text);
+  }
 }

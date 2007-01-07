@@ -92,8 +92,6 @@ public:
 
   WKeyBindingState *state;
 
-  static void sequence_timeout_handler(int, short, void *ctx);
-
   void reset_current_key_sequence();
   
 public:

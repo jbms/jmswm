@@ -7,6 +7,8 @@
 #include <X11/extensions/Xrandr.h>
 #include <ctype.h>
 
+#include <boost/bind.hpp>
+
 
 /* Error handler based on Ion code */
 /* Copyright (c) Tuomo Valkonen 1999-2006. */
@@ -57,19 +59,16 @@ static void set_root_window_cursor(WXContext &xc)
   XFreeCursor(xc.display(), cur);
 }
 
-static void sigint_handler(int, short, void *wm_ptr)
-{
-  WM &wm = *(WM *)wm_ptr;
-
-  wm.quit();
-
-}
-
 WM::WM(int argc, char **argv,
-       Display *dpy, event_base *eb, const WFrameStyle::Spec &style_spec,
+       Display *dpy, EventService &event_service_,
+       const WFrameStyle::Spec &style_spec,
        const WBarStyle::Spec &bar_style_spec)
   : WXContext(dpy),
-    eb_(eb),
+    event_service_(event_service_),
+    x_connection_event(event_service_, ConnectionNumber(dpy), EV_READ,
+                       boost::bind(&WM::xwindow_handle_event, this)),
+    sigint_event(event_service_, SIGINT,
+                 boost::bind(&WM::quit, this)),
     last_timestamp(CurrentTime),
     argv(argv), argc(argc),
     dc(*this),
@@ -82,15 +81,6 @@ WM::WM(int argc, char **argv,
     bar(*this, bar_style_spec)
 {
   XSetErrorHandler(xwindow_error_handler);
-
-  event_set(&x_connection_event, ConnectionNumber(dpy),
-            EV_PERSIST | EV_READ, &WM::xwindow_handle_event, this);
-  
-  if (event_base_set(eb_, &x_connection_event) != 0)
-    ERROR_SYS("event_base_set");
-
-  if (event_add(&x_connection_event, NULL) != 0)
-    ERROR_SYS("event_add");
 
 #define DECLARE_ATOM(var, str) \
   var = XInternAtom(display(), str, False);
@@ -129,13 +119,6 @@ WM::WM(int argc, char **argv,
   key_sequence_timeout.tv_sec = 5;
   key_sequence_timeout.tv_usec = 0;
 
-  signal_set(&sigint_event, SIGINT, &sigint_handler, this);
-  if (event_base_set(eb_, &sigint_event) != 0)
-    ERROR_SYS("event_base_set");
-
-  if (event_add(&sigint_event, NULL) != 0)
-    ERROR_SYS("event_add");
-
   /* Manage existing clients */
   load_state_from_server();
 
@@ -143,13 +126,10 @@ WM::WM(int argc, char **argv,
      changing their event mask. */
   menu.initialize();
   bar.initialize();
-
-  flush();
 }
 
 WM::~WM()
 {
-  event_del(&x_connection_event);
 }
 
 void WClient::schedule_task(unsigned int task)
@@ -236,6 +216,9 @@ void WM::restart()
 
 bool WM::valid_view_name(const utf8_string &name)
 {
+  if (name.empty())
+    return false;
+  
   /* TODO: fix this */
   BOOST_FOREACH (char c, name)
   {

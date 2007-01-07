@@ -119,6 +119,7 @@ private:
   PangoFontDescription *pango_font_description_;
   int ascent_;
   int descent_;
+  int approx_width_;
 public:
   WFont(WDrawContext &c, const ascii_string &name);
   ~WFont();
@@ -133,9 +134,14 @@ public:
     return ascent_;
   }
   
-  int pango_descent() const
+  int descent() const
   {
     return descent_;
+  }
+
+  int approximate_width() const
+  {
+    return approx_width_;
   }
   
   int height() const

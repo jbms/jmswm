@@ -2,6 +2,7 @@
 #include <wm/wm.hpp>
 #include <X11/extensions/Xrandr.h>
 
+#if 0
 static const char *event_type_to_string(int type)
 {
   static const char *name_arr[] = {
@@ -48,6 +49,7 @@ static const char *event_type_to_string(int type)
 
   return name_arr[type - KeyPress];
 }
+#endif 
 
 /**
  * Timestamp-related code copied from Ion.  Copyright (c) Tuomo
@@ -108,66 +110,61 @@ Time WM::get_timestamp()
   return last_timestamp;
 }
 
-void WM::xwindow_handle_event(int, short, void *wm_ptr)
+void WM::xwindow_handle_event()
 {
   XEvent ev;
-  WM &wm = *(WM *)wm_ptr;
 
-  if (!XPending(wm.display()))
+  if (!XPending(display()))
     return;
   do {
-    XNextEvent(wm.display(), &ev);
+    XNextEvent(display(), &ev);
 
-    update_timestamp(wm.last_timestamp, &ev);
+    update_timestamp(last_timestamp, &ev);
     
-    DEBUG("Got event: %s 0x%08x", event_type_to_string(ev.type), ev.xany.window);
-    if (ev.xany.window == wm.bar.xwin())
-    {
-      DEBUG(" *** ");
-    }
+    //DEBUG("Got event: %s 0x%08x", event_type_to_string(ev.type), ev.xany.window);
 
     switch (ev.type)
     {
     case MapRequest:
-      wm.handle_map_request(ev.xmaprequest);
+      handle_map_request(ev.xmaprequest);
       break;
     case ConfigureRequest:
-      wm.handle_configure_request(ev.xconfigurerequest);
+      handle_configure_request(ev.xconfigurerequest);
       break;
     case Expose:
-      wm.handle_expose(ev.xexpose);
+      handle_expose(ev.xexpose);
       break;
     case DestroyNotify:
-      wm.handle_destroy_window(ev.xdestroywindow);
+      handle_destroy_window(ev.xdestroywindow);
       break;
     case PropertyNotify:
-      wm.handle_property_notify(ev.xproperty);
+      handle_property_notify(ev.xproperty);
       break;
     case UnmapNotify:
-      wm.handle_unmap_notify(ev.xunmap);
+      handle_unmap_notify(ev.xunmap);
       break;
     case EnterNotify:
-      wm.handle_enter_notify(ev.xcrossing);
+      handle_enter_notify(ev.xcrossing);
       break;
     case MappingNotify:
-      wm.handle_mapping_notify(ev.xmapping);
+      handle_mapping_notify(ev.xmapping);
       break;
     case KeyPress:
-      wm.handle_keypress(ev.xkey);
+      handle_keypress(ev.xkey);
       break;
     default:
-      if (wm.hasXrandr
-          && ev.type == wm.xrandr_event_base + RRScreenChangeNotify)
+      if (hasXrandr
+          && ev.type == xrandr_event_base + RRScreenChangeNotify)
       {
-        wm.handle_xrandr_event(ev);
+        handle_xrandr_event(ev);
         break;
       }
-      DEBUG("  Unhandled event: %s", event_type_to_string(ev.type));
+      //DEBUG("  Unhandled event: %s", event_type_to_string(ev.type));
       break;
     }
-  } while (XPending(wm.display()));
-  
-  wm.flush();
+  } while (XPending(display()));
+
+  // No flush here; the event loop flushes
 }
 
 

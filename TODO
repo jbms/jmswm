@@ -7,7 +7,7 @@ Core functionality:
 
 - Proper use of window properties/standard conformance
 
-- Status bar support
+DONE - Status bar support
 
 DONE - Restart support (saving all state in window properties)
 
@@ -30,9 +30,9 @@ Need to know the frame information for every client:
 
 - Handle focus change on shading
 
-- Solution to shading and auto-sizing: keep a priority value for each frame
+DONE - Solution to shading and auto-sizing: keep a priority value for each frame
 
-- If the pointer is in a window before a repositiong, it is warped to
+DONE - If the pointer is in a window before a repositiong, it is warped to
   remain in it after.
 
 
@@ -52,6 +52,11 @@ Suppose all positioning is deferred:
 
   Always warp when starting up.
 
+- menu completion
 
 
+  
+  wait for some timeout 100 or 300ms after last change before
+  initiating completion -- there will be an assigned completor.
 
+  assigned completer

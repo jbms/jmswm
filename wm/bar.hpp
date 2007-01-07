@@ -33,6 +33,17 @@ WM_DEFINE_STYLE_TYPE(WBarStyle,
 
                      )
 
+WM_DEFINE_STYLE_TYPE(WBarCellStyle,
+                     /* style type features */
+                     ()
+                     ((WColor, ascii_string, foreground_color))
+                     ((WColor, ascii_string, background_color)),
+                     
+                     /* regular features */
+                     ()
+                     )
+
+
 class WM;
 
 class WBar
@@ -109,6 +120,8 @@ public:
 
   int height();
 
+  void schedule_update_server() { scheduled_update_server = true; }
+
   class CellRef
   {
     friend class WBar;
@@ -118,6 +131,8 @@ public:
       : cell(cell)
     {}
   public:
+
+    CellRef() {}
 
     CellRef(const CellRef &ref)
       : cell(ref.cell)
@@ -144,8 +159,65 @@ public:
     void set_background(const WColor &c);
   };
 
+  class InsertPosition
+  {
+  private:
+    cell_position_t side;
+    CellRef ref;
+    enum { BEFORE, AFTER, BEGIN, END } relative;
+    friend class WBar;
+  };
+
+  static InsertPosition before(const CellRef &r)
+  {
+    InsertPosition p;
+    p.side = r.cell->position;
+    p.ref = r;
+    p.relative = InsertPosition::BEFORE;
+    return p;
+  }
+
+  static InsertPosition after(const CellRef &r)
+  {
+    InsertPosition p;
+    p.side = r.cell->position;
+    p.ref = r;
+    p.relative = InsertPosition::AFTER;
+    return p;
+  }
+
+  static InsertPosition begin(cell_position_t position)
+  {
+    InsertPosition p;
+    p.side = position;
+    p.relative = InsertPosition::BEGIN;
+    return p;
+  }
+
+  static InsertPosition end(cell_position_t position)
+  {
+    InsertPosition p;
+    p.side = position;
+    p.relative = InsertPosition::END;
+    return p;
+  }
+
   WBar(WM &wm, const WBarStyle::Spec &style_spec);
   ~WBar();
+
+  CellRef insert(InsertPosition pos,
+                 const WColor &foreground_color,
+                 const WColor &background_color,
+                 const utf8_string &text = utf8_string());
+
+  CellRef insert(InsertPosition pos,
+                 const WBarCellStyle &style,
+                 const utf8_string &text = utf8_string())
+  {
+    return insert(pos, style.foreground_color,
+                  style.background_color,
+                  text);
+  }
 
   CellRef insert_end(cell_position_t position,
                      const WColor &foreground_color,

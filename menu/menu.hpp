@@ -7,12 +7,33 @@
 #include <draw/draw.hpp>
 #include <boost/function.hpp>
 
+#include <util/event.hpp>
+
+#include <vector>
+
 class WM;
 
 class WMenu
 {
 public:
   WM &wm_;
+
+  class InputState
+  {
+  public:
+    utf8_string text;
+    utf8_string::size_type cursor_position;
+  };
+
+  typedef std::pair<utf8_string, InputState> CompletionResult;
+  typedef std::vector<CompletionResult> CompletionList;
+
+  CompletionList completions;
+  bool completions_valid;
+  int selected_completion;
+  int completion_columns;
+  int completion_column_width;
+  int completion_lines;
   
   Window xwin_;
 
@@ -31,16 +52,28 @@ public:
 
   enum map_state_t { STATE_MAPPED, STATE_UNMAPPED } map_state;
 
-  utf8_string current_input, prompt;
-  utf8_string::size_type cursor_position;
-  boost::function<void (const utf8_string &)> success_action;
-  boost::function<void (void)> failure_action;
+  InputState input;
+  utf8_string prompt;
+  
+  typedef boost::function<void (const utf8_string &)> SuccessAction;
+  typedef boost::function<void (void)> FailureAction;
+  typedef boost::function<void (CompletionList &list, const InputState &state)>
+    Completer;
+
+  Completer completer;
+  SuccessAction success_action;
+  FailureAction failure_action;
 
   WRect bounds;
 
   void compute_bounds();
 
   void initialize();
+
+  void handle_input_changed();
+  void update_completions();
+
+  TimerEvent completion_delay;
 
   bool initialized;
 
@@ -63,9 +96,9 @@ public:
   }
 
   bool read_string(const utf8_string &prompt,
-                   const boost::function<void (const utf8_string &)> &success_action,
-                   const boost::function<void (void)> &failure_action
-                   = boost::function<void (void)>());
+                   const SuccessAction &success_action,
+                   const FailureAction &failure_action = FailureAction(),
+                   const Completer &completer = Completer());
 
   void handle_expose(const XExposeEvent &ev);
   void handle_screen_size_changed();

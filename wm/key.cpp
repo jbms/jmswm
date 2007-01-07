@@ -143,7 +143,7 @@ public:
 
   /* If this is non-NULL, the keyboard is grabbed. */
   boost::shared_ptr<WKeyMap> current_kmap;
-  struct event kmap_reset_event;
+  TimerEvent kmap_reset_event;
 };
 
 WKeyBindingContext::WKeyBindingContext(WM &wm, const WModifierInfo &mod_info,
@@ -154,24 +154,15 @@ WKeyBindingContext::WKeyBindingContext(WM &wm, const WModifierInfo &mod_info,
 {
   state = new WKeyBindingState;
 
-  evtimer_set(&state->kmap_reset_event,
-              &WKeyBindingContext::sequence_timeout_handler,
-              this);
-  
-  if (event_base_set(wm.eb(), &state->kmap_reset_event) != 0)
-    ERROR_SYS("event_base_set");
+  state->kmap_reset_event.initialize
+    (wm.event_service(),
+     boost::bind(&WKeyBindingContext::reset_current_key_sequence,
+                 this));
 }
 
 WKeyBindingContext::~WKeyBindingContext()
 {
-  event_del(&state->kmap_reset_event);
   delete state;
-}
-
-void WKeyBindingContext::sequence_timeout_handler(int, short, void *ctx_ptr)
-{
-  WKeyBindingContext &ctx = *(WKeyBindingContext *)ctx_ptr;
-  ctx.reset_current_key_sequence();
 }
 
 /**
@@ -460,7 +451,7 @@ bool WKeyBindingContext::unbind(const WKeySequence &seq)
   do
   {
     const WKeySpec &spec = *seq_it;
-    
+
     WKeyMap::KeysymMap::iterator it
       = cur->keysym_map.find(boost::make_tuple(spec.keysym(), spec.modifiers()));
 
@@ -506,17 +497,18 @@ bool WKeyBindingContext::unbind(const WKeySequence &seq)
 
 static void unbind_all(WKeyBindingContext &c, const KeyBindingSpecList &list)
 {
-  std::for_each(list.begin(), list.end(),
-                boost::bind(&WKeyBindingContext::unbind, c,
-                            bind(&KeyBindingSpec::first, _1)));
+  for (KeyBindingSpecList::const_iterator it = list.begin();
+       it != list.end();
+       ++it)
+    c.unbind(it->first);
 }
 
 static void bind_all(WKeyBindingContext &c, const KeyBindingSpecList &list)
 {
-  std::for_each(list.begin(), list.end(),
-                boost::bind(&WKeyBindingContext::bind, c,
-                            bind(&KeyBindingSpec::first, _1),
-                            bind(&KeyBindingSpec::second, _1)));  
+  for (KeyBindingSpecList::const_iterator it = list.begin();
+       it != list.end();
+       ++it)
+    c.bind(it->first, it->second);
 }
 
 void WM::handle_mapping_notify(const XMappingEvent &ev)
@@ -530,14 +522,19 @@ void WM::handle_mapping_notify(const XMappingEvent &ev)
   KeyBindingSpecList global_bindings;
   keymap_to_binding_list(global_bindctx.state->kmap, global_bindings);
 
+  KeyBindingSpecList menu_bindings;
+  keymap_to_binding_list(menu.bindctx.state->kmap, menu_bindings);
+
   /* Remove current bindings */
   unbind_all(global_bindctx, global_bindings);
+  unbind_all(menu.bindctx, menu_bindings);
 
   /* Update locking modifier info */
   mod_info.update(display());
 
   /* Remap all bindings */
   bind_all(global_bindctx, global_bindings);
+  bind_all(menu.bindctx, menu_bindings);
 }
 
 void WM::handle_keypress(const XKeyEvent &ev)
@@ -581,13 +578,13 @@ bool WKeyBindingContext::process_keypress(const XKeyEvent &ev)
   if ((*it)->is_submap())
   {
     if (state->current_kmap)
-      evtimer_del(&state->kmap_reset_event);
+      state->kmap_reset_event.cancel();
     else if (grab_required)
       XGrabKeyboard(wm.display(), event_window, false,
                     GrabModeAsync, GrabModeAsync, CurrentTime);
-    
-    struct timeval tv = wm.key_sequence_timeout;
-    evtimer_add(&state->kmap_reset_event, &tv);
+
+    state->kmap_reset_event.wait_for(wm.key_sequence_timeout.tv_sec,
+                                     wm.key_sequence_timeout.tv_usec);
 
     state->current_kmap = (*it)->submap;
   } else
@@ -601,7 +598,7 @@ bool WKeyBindingContext::process_keypress(const XKeyEvent &ev)
 
 void WKeyBindingContext::reset_current_key_sequence()
 {
-  evtimer_del(&state->kmap_reset_event);
+  state->kmap_reset_event.cancel();
   if (state->current_kmap)
   {
     if (grab_required)

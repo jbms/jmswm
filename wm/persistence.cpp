@@ -107,6 +107,7 @@ struct PersistentViewInfo
 {
   utf8_string name;
   bool selected;
+  bool bar_visible;
 
   std::vector<PersistentColumnInfo> columns;
 
@@ -115,13 +116,15 @@ struct PersistentViewInfo
   {
     ar & name;
     ar & selected;
+    ar & bar_visible;
     ar & columns;
   }
 
   PersistentViewInfo() {}
   PersistentViewInfo(WView *view)
     : name(view->name()),
-      selected(view == view->wm().selected_view())
+      selected(view == view->wm().selected_view()),
+      bar_visible(view->bar_visible())
   {
     BOOST_FOREACH (WColumn &c, view->columns)
       columns.push_back(PersistentColumnInfo(&c));
@@ -157,6 +160,7 @@ struct PersistentFrameInfo
   int position;
   float priority;
   bool shaded;
+  bool decorated;
 
   template <class Archive>
   void serialize(Archive &ar, const unsigned int version)
@@ -167,6 +171,7 @@ struct PersistentFrameInfo
     ar & position;
     ar & priority;
     ar & shaded;
+    ar & decorated;
   }
 
   PersistentFrameInfo() {}
@@ -176,7 +181,8 @@ struct PersistentFrameInfo
       column(column_index(frame->column())),
       position(frame_index(frame)),
       priority(frame->priority()),
-      shaded(frame->shaded())
+      shaded(frame->shaded()),
+      decorated(frame->decorated())
   {}
 };
 
@@ -269,6 +275,8 @@ void WM::load_state_from_server()
             continue;
           WView *view = new WView(*this, v.name);
 
+          view->set_bar_visible(v.bar_visible);
+
           if (v.selected)
             select_view(view);
 
@@ -319,8 +327,12 @@ void WM::load_state_from_server()
         delete &*it;
     }
 
+    /*
+
     if (view->columns.empty() && selected_view() != view)
       delete view;
+
+    */
   }
 }
 
@@ -365,10 +377,13 @@ bool WM::place_existing_client(WClient *client)
     WFrame *frame = new WFrame(*client);
     frame->set_priority(f.priority);
     frame->set_shaded(f.shaded);
+    frame->set_decorated(f.decorated);
     
     WColumn::iterator pos = get_frame_insert_position(column, f.position);
     
     column->add_frame(frame, pos);
+    if (f.selected)
+      column->select_frame(frame);
     placed = true;
   }
 

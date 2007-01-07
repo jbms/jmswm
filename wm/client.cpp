@@ -103,9 +103,12 @@ void WM::manage_client(Window w, bool map_request)
 
   c->update_size_hints_from_server();
   c->update_protocols_from_server();
-  c->update_name_from_server();
   c->update_class_from_server();
   c->update_role_from_server();
+
+  // This is done after updating the other information that may be
+  // useful to client_update_name_hook functions.
+  c->update_name_from_server();
 
   managed_clients.insert(std::make_pair(c->xwin_, c.get()));
   framewin_map.insert(std::make_pair(c->frame_xwin_, c.get()));
@@ -123,6 +126,8 @@ void WM::manage_client(Window w, bool map_request)
 
   if (map_request || !place_existing_client(ptr))
     place_client(ptr);
+
+  manage_client_hook(ptr);
 }
 
 void WClient::update_size_hints_from_server()
@@ -174,7 +179,22 @@ void WClient::update_name_from_server()
   }
 
   schedule_draw();
+
+  wm().update_client_name_hook(this);
 }
+
+void WClient::set_visible_name(const utf8_string &str)
+{
+  visible_name_ = str;
+  schedule_draw();
+}
+
+void WClient::set_context_info(const utf8_string &str)
+{
+  context_info_ = str;
+  schedule_draw();
+}
+
 
 void WClient::update_class_from_server()
 {
@@ -192,7 +212,7 @@ void WClient::update_class_from_server()
 
   if (class_hint.res_class)
   {
-    instance_name_ = class_hint.res_class;
+    class_name_ = class_hint.res_class;
     XFree(class_hint.res_class);
   }
 }
@@ -212,7 +232,7 @@ void WM::place_client(WClient *c)
 
   if (!view)
   {
-    view = new WView(*this, "def");
+    view = new WView(*this, "misc");
     select_view(view);
   }
 
@@ -240,6 +260,7 @@ void WM::place_client(WClient *c)
 
 void WM::unmanage_client(WClient *client)
 {
+  unmanage_client_hook(client);
   for (WClient::ViewFrameMap::iterator it = client->view_frames_.begin(),
          next;
        it != client->view_frames_.end();
