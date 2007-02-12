@@ -119,5 +119,6 @@ void menu_beginning_of_line(WM &wm);
 void menu_end_of_line(WM &wm);
 void menu_delete(WM &wm);
 void menu_kill_line(WM &wm);
+void menu_complete(WM &wm);
 
 #endif /* _MENU_HPP */

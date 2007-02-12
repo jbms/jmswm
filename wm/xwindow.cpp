@@ -1,6 +1,4 @@
-
-#include <wm/xwindow.hpp>
-#include <X11/Xutil.h>
+#include <wm/all.hpp>
 
 /* FIXME: this function should be fixed to do correct conversion,
    check the type atom, etc. */

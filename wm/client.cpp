@@ -1,10 +1,5 @@
 
-#include <wm/wm.hpp>
-#include <wm/xwindow.hpp>
-
-#include <X11/Xatom.h>
-
-#include <util/log.hpp>
+#include <wm/all.hpp>
 
 WClient::WClient(WM &wm, Window w)
   : wm_(wm),
@@ -237,7 +232,7 @@ void WM::place_client(WClient *c)
   }
 
   /* TODO: Use a better policy */
-  if (view->columns.size() < 3)
+  if (view->columns.size() < 2)
   {
     WView::iterator it = view->selected_position();
     if (it != view->columns.end())

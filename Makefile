@@ -14,13 +14,15 @@ MENU_OBJECTS := menu/menu.o
 
 WM_OBJECTS := wm/client.o wm/frame.o wm/view.o wm/xwindow.o wm/event.o wm/main.o \
               wm/wm.o wm/key.o wm/persistence.o wm/sizehint.o wm/bar.o \
-              wm/volume.o
+              wm/volume.o wm/commands.o wm/extra/bar_view_applet.o \
+              wm/extra/cwd.o wm/extra/fullscreen.o wm/extra/battery_applet.o
 
 OBJECTS := $(UTIL_OBJECTS) $(DRAW_OBJECTS) $(WM_OBJECTS) $(MENU_OBJECTS)
 
 SOURCES := $(OBJECTS:%.o=%.cpp)
 
 LDLIBS := -levent -lboost_serialization -lboost_signals -lboost_thread \
+          -lboost_filesystem \
           -lX11 -lXrandr $(shell pkg-config --libs pango xft pangoxft alsa)
 
 CXXFLAGS += -g -Wall -Werror $(shell pkg-config --cflags pango xft pangoxft alsa) \
@@ -29,6 +31,13 @@ CXXFLAGS += -g -Wall -Werror $(shell pkg-config --cflags pango xft pangoxft alsa
 CPPFLAGS += -I.
 
 $(OBJECTS): Makefile
+
+# PCH support does not work with anonymous namespaces until GCC 4.2.0
+
+# wm/all.hpp.gch: wm/all.hpp Makefile
+#	g++ -o $@ -x c++-header -c wm/all.hpp $(CPPFLAGS) $(CXXFLAGS)
+
+# $(OBJECTS): wm/all.hpp.gch
 
 %.a:
 	$(AR) rc $@ $(filter %.o,$^)

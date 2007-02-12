@@ -200,6 +200,14 @@ void TimerEvent::wait_for(long seconds, long microsecs)
     ERROR_SYS("event_add");
 }
 
+void TimerEvent::wait(const time_duration &duration)
+{
+  struct timeval tv = to_timeval(duration);
+  
+  if (event_add(&ev, &tv) != 0)
+    ERROR_SYS("event_add");
+}
+
 void TimerEvent::cancel()
 {
   event_del(&ev);

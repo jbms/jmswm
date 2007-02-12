@@ -7,6 +7,8 @@
 #include <boost/thread/mutex.hpp>
 #include <queue>
 #include <boost/function.hpp>
+#include <errno.h>
+#include <util/time.hpp>
 
 class EventService;
 
@@ -63,6 +65,7 @@ public:
   // Cancels the current timer if it is running.
   void wait_for(long seconds,
                 long microsecs);
+  void wait(const time_duration &duration);
   void cancel();
 };
 

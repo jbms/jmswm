@@ -56,7 +56,8 @@ const long WM_EVENT_MASK_FRAMEWIN = (SubstructureRedirectMask |
                                      //PointerMotionMask |
                                      ButtonReleaseMask |
                                      KeyPressMask |
-                                     EnterWindowMask);
+                                     EnterWindowMask |
+                                     FocusChangeMask);
 
 class WClient;
 class WFrame;
@@ -277,6 +278,7 @@ private:
   void handle_mapping_notify(const XMappingEvent &ev);
   void handle_keypress(const XKeyEvent &ev);
   void handle_xrandr_event(const XEvent &ev);
+  void handle_focus_out(const XFocusChangeEvent &ev);
 
   /**
    * }}}
@@ -748,6 +750,9 @@ public:
   typedef FrameList::iterator iterator;
 private:
   WFrame *selected_frame_;
+  TimerEvent raise_frame_event;
+  void raise_selected_frame();
+  
 public:
 
   iterator selected_position() { return make_iterator(selected_frame_); }

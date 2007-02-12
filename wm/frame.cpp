@@ -1,11 +1,4 @@
-#include <boost/foreach.hpp>
-
-#include <wm/wm.hpp>
-
-#include <util/log.hpp>
-
-#include <boost/bind.hpp>
-#include <algorithm>
+#include <wm/all.hpp>
 
 int WM::bar_height() const
 {

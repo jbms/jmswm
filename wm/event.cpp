@@ -1,8 +1,6 @@
+#include <wm/all.hpp>
 
-#include <wm/wm.hpp>
-#include <X11/extensions/Xrandr.h>
-
-//#define DEBUG_DISPLAY_XEVENTS
+#define DEBUG_DISPLAY_XEVENTS
 
 #ifdef DEBUG_DISPLAY_XEVENTS
 static const char *event_type_to_string(int type)
@@ -156,6 +154,9 @@ void WM::xwindow_handle_event()
     case KeyPress:
       handle_keypress(ev.xkey);
       break;
+    case FocusOut:
+      handle_focus_out(ev.xfocus);
+      break;
     default:
       if (hasXrandr
           && ev.type == xrandr_event_base + RRScreenChangeNotify)
@@ -299,4 +300,24 @@ void WM::handle_xrandr_event(const XEvent &ev)
 
   menu.handle_screen_size_changed();
   bar.handle_screen_size_changed();
+}
+
+void WM::handle_focus_out(const XFocusChangeEvent &ev)
+{
+  /* Prevent programs like matlab from stealing the input focus */
+  
+  if (ev.detail == NotifyNonlinear
+      || ev.detail == NotifyNonlinearVirtual)
+  {
+    if (WClient *client = client_of_framewin(ev.window))
+    {
+      if (WFrame *frame = selected_frame())
+      {
+        if (client == &frame->client())
+        {
+          client->schedule_set_input_focus();
+        }
+      }
+    }
+  }
 }

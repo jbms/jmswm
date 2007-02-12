@@ -1,7 +1,4 @@
-
-#include <wm/bar.hpp>
-#include <wm/wm.hpp>
-#include <boost/utility.hpp>
+#include <wm/all.hpp>
 
 int WBar::label_height()
 {

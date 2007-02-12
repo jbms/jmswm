@@ -1,14 +1,4 @@
-
-#include <boost/foreach.hpp>
-#include <wm/wm.hpp>
-#include <boost/utility.hpp>
-#include <util/log.hpp>
-#include <wm/xwindow.hpp>
-#include <X11/extensions/Xrandr.h>
-#include <ctype.h>
-
-#include <boost/bind.hpp>
-
+#include <wm/all.hpp>
 
 /* Error handler based on Ion code */
 /* Copyright (c) Tuomo Valkonen 1999-2006. */

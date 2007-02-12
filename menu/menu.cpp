@@ -1,10 +1,5 @@
-#include <menu/menu.hpp>
 
-#include <ctype.h>
-
-#include <wm/wm.hpp>
-
-#include <boost/bind.hpp>
+#include <wm/all.hpp>
 
 const static long MENU_WINDOW_EVENT_MASK = ExposureMask | KeyPressMask;
 
@@ -253,16 +248,26 @@ void WMenu::draw()
       int row = pos_index / completion_columns;
       int col = pos_index % completion_columns;
 
-      WRect label_rect(rect2.x + completion_column_width * col,
+      WRect label_rect1(rect2.x + completion_column_width * col,
                        base_y + line_height * row,
                        completion_column_width, line_height);
 
-      label_rect = label_rect.inside_lr_tb_border
-        (style.spacing + style.label_horizontal_padding,
-         style.spacing + style.label_vertical_padding);
+      WRect label_rect2 = label_rect1.inside_border(style.spacing);
+
+      WRect label_rect3 = label_rect2.inside_lr_tb_border
+        (style.label_horizontal_padding,
+         style.label_vertical_padding);
+
+      if (pos_index == selected_completion)
+      {
+        fill_rect(d, substyle.label_background_color, label_rect2);
+      }
+
+      const WColor &text_color = (pos_index == selected_completion) ?
+        substyle.background_color : substyle.label_background_color;
 
       draw_label(d, completions[pos_index].first, style.label_font,
-                 substyle.label_background_color, label_rect);
+                 text_color, label_rect3);
     }
   }
 
@@ -338,6 +343,7 @@ void WMenu::handle_input_changed()
     return;
   
   completions_valid = false;
+  selected_completion = -1;
 
   // 100ms delay
   completion_delay.wait_for(0, 100000);
@@ -501,4 +507,29 @@ void menu_kill_line(WM &wm)
     menu.input.text.erase(menu.input.cursor_position);
     menu.handle_input_changed();
   }
+}
+
+void menu_complete(WM &wm)
+{
+  WMenu &menu = wm.menu;
+
+  if (!menu.active)
+    return;
+
+  if (!menu.completions_valid)
+    return;
+
+  if (menu.completions.empty())
+    return;
+
+  if (menu.selected_completion < 0)
+    menu.selected_completion = 0;
+
+  else
+    menu.selected_completion =
+      (menu.selected_completion + 1) % menu.completions.size();
+
+  menu.input = menu.completions[menu.selected_completion].second;
+
+  menu.scheduled_draw = true;
 }

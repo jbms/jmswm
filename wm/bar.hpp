@@ -157,6 +157,11 @@ public:
 
     void set_foreground(const WColor &c);
     void set_background(const WColor &c);
+    void set_style(const WBarCellStyle &s)
+    {
+      set_foreground(s.foreground_color);
+      set_background(s.background_color);
+    }
   };
 
   class InsertPosition

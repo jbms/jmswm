@@ -1,4 +1,4 @@
-#include <wm/wm.hpp>
+#include <wm/all.hpp>
 
 static void correct_aspect(int max_w, int max_h, int ax, int ay,
                            int &w, int &h)

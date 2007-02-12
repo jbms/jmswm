@@ -1,22 +1,5 @@
 
-#include <boost/foreach.hpp>
-#include <wm/wm.hpp>
-
-#include <wm/xwindow.hpp>
-
-#include <sstream>
-#include <string>
-#include <iterator>
-#include <algorithm>
-#include <vector>
-
-#include <boost/archive/binary_iarchive.hpp>
-#include <boost/archive/binary_oarchive.hpp>
-#include <boost/archive/archive_exception.hpp>
-#include <boost/serialization/string.hpp>
-#include <boost/serialization/vector.hpp>
-
-
+#include <wm/all.hpp>
 
 static bool get_persistent_state_data(WM &wm, Window w, std::string &state)
 {

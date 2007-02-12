@@ -1,9 +1,5 @@
 
-#include <boost/foreach.hpp>
-#include <wm/wm.hpp>
-#include <boost/utility.hpp>
-
-#include <util/log.hpp>
+#include <wm/all.hpp>
 
 const static float frame_initial_priority = 0.34f;
 const static float frame_minimum_priority = 0.1f;
@@ -117,7 +113,10 @@ WFrame::WFrame(WClient &client)
 {}
 
 WColumn::WColumn(WView *view)
-  : view_(view), selected_frame_(0), scheduled_update_positions(false),
+  : view_(view), selected_frame_(0),
+    raise_frame_event(view->wm().event_service(),
+                      boost::bind(&WColumn::raise_selected_frame, this))
+    scheduled_update_positions(false),
     priority_(initial_priority)
 {}
 
@@ -593,7 +592,7 @@ void WView::place_frame_in_smallest_column(WFrame *frame)
 {
   iterator col;
   // 3 should not be hardcoded here
-  if (columns.size() < 3)
+  if (columns.size() < 2)
     col = create_column(columns.end());
   else
   {

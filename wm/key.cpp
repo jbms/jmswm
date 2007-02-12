@@ -1,37 +1,4 @@
-
-#include <boost/foreach.hpp>
-#include <util/log.hpp>
-
-#include <assert.h>
-
-#include <wm/key.hpp>
-#include <wm/wm.hpp>
-
-#include <boost/utility.hpp>
-#include <boost/bind.hpp>
-
-#include <boost/algorithm/string.hpp>
-#include <functional>
-#include <stdexcept>
-
-#include <algorithm>
-#include <iterator>
-
-#include <boost/multi_index_container.hpp>
-#include <boost/multi_index/composite_key.hpp>
-#include <boost/multi_index/member.hpp>
-#include <boost/multi_index/mem_fun.hpp>
-#include <boost/multi_index/ordered_index.hpp>
-
-#include <boost/tuple/tuple.hpp>
-#include <boost/tuple/tuple_comparison.hpp>
-
-#include <boost/shared_ptr.hpp>
-
-#include <X11/keysymdef.h>
-
-#include <assert.h>
-
+#include <wm/all.hpp>
 
 class WKeyMap;
 
