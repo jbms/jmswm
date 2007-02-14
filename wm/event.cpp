@@ -241,6 +241,9 @@ void WM::handle_property_notify(const XPropertyEvent &ev)
 
     else if (ev.atom == XA_WM_NORMAL_HINTS)
       client->update_size_hints_from_server();
+
+    else if (ev.atom == atom_net_wm_window_type)
+      client->update_window_type_from_server();
   }
 }
 
@@ -261,21 +264,9 @@ void WM::handle_enter_notify(const XCrossingEvent &ev)
   {
     if (WFrame *frame = client->visible_frame())
     {
-      mouse_focus_frame.reset(frame);
-
-      // 100ms delay, for now
-      mouse_focus_frame_event.wait_for(0, 100000);
+      frame->view()->select_frame(frame);
     }
   }
-}
-
-void WM::handle_mouse_focus_frame_event()
-{
-  if (WFrame *frame = mouse_focus_frame.get())
-  {
-    frame->view()->select_frame(frame);
-  }
-  mouse_focus_frame.reset(0);
 }
 
 void WM::handle_xrandr_event(const XEvent &ev)

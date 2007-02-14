@@ -227,6 +227,45 @@ void draw_label(WDrawable &d, const utf8_string &text,
   g_object_unref(pl);
 }
 
+void draw_label_with_text_background(WDrawable &d, const utf8_string &text,
+                                     const WFont &font, const WColor &c,
+                                     const WColor &background,
+                                     const WRect &rect)
+{
+  PangoLayout *pl = pango_layout_new(d.draw_context().pango_context());
+  pango_layout_set_text(pl, text.data(), text.length());
+  pango_layout_set_font_description(pl, font.pango_font_description());
+  pango_layout_set_width(pl, rect.width * PANGO_SCALE);
+  pango_layout_set_single_paragraph_mode(pl, TRUE);
+  pango_layout_set_ellipsize(pl, PANGO_ELLIPSIZE_MIDDLE);
+
+  PangoAttrList *attr_list = pango_attr_list_new();
+  PangoAttribute *attr1
+    = pango_attr_background_new(background.red(),
+                                background.green(),
+                                background.blue());
+  attr1->start_index = 0;
+  attr1->end_index = text.size();
+  pango_attr_list_insert(attr_list, attr1);
+
+  pango_layout_set_attributes(pl, attr_list);
+  
+
+  XftColor xftc;
+  wcolor_to_xftcolor(c, xftc);
+
+  int y = (rect.y + (rect.height - font.height()) / 2 + font.ascent());
+  int x = rect.x;
+
+  pango_xft_render_layout_line(d.xft_draw(), &xftc, pango_layout_get_line(pl, 0),
+                               x * PANGO_SCALE, y * PANGO_SCALE);
+  g_object_unref(pl);
+
+  // It appears that pango_attribute_destroy must not be called on
+  // attr1.
+  pango_attr_list_unref(attr_list);
+}
+
 int draw_label_with_background(WDrawable &d,
                                const utf8_string &text,
                                const WFont &font,

@@ -87,10 +87,12 @@ unsigned long xwindow_get_property(Display *dpy,
                                    unsigned long n32expected, bool more,
                                    unsigned char **p)
 {
-  int format=0;
-  return xwindow_get_property_(dpy,
-                               win, atom, type, n32expected, more, p,
-                               &format);
+  int format = 0;
+  unsigned long result
+    =  xwindow_get_property_(dpy,
+                             win, atom, type, n32expected, more, p,
+                             &format);
+  return result * format / 8;
 }
 
 void xwindow_set_input_focus(Display *dpy, Window w)

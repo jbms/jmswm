@@ -108,14 +108,13 @@ void WView::perform_scheduled_tasks()
 
 WFrame::WFrame(WClient &client)
   : client_(client), column_(0), shaded_(false),
-    decorated_(true), priority_(frame_initial_priority),
+    decorated_(true), marked_(false),
+    priority_(frame_initial_priority),
     initial_position(-1)
 {}
 
 WColumn::WColumn(WView *view)
   : view_(view), selected_frame_(0),
-    raise_frame_event(view->wm().event_service(),
-                      boost::bind(&WColumn::raise_selected_frame, this))
     scheduled_update_positions(false),
     priority_(initial_priority)
 {}
@@ -154,7 +153,9 @@ WColumn::iterator WColumn::add_frame(WFrame *frame, WColumn::iterator position)
   iterator it = frames.insert(position, *frame);
 
   // TODO: decide on policy for placement in frames_by_activity list
-  frames_by_activity.push_front(*frame);
+  frames_by_activity_.push_front(*frame);
+  view()->frames_by_activity_.push_front(*frame);
+  wm().frames_by_activity_.push_front(*frame);
 
   if (!selected_frame())
     select_frame(it);
@@ -164,13 +165,56 @@ WColumn::iterator WColumn::add_frame(WFrame *frame, WColumn::iterator position)
   return it;
 }
 
+void WM::handle_frame_activity()
+{
+  if (WFrame *frame = selected_frame())
+  {
+    WColumn *column = frame->column();
+    WView *view = frame->view();
+    if (frame != &column->frames_by_activity_.front())
+    {
+      column->frames_by_activity_.splice(column->frames_by_activity_.begin(),
+                                         column->frames_by_activity_,
+                                         column->frames_by_activity_.current(*frame));
+      column->schedule_update_positions();
+    }
+
+    if (frame != &view->frames_by_activity_.front())
+    {
+      view->frames_by_activity_.splice(view->frames_by_activity_.begin(),
+                                       view->frames_by_activity_,
+                                       view->frames_by_activity_.current(*frame));
+    }
+
+    if (frame != &frames_by_activity_.front())
+    {
+      frames_by_activity_.splice(frames_by_activity_.begin(),
+                                 frames_by_activity_,
+                                 frames_by_activity_.current(*frame));
+    }
+  }
+}
+
+void WM::handle_selected_frame_changed(WFrame *old_frame, WFrame *new_frame)
+{
+  if (new_frame)
+    frame_activity_event.wait(time_duration::milliseconds(500));
+
+  if (old_frame &&
+      old_frame == old_frame->column()->selected_frame()
+      && old_frame != &old_frame->column()->frames_by_activity().front())
+  {
+    old_frame->column()->select_frame(&old_frame->column()->frames_by_activity_.front());
+  }
+
+  // FIXME: invoke the appropriate hook once it is created.
+}
+
 /**
  * Note: If all frames are set to shaded, the last one is
  * automatically unshaded.
  *
  * Policy for handling a maximum size hint:
- *
- * If 
  *
  * TODO: handle the case where there are too many frames to show even
  * the bars
@@ -194,6 +238,7 @@ void WColumn::perform_scheduled_tasks()
   int available_height = available_frame_height();
 
   int shaded_height = wm().shaded_height();
+  int decoration_height = wm().frame_decoration_height();
 
   float reserved_height = available_height
     - shaded_height * frames.size();
@@ -202,66 +247,105 @@ void WColumn::perform_scheduled_tasks()
 
   int total_unshaded_height = available_height;
 
-  if (selected_frame_)
-  {
-    // TODO: avoid this code duplication
-    float required_height = selected_frame_->priority() * available_height;
-    reserved_height -= required_height;
-    reserved_height += shaded_height;
-    total_priority += selected_frame_->priority();
-    
-    selected_frame_->shaded_ = false;
-  }
+  int unflexible_height = 0;
 
-  BOOST_FOREACH (WFrame &f, frames_by_activity)
+  BOOST_FOREACH (WFrame &f, frames_by_activity_)
   {
-    if (&f == selected_frame_)
-      continue;
+    float required_height;
+    int fixed_height = f.client().fixed_height();
+
+    if (fixed_height)
+    {
+      required_height = fixed_height;
+      if (f.decorated())
+        required_height += decoration_height;
+    } else {
+      required_height = f.priority() * available_height;
+    }
+
+    bool new_shaded;
     
-    // TODO: use size hints as follows: if minimum height is equal to
-    // maximum height, use the minimum height as the required height
-    // here, instead of basing it on the priority value.  As a result,
-    // priority will be ignored for such clients.
-    
-    float required_height = f.priority() * available_height;
-    
-    if (required_height <= reserved_height)
-      f.shaded_ = false;
+    if (&f == &frames_by_activity_.front()
+        || required_height <= reserved_height)
+      new_shaded = false;
     else
-      f.shaded_ = true;
+      new_shaded = true;
 
+    // FIXME: maybe make this a separate function.  Note that
+    // WFrame::set_shaded is not used because that calls
+    // column()->schedule_update_positions.
+    if (new_shaded != f.shaded_)
+    {
+      f.shaded_ = new_shaded;
+      if (&f == view()->selected_frame())
+        f.client().schedule_set_input_focus();
+    }
+    
     if (!f.shaded_)
     {
       reserved_height -= required_height;
       reserved_height += shaded_height;
-      total_priority += f.priority();
+      if (!fixed_height)
+        total_priority += f.priority();
+      else
+        unflexible_height += (int)required_height;
     } else
     {
       total_unshaded_height -= shaded_height;
     }
   }
 
-  WFrame *last_unshaded = 0;
-  BOOST_FOREACH (WFrame &f, frames)
+  WFrame *last_flexible = 0;
   {
-    if (!f.shaded())
-      last_unshaded = &f;
+    WFrame *last_unshaded = 0;
+    BOOST_FOREACH (WFrame &f, frames)
+    {
+      if (!f.shaded())
+      {
+        if (!f.client().fixed_height())
+          last_flexible =  &f;
+        last_unshaded = &f;
+      }
+    }
+    if (!last_flexible)
+      last_flexible = last_unshaded;
   }
 
   int y = bounds.y;
 
+  int total_flexible_height = total_unshaded_height - unflexible_height;
+
   int remaining_unshaded_height = total_unshaded_height;
+  int remaining_fixed_height = unflexible_height;
 
   BOOST_FOREACH (WFrame &f, frames)
   {
     f.bounds.y = y;
     int height;
+    
     if (f.shaded())
       height = shaded_height;
-    else if (&f == last_unshaded)
-      height = remaining_unshaded_height;
     else
-      height = (int)(f.priority() / total_priority * total_unshaded_height);
+    {
+      int fixed_height = f.client().fixed_height();
+      if (fixed_height)
+      {
+        remaining_fixed_height -= fixed_height;
+        if (f.decorated())
+          remaining_fixed_height -= decoration_height;
+      }
+      
+      if (&f == last_flexible)
+        height = remaining_unshaded_height - remaining_fixed_height;
+      else if (fixed_height)
+      {
+        height = fixed_height;
+        if (f.decorated())
+          height += decoration_height;
+      }
+      else
+        height = (int)(f.priority() / total_priority * total_flexible_height);
+    }
     y += height;
     if (!f.shaded())
       remaining_unshaded_height -= height;
@@ -306,8 +390,7 @@ WFrame::~WFrame()
 
 void WFrame::remove()
 {
-  client().schedule_update_server();
-  client().view_frames_.erase(view());
+
   WColumn::iterator cur_frame_it = column()->make_iterator(this);
   if (column()->selected_frame() == this)
   {
@@ -322,8 +405,15 @@ void WFrame::remove()
       column()->select_frame(0);
 
   }
+
+  client().schedule_update_server();
+  client().view_frames_.erase(view());  
+  
   column()->frames.erase(cur_frame_it);
-  column()->frames_by_activity.erase(column()->frames_by_activity.current(*this));
+  column()->frames_by_activity_.erase(column()->frames_by_activity_.current(*this));
+  view()->frames_by_activity_.erase(view()->frames_by_activity_.current(*this));
+  wm().frames_by_activity_.erase(wm().frames_by_activity_.current(*this));
+  
   column()->schedule_update_positions();
 
   if (column()->frames.empty())
@@ -332,6 +422,8 @@ void WFrame::remove()
   column_ = 0;
 }
 
+// Note: this function is no longer used, because frame shading is
+// managed automatically based on activity.
 void WFrame::set_shaded(bool value)
 {
   if (shaded_ != value)
@@ -353,12 +445,19 @@ void WFrame::set_decorated(bool value)
   {
     decorated_ = value;
 
-    /* FIXME: if frame positioning in columns is changed to depend on
-       whether the frame is decorated, this will need to call
-       column()->schedule_update_positions(), and possibly set input
-       focus as well. */
     if (column())
-      client().schedule_update_server();
+      column()->schedule_update_positions();
+  }
+}
+
+void WFrame::set_marked(bool value)
+{
+  if (marked_ != value)
+  {
+    marked_ = value;
+
+    if (column())
+      client().schedule_draw();
   }
 }
 
@@ -375,29 +474,21 @@ void WFrame::set_priority(float value)
 
 void WColumn::select_frame(WFrame *frame, bool warp)
 {
-  static const time_duration minimum_activity_duration = time_duration::seconds(1);
-  
   if (frame == selected_frame_)
     return;
 
-  time_point current_time = time_point::current();
-
   if (selected_frame_)
-  {
     selected_frame_->client().schedule_draw();
 
-    if (current_time - selected_frame_->last_focused > minimum_activity_duration)
-      frames_by_activity.splice(frames_by_activity.begin(),
-                                frames_by_activity,
-                                frames_by_activity.current(*selected_frame_));
-  }
+  WFrame *old_frame = selected_frame_;
 
   selected_frame_ = frame;
 
+  if (this == wm().selected_column())
+    wm().handle_selected_frame_changed(old_frame, frame);
+
   if (frame)
   {
-    frame->last_focused = current_time;
-    
     frame->client().schedule_draw();
 
     if (view() == wm().selected_view()
@@ -408,8 +499,6 @@ void WColumn::select_frame(WFrame *frame, bool warp)
         frame->client().schedule_warp_pointer();
     }
   }
-
-  schedule_update_positions();
 }
 
 void WColumn::select_frame(iterator it, bool warp)
@@ -485,13 +574,21 @@ void WView::select_column(WColumn *column, bool warp)
   if (column == selected_column())
     return;
 
+  WFrame *old_frame = 0;
+
   if (selected_column())
   {
     if (WFrame *f = selected_column()->selected_frame())
       f->client().schedule_draw();
+
+    old_frame = selected_column()->selected_frame();
   }
 
   selected_column_ = column;
+
+  if (this == wm().selected_view())
+    wm().handle_selected_frame_changed(old_frame,
+                                       column ? column->selected_frame() : 0);
 
   if (column)
   {
@@ -543,20 +640,27 @@ void WM::select_view(WView *view)
   if (view == selected_view_)
     return;
 
-  select_view_hook(view, selected_view_);
-  
-  if (selected_view_)
+  WView *old_view = selected_view_;
+
+  if (old_view)
   {
-    BOOST_FOREACH(WColumn &c, selected_view_->columns)
+    BOOST_FOREACH(WColumn &c, old_view->columns)
       BOOST_FOREACH(WFrame &f, c.frames)
         f.client().schedule_update_server();
 
-    /* Remove the old selected view if it is empty */
-    if (selected_view_->columns.empty())
-      delete selected_view_;
   }
 
   selected_view_ = view;
+  select_view_hook(view, old_view);
+  handle_selected_frame_changed(old_view ? old_view->selected_frame() : 0,
+                                view ? view->selected_frame() : 0);
+  
+  if (old_view)
+  {
+    /* Remove the old selected view if it is empty */
+    if (old_view->columns.empty())
+      delete old_view;
+  }
 
   if (selected_view_)
   {

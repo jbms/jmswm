@@ -52,17 +52,24 @@ int WM::shaded_height() const
   return bar_height() + top_left_offset(*this) + bottom_right_offset(*this);
 }
 
+int WM::frame_decoration_height() const
+{
+  return bar_height() + frame_style.spacing + top_left_offset(*this) + bottom_right_offset(*this);
+}
+
 /* TODO: maybe optimize this */
 void WFrame::draw()
 {
   WDrawable &d = wm().buffer_pixmap.drawable();
   WFrameStyle &style = wm().frame_style;
 
+  WFrameStyleScheme &scheme = (marked() ? style.marked : style.normal);
+
   WFrameStyleSpecialized &substyle
     = (this == column()->selected_frame() ?
        (column() == column()->view()->selected_column() ?
-        style.active_selected : style.inactive_selected)
-       : style.inactive);
+        scheme.active_selected : scheme.inactive_selected)
+       : scheme.inactive);
 
   if (decorated() || shaded())
   {

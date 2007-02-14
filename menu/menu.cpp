@@ -209,10 +209,12 @@ void WMenu::draw()
 {
   WDrawable &d = wm().buffer_pixmap.drawable();
 
+  // FIXME: this is not the correct style to use
   WFrameStyle &style = wm().frame_style;
 
+  // FIXME: this is not the correct style to use
   WFrameStyleSpecialized &substyle
-    = style.inactive;
+    = style.normal.inactive;
 
   // Draw completions
   {
@@ -260,20 +262,23 @@ void WMenu::draw()
 
       if (pos_index == selected_completion)
       {
-        fill_rect(d, substyle.label_background_color, label_rect2);
+        const WColor &text_color = substyle.background_color;
+        draw_label_with_text_background(d, completions[pos_index].first,
+                                        style.label_font,
+                                        text_color, substyle.label_background_color,
+                                        label_rect3);
+      } else
+      {
+        const WColor &text_color = substyle.label_background_color;        
+        draw_label(d, completions[pos_index].first, style.label_font,
+                   text_color, label_rect3);
       }
-
-      const WColor &text_color = (pos_index == selected_completion) ?
-        substyle.background_color : substyle.label_background_color;
-
-      draw_label(d, completions[pos_index].first, style.label_font,
-                 text_color, label_rect3);
     }
   }
 
   // Draw input area
   {
-    WRect rect(0, bounds.height - wm_.shaded_height(), bounds.width, bounds.height);
+    WRect rect(0, bounds.height - wm_.shaded_height(), bounds.width, wm_.shaded_height());
 
     fill_rect(d, substyle.background_color, rect);
 

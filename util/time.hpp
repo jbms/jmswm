@@ -1,6 +1,7 @@
 #ifndef _UTIL_TIME_HPP
 #define _UTIL_TIME_HPP
 #include <boost/cstdint.hpp>
+#include <boost/operators.hpp>
 #include <sys/time.h>
 
 class time_duration : public boost::less_than_comparable<time_duration>,

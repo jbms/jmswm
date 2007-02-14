@@ -5,7 +5,9 @@ WClient::WClient(WM &wm, Window w)
   : wm_(wm),
     scheduled_tasks(0),
     xwin_(w),
-    flags_(0)
+    flags_(0),
+    fixed_height_(0),
+    window_type_flags_(0)
 {}
 
 WFrame *WClient::visible_frame()
@@ -97,6 +99,7 @@ void WM::manage_client(Window w, bool map_request)
   }
 
   c->update_size_hints_from_server();
+  c->update_window_type_from_server();
   c->update_protocols_from_server();
   c->update_class_from_server();
   c->update_role_from_server();
@@ -140,6 +143,89 @@ void WClient::update_size_hints_from_server()
        ++it)
   {
     it->second->column()->schedule_update_positions();
+  }
+
+  update_fixed_height();
+}
+
+void WClient::update_window_type_from_server()
+{
+  Atom *atoms = 0;
+
+  unsigned long count = xwindow_get_property(wm().display(), xwin_, wm().atom_net_wm_window_type,
+                                             XA_ATOM, 1, true, (unsigned char **)&atoms);
+
+  count /= 4;
+
+  window_type_flags_ = 0;
+
+  for (unsigned long i = 0; i < count; ++i)
+  {
+    Atom a = atoms[i];
+    if (a == wm().atom_net_wm_window_type_desktop)
+      window_type_flags_ |= WINDOW_TYPE_DESKTOP;
+    else if (a == wm().atom_net_wm_window_type_dock)
+      window_type_flags_ |= WINDOW_TYPE_DOCK;
+    else if (a == wm().atom_net_wm_window_type_toolbar)
+      window_type_flags_ |= WINDOW_TYPE_TOOLBAR;
+    else if (a == wm().atom_net_wm_window_type_menu)
+      window_type_flags_ |= WINDOW_TYPE_MENU;
+    else if (a == wm().atom_net_wm_window_type_utility)
+      window_type_flags_ |= WINDOW_TYPE_UTILITY;
+    else if (a == wm().atom_net_wm_window_type_splash)
+      window_type_flags_ |= WINDOW_TYPE_SPLASH;
+    else if (a == wm().atom_net_wm_window_type_dialog)
+      window_type_flags_ |= WINDOW_TYPE_DIALOG;
+    else if (a == wm().atom_net_wm_window_type_dropdown_menu)
+      window_type_flags_ |= WINDOW_TYPE_DROPDOWN_MENU;
+    else if (a == wm().atom_net_wm_window_type_popup_menu)
+      window_type_flags_ |= WINDOW_TYPE_POPUP_MENU;
+    else if (a == wm().atom_net_wm_window_type_tooltip)
+      window_type_flags_ |= WINDOW_TYPE_TOOLTIP;
+    else if (a == wm().atom_net_wm_window_type_notification)
+      window_type_flags_ |= WINDOW_TYPE_NOTIFICATION;
+    else if (a == wm().atom_net_wm_window_type_combo)
+      window_type_flags_ |= WINDOW_TYPE_COMBO;
+    else if (a == wm().atom_net_wm_window_type_dnd)
+      window_type_flags_ |= WINDOW_TYPE_DND;
+    else if (a == wm().atom_net_wm_window_type_normal)
+      window_type_flags_ |= WINDOW_TYPE_NORMAL;
+  }
+
+  if (atoms)
+    XFree(atoms);
+
+  update_fixed_height();
+}
+
+void WClient::update_fixed_height()
+{
+  int previous_fixed_height = fixed_height_;
+  
+  const XSizeHints &s = size_hints();
+  if ((s.flags & PMaxSize) &&
+      (s.flags & PMinSize) &&
+      s.min_height == s.max_height)
+  {
+    fixed_height_ = s.max_height;
+  } else if (window_type_flags() & WINDOW_TYPE_DIALOG)
+  {
+    fixed_height_ = initial_geometry.height;
+  } else
+  {
+    fixed_height_ = 0;
+  }
+
+  if (fixed_height_ != previous_fixed_height)
+  {
+    /* Have all columns containing this client update positions, so that
+       the new fixed height is taken into account. */
+    for (ViewFrameMap::iterator it = view_frames_.begin();
+         it != view_frames_.end();
+         ++it)
+    {
+      it->second->column()->schedule_update_positions();
+    }
   }
 }
 

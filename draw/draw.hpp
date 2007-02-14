@@ -252,6 +252,11 @@ void draw_label(WDrawable &d, const utf8_string &text,
                 const WFont &font, const WColor &c,
                 const WRect &rect);
 
+void draw_label_with_text_background(WDrawable &d, const utf8_string &text,
+                                     const WFont &font, const WColor &c,
+                                     const WColor &background,
+                                     const WRect &rect);
+
 /**
  * Returns the width used.  Note that rect.width is the maximum width,
  * not the width to use.

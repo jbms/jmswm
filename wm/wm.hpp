@@ -80,6 +80,20 @@ WM_DEFINE_STYLE_TYPE(WFrameStyleSpecialized,
                      ()
                      )
 
+WM_DEFINE_STYLE_TYPE(WFrameStyleScheme,
+                     ()
+                     ((WFrameStyleSpecialized, WFrameStyleSpecialized::Spec,
+                       active_selected))
+                     ((WFrameStyleSpecialized, WFrameStyleSpecialized::Spec,
+                       inactive_selected))
+                     ((WFrameStyleSpecialized, WFrameStyleSpecialized::Spec,
+                       inactive)),
+
+                     /* regular features */
+                     ()
+                     )
+                     
+
 WM_DEFINE_STYLE_TYPE(WFrameStyle,
                      
                      /* style type features */
@@ -87,12 +101,8 @@ WM_DEFINE_STYLE_TYPE(WFrameStyle,
                      ((WFont, ascii_string, label_font))
                      ((WColor, ascii_string, client_background_color))
 
-                     ((WFrameStyleSpecialized, WFrameStyleSpecialized::Spec,
-                       active_selected))
-                     ((WFrameStyleSpecialized, WFrameStyleSpecialized::Spec,
-                       inactive_selected))
-                     ((WFrameStyleSpecialized, WFrameStyleSpecialized::Spec,
-                       inactive)),
+                     ((WFrameStyleScheme, WFrameStyleScheme::Spec, normal))
+                     ((WFrameStyleScheme, WFrameStyleScheme::Spec, marked)),
 
                      /* regular features */
                      ()
@@ -124,10 +134,6 @@ private:
   EventService &event_service_;
   FileEvent x_connection_event;
   SignalEvent sigint_event;
-  TimerEvent mouse_focus_frame_event;
-  weak_iptr<WFrame> mouse_focus_frame;
-
-  void handle_mouse_focus_frame_event();
 
   bool hasXrandr;
   int xrandr_event_base, xrandr_error_base;
@@ -211,6 +217,8 @@ public:
   int bar_height() const;
 
   int shaded_height() const;
+
+  int frame_decoration_height() const;
   
   /**
    * }}}
@@ -222,12 +230,29 @@ public:
 public:
   
   typedef std::map<utf8_string, WView *> ViewMap;
+
+  typedef boost::intrusive::ilist<
+    boost::intrusive::ilist_base_hook<3, false>::value_traits<WFrame>,
+    true /* constant-time size */
+  > FrameListByActivity;
   
 private:
   WView *selected_view_;
   ViewMap views_;
 
+  TimerEvent frame_activity_event;
+  
+  FrameListByActivity frames_by_activity_;
+
+  void handle_frame_activity();
+
+  // Called when this->selected_frame() changes.  The selected frame
+  // will already be set to new_frame when this function is called.
+  void handle_selected_frame_changed(WFrame *old_frame, WFrame *new_frame);
+
 public:
+
+  const FrameListByActivity &frames_by_activity() const { return frames_by_activity_; }
 
   /**
    * Returns true if the specified name is a valid name for a view.
@@ -485,11 +510,19 @@ public:
    * {{{ Deferred operation handling: Drawing, positioning, X state
    */
 private:
-  enum map_state_t { STATE_MAPPED,
-                     STATE_UNMAPPED } client_map_state, frame_map_state;
+  typedef enum { STATE_MAPPED, STATE_UNMAPPED } map_state_t;
 
-  enum iconic_state_t { ICONIC_STATE_NORMAL, ICONIC_STATE_ICONIC,
-                        ICONIC_STATE_UNKNOWN } current_iconic_state;
+  map_state_t client_map_state, frame_map_state;
+
+public:
+  typedef enum { ICONIC_STATE_NORMAL, ICONIC_STATE_ICONIC,
+                 ICONIC_STATE_UNKNOWN } iconic_state_t;
+private:
+  iconic_state_t current_iconic_state;
+public:
+  iconic_state_t iconic_state() const { return current_iconic_state; }
+  
+private:
 
   WRect current_frame_bounds;
   WRect current_client_bounds;
@@ -565,6 +598,28 @@ private:
 
   utf8_string visible_name_;
 
+  int fixed_height_;
+  unsigned int window_type_flags_;
+public:
+  const static unsigned int WINDOW_TYPE_DESKTOP       =    0x1;
+  const static unsigned int WINDOW_TYPE_DOCK          =    0x2;
+  const static unsigned int WINDOW_TYPE_TOOLBAR       =    0x4;
+  const static unsigned int WINDOW_TYPE_MENU          =    0x8;
+  const static unsigned int WINDOW_TYPE_UTILITY       =   0x10;
+  const static unsigned int WINDOW_TYPE_SPLASH        =   0x20;
+  const static unsigned int WINDOW_TYPE_DIALOG        =   0x40;
+  const static unsigned int WINDOW_TYPE_DROPDOWN_MENU =   0x80;
+  const static unsigned int WINDOW_TYPE_POPUP_MENU    =  0x100;
+  const static unsigned int WINDOW_TYPE_TOOLTIP       =  0x200;
+  const static unsigned int WINDOW_TYPE_NOTIFICATION  =  0x400;
+  const static unsigned int WINDOW_TYPE_COMBO         =  0x800;
+  const static unsigned int WINDOW_TYPE_DND           = 0x1000;
+  const static unsigned int WINDOW_TYPE_NORMAL        = 0x2000;
+
+  unsigned int window_type_flags() const { return window_type_flags_; }
+
+private:
+
   /**
    * For terminals and file editors, this should be the current
    * directory.  For web browsers, it might be set to the current URL.
@@ -578,6 +633,9 @@ private:
 
   void update_protocols_from_server();
   void update_size_hints_from_server();
+  void update_window_type_from_server();
+
+  void update_fixed_height();
 
 public:
 
@@ -594,6 +652,9 @@ public:
 
   void set_visible_name(const utf8_string &s);
   void set_context_info(const utf8_string &s);
+
+  /* Returns 0 if the client is not fixed-height. */
+  int fixed_height() const { return fixed_height_; }
 
   /**
    * }}}
@@ -636,6 +697,12 @@ class WFrame
   /* For WColumn::frames_by_activity */
   public boost::intrusive::ilist_base_hook<1, false>,
 
+  /* For WView::frames_by_activity */
+  public boost::intrusive::ilist_base_hook<2, false>,
+
+  /* For WM::frames_by_activity */
+  public boost::intrusive::ilist_base_hook<3, false>,
+
   public weak_iptr<WFrame>::base
 {
 private:
@@ -665,6 +732,7 @@ private:
   
   bool shaded_;
   bool decorated_;
+  bool marked_;
   float priority_;
   
   /* Note: this is only valid if this frame is currently focused in
@@ -690,6 +758,9 @@ public:
 
   void set_decorated(bool value);
 
+  bool marked() const { return marked_; }
+  void set_marked(bool value);
+
   WRect client_bounds() const;
 
   void draw();
@@ -712,6 +783,7 @@ class WColumn
   public weak_iptr<WColumn>::base
 {
   friend class WFrame;
+  friend class WView;
 public:
 
   WColumn(WView *view);
@@ -744,16 +816,17 @@ public:
   typedef boost::intrusive::ilist<
     boost::intrusive::ilist_base_hook<1, false>::value_traits<WFrame>,
     true /* constant-time size */
-    > FrameListByActivity;
-  FrameListByActivity frames_by_activity;
+  > FrameListByActivity;
   
   typedef FrameList::iterator iterator;
 private:
   WFrame *selected_frame_;
-  TimerEvent raise_frame_event;
-  void raise_selected_frame();
+
+  FrameListByActivity frames_by_activity_;
   
 public:
+
+  const FrameListByActivity &frames_by_activity() const { return frames_by_activity_; }
 
   iterator selected_position() { return make_iterator(selected_frame_); }
   WFrame *selected_frame() { return selected_frame_; }
@@ -856,6 +929,8 @@ public:
   void schedule_update_positions();
 
   friend class WM;
+  friend class WColumn;
+  friend class WFrame;
   
 private:
   bool scheduled_update_positions;
@@ -874,12 +949,23 @@ public:
     true /* constant-time size */
     > ColumnList;
 
+  typedef boost::intrusive::ilist<
+    boost::intrusive::ilist_base_hook<2, false>::value_traits<WFrame>,
+    true /* constant-time size */
+  > FrameListByActivity;
+
   ColumnList columns;
   typedef ColumnList::iterator iterator;
   
 private:  
   WColumn *selected_column_;
+
+  FrameListByActivity frames_by_activity_;
+  
 public:
+
+  const FrameListByActivity &frames_by_activity() const { return frames_by_activity_; }
+  
   WColumn *selected_column() { return selected_column_; }
   iterator selected_position() { return make_iterator(selected_column_); }
   iterator default_insert_position();

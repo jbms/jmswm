@@ -75,48 +75,81 @@ int main(int argc, char **argv)
   style_spec.label_font = font_name;
   style_spec.client_background_color = "black";
 
-  style_spec.active_selected.highlight_color = "gold1";
-  style_spec.active_selected.shadow_color = "gold1";
-  style_spec.active_selected.padding_color = "gold3";
-  style_spec.active_selected.background_color = "black";
-  style_spec.active_selected.label_foreground_color = "black";
-  style_spec.active_selected.label_background_color = "gold1";
-  style_spec.active_selected.label_extra_color = "gold3";
+  style_spec.normal.active_selected.highlight_color = "gold1";
+  style_spec.normal.active_selected.shadow_color = "gold1";
+  style_spec.normal.active_selected.padding_color = "gold3";
+  style_spec.normal.active_selected.background_color = "black";
+  style_spec.normal.active_selected.label_foreground_color = "black";
+  style_spec.normal.active_selected.label_background_color = "gold1";
+  style_spec.normal.active_selected.label_extra_color = "gold3";
+
 
 #if 1
-  style_spec.inactive_selected.highlight_color = "grey20";
-  style_spec.inactive_selected.shadow_color = "grey20";
-  style_spec.inactive_selected.padding_color = "black";
-  style_spec.inactive_selected.background_color = "black";
-  style_spec.inactive_selected.label_foreground_color = "black";
-  style_spec.inactive_selected.label_background_color = "gold3";
-  style_spec.inactive_selected.label_extra_color = "gold4";
+  style_spec.normal.inactive_selected.highlight_color = "grey20";
+  style_spec.normal.inactive_selected.shadow_color = "grey20";
+  style_spec.normal.inactive_selected.padding_color = "black";
+  style_spec.normal.inactive_selected.background_color = "black";
+  style_spec.normal.inactive_selected.label_foreground_color = "black";
+  style_spec.normal.inactive_selected.label_background_color = "gold3";
+  style_spec.normal.inactive_selected.label_extra_color = "gold4";
 
-  style_spec.inactive.highlight_color = "grey20";
-  style_spec.inactive.shadow_color = "grey20";
-  style_spec.inactive.padding_color = "black";
-  style_spec.inactive.background_color = "black";
-  style_spec.inactive.label_foreground_color = "black";
-  style_spec.inactive.label_background_color = "grey85";
-  style_spec.inactive.label_extra_color = "grey70";
+  style_spec.normal.inactive.highlight_color = "grey20";
+  style_spec.normal.inactive.shadow_color = "grey20";
+  style_spec.normal.inactive.padding_color = "black";
+  style_spec.normal.inactive.background_color = "black";
+  style_spec.normal.inactive.label_foreground_color = "black";
+  style_spec.normal.inactive.label_background_color = "grey85";
+  style_spec.normal.inactive.label_extra_color = "grey70";
 #else
-  style_spec.inactive_selected.highlight_color = "grey20";
-  style_spec.inactive_selected.shadow_color = "grey20";
-  style_spec.inactive_selected.padding_color = "black";
-  style_spec.inactive_selected.background_color = "black";
-  style_spec.inactive_selected.label_foreground_color = "black";
-  style_spec.inactive_selected.label_background_color = "grey85";
-  style_spec.inactive_selected.label_extra_color = "grey70";
+  style_spec.normal.inactive_selected.highlight_color = "grey20";
+  style_spec.normal.inactive_selected.shadow_color = "grey20";
+  style_spec.normal.inactive_selected.padding_color = "black";
+  style_spec.normal.inactive_selected.background_color = "black";
+  style_spec.normal.inactive_selected.label_foreground_color = "black";
+  style_spec.normal.inactive_selected.label_background_color = "grey85";
+  style_spec.normal.inactive_selected.label_extra_color = "grey70";
 
-  style_spec.inactive.highlight_color = "grey20";
-  style_spec.inactive.shadow_color = "grey20";
-  style_spec.inactive.padding_color = "black";
-  style_spec.inactive.background_color = "black";
-  style_spec.inactive.label_foreground_color = "black";
-  style_spec.inactive.label_background_color = "grey75";
-  style_spec.inactive.label_extra_color = "grey60";
-#endif 
+  style_spec.normal.inactive.highlight_color = "grey20";
+  style_spec.normal.inactive.shadow_color = "grey20";
+  style_spec.normal.inactive.padding_color = "black";
+  style_spec.normal.inactive.background_color = "black";
+  style_spec.normal.inactive.label_foreground_color = "black";
+  style_spec.normal.inactive.label_background_color = "grey75";
+  style_spec.normal.inactive.label_extra_color = "grey60";
+#endif
 
+  {
+
+    ascii_string royalblue1 = "#4169e1",
+      royalblue2 = "#3e64d6",
+      royalblue3 = "#3a5eca",
+      royalblue4 = "#3759bf";
+    style_spec.marked.active_selected.highlight_color = "gold1";
+    style_spec.marked.active_selected.shadow_color = "gold1";
+    style_spec.marked.active_selected.padding_color = "royalblue3";
+    style_spec.marked.active_selected.background_color = "black";
+    style_spec.marked.active_selected.label_foreground_color = "black";
+    style_spec.marked.active_selected.label_background_color = "royalblue1";
+    style_spec.marked.active_selected.label_extra_color = "royalblue3";
+  
+    style_spec.marked.inactive_selected.highlight_color = "grey20";
+    style_spec.marked.inactive_selected.shadow_color = "grey20";
+    style_spec.marked.inactive_selected.padding_color = "black";
+    style_spec.marked.inactive_selected.background_color = "black";
+    style_spec.marked.inactive_selected.label_foreground_color = "black";
+    style_spec.marked.inactive_selected.label_background_color = "royalblue3";
+    style_spec.marked.inactive_selected.label_extra_color = "royalblue4";
+
+    style_spec.marked.inactive.highlight_color = "grey20";
+    style_spec.marked.inactive.shadow_color = "grey20";
+    style_spec.marked.inactive.padding_color = "black";
+    style_spec.marked.inactive.background_color = "black";
+    style_spec.marked.inactive.label_foreground_color = "black";
+    style_spec.marked.inactive.label_background_color = "light steel blue";
+    style_spec.marked.inactive.label_extra_color = "steel blue";
+
+  }
+  
   style_spec.highlight_pixels = 1;
   style_spec.shadow_pixels = 1;
   style_spec.padding_pixels = 1;
@@ -178,6 +211,9 @@ int main(int argc, char **argv)
   /* JUST FOR TESTING */
   wm.bind("mod4-mod1-d", toggle_decorated);
   wm.bind("mod4-d", toggle_bar_visible);
+
+  wm.bind("mod4-space", toggle_marked);
+  
   /* */
   wm.bind("mod4-u", decrease_priority);
   wm.bind("mod4-i", increase_priority);

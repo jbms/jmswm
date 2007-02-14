@@ -11,11 +11,11 @@ DONE - Status bar support
 
 DONE - Restart support (saving all state in window properties)
 
-Need to know the name of the selected view, selected column number
+  Need to know the name of the selected view, selected column number
 
-Need to know the frame information for every client:
+  Need to know the frame information for every client:
 
-  for each frame:
+    for each frame:
 
    view name
    column number
@@ -24,11 +24,11 @@ Need to know the frame information for every client:
    whether it is selected
    other flags (shaded, bar visible, etc.)
 
-- Robustness against focus-stealing clients
+DONE:  Robustness against focus-stealing clients
 
 - Robustness against too many frames per column or columns per view
 
-- Handle focus change on shading
+N/A:  Handle focus change on shading
 
 DONE - Solution to shading and auto-sizing: keep a priority value for each frame
 
@@ -60,3 +60,30 @@ Suppose all positioning is deferred:
   initiating completion -- there will be an assigned completor.
 
   assigned completer
+
+
+---
+
+
+DONE: handle fixed height properly
+
+DONE: track appropriate net_wm property
+
+DONE: cache fixed height info
+
+
+- Remember mouse position in frame, and restore it when warping
+
+
+- Finish frame marking support
+
+- Properly handle frame activity
+
+   Always set the column timer, regardless of whether the newly selected frame is raised or not.
+
+   When a column is no longer the selected column (either because the
+   selected view changes, or the selected column changes), the most
+   recently active frame should become the selected frame.
+
+   Maintain by-column, by-view, global lists of frames in order of activity
+
