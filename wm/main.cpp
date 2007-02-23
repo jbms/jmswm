@@ -8,6 +8,7 @@
 #include <wm/extra/volume_applet.hpp>
 #include <wm/extra/bar_view_applet.hpp>
 #include <wm/extra/battery_applet.hpp>
+#include <wm/extra/gnus_applet.hpp>
 #include <wm/extra/cwd.hpp>
 
 static bool is_search_query(const utf8_string &text)
@@ -126,7 +127,7 @@ int main(int argc, char **argv)
       royalblue4 = "#3759bf";
     style_spec.marked.active_selected.highlight_color = "gold1";
     style_spec.marked.active_selected.shadow_color = "gold1";
-    style_spec.marked.active_selected.padding_color = "royalblue3";
+    style_spec.marked.active_selected.padding_color = "gold3";
     style_spec.marked.active_selected.background_color = "black";
     style_spec.marked.active_selected.label_foreground_color = "black";
     style_spec.marked.active_selected.label_background_color = "royalblue1";
@@ -196,6 +197,7 @@ int main(int argc, char **argv)
   command_list.WM_COMMAND_ADD(move_down);
 
   command_list.WM_COMMAND_ADD(toggle_fullscreen);
+  command_list.add("save_state", boost::bind(&WM::save_state_to_server, _1));
 
   wm.bind("mod4-f", select_right);
   wm.bind("mod4-b", select_left);
@@ -213,6 +215,8 @@ int main(int argc, char **argv)
   wm.bind("mod4-d", toggle_bar_visible);
 
   wm.bind("mod4-space", toggle_marked);
+
+  
   
   /* */
   wm.bind("mod4-u", decrease_priority);
@@ -245,6 +249,12 @@ int main(int argc, char **argv)
 
   wm.bind("mod4-c", close_current_client);
   wm.bind("mod4-k c", kill_current_client);
+  
+  wm.bind("mod4-k r", move_next_by_activity);
+
+  wm.bind("mod4-l", move_next_by_activity_in_column);
+  wm.bind("mod4-j", move_next_by_activity_in_view);
+
 
   wm.bind("mod4-Return", toggle_fullscreen);
 
@@ -334,6 +344,14 @@ int main(int argc, char **argv)
   TimeApplet time_applet(wm, def_bar_style,
                          WBar::end(WBar::RIGHT));
 
+  WBarCellStyle::Spec gnus_style;
+  gnus_style.foreground_color = "black";
+  gnus_style.background_color = "gold1";
+  
+
+  GnusApplet gnus_applet(wm, gnus_style,
+                         WBar::begin(WBar::RIGHT));
+
   for (char c = 'a'; c <= 'z'; ++c)
   {
     ascii_string str;
@@ -352,6 +370,8 @@ int main(int argc, char **argv)
   wm.bind("mod4-k m", move_current_frame_to_other_view_interactive);
   wm.bind("mod4-k j", copy_current_frame_to_other_view_interactive);
   wm.bind("mod4-k k", remove_current_frame);
+  wm.bind("mod4-y", move_marked_frames_to_current_view);
+  wm.bind("mod4-k y", copy_marked_frames_to_current_view);
 
   do
   {

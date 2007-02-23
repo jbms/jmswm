@@ -69,11 +69,34 @@ public:
   void cancel();
 };
 
+class InotifyEvent
+{
+private:
+  struct event ev;
+  typedef boost::function<void (int, uint32_t, uint32_t, const char *)> Handler;
+  Handler handler;
+  static void handle_event(int, short, void *);
+  bool initialized;
+  static const int BUFFER_SIZE = 4096;
+  char buffer[BUFFER_SIZE];
+  int length;
+  int fd;
+public:
+  InotifyEvent();
+  InotifyEvent(EventService &s, const Handler &handler);
+  ~InotifyEvent();
+  void initialize(EventService &s, const Handler &handler);
+
+  int add_watch(const char *pathname, uint32_t mask);
+  void rm_watch(int wd);
+};
+
 class EventService
 {
   friend class FileEvent;
   friend class SignalEvent;
   friend class TimerEvent;
+  friend class InotifyEvent;
 private:
   struct event_base *eb;
 

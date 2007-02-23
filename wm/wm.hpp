@@ -253,6 +253,7 @@ private:
 public:
 
   const FrameListByActivity &frames_by_activity() const { return frames_by_activity_; }
+  FrameListByActivity &frames_by_activity() { return frames_by_activity_; }
 
   /**
    * Returns true if the specified name is a valid name for a view.
@@ -303,7 +304,7 @@ private:
   void handle_mapping_notify(const XMappingEvent &ev);
   void handle_keypress(const XKeyEvent &ev);
   void handle_xrandr_event(const XEvent &ev);
-  void handle_focus_out(const XFocusChangeEvent &ev);
+  void handle_focus_in(const XFocusChangeEvent &ev);
 
   /**
    * }}}
@@ -357,6 +358,12 @@ public:
   void save_state_to_server();
   void load_state_from_server();
   bool place_existing_client(WClient *client);
+
+private:
+
+  TimerEvent save_state_event;
+
+  void handle_save_state_event();
   
   /**
    * }}}
@@ -365,6 +372,7 @@ public:
   /**
    * {{{ X windows utility functions
    */
+public:  
   void set_window_WM_STATE(Window w, int state);
   bool get_window_WM_STATE(Window w, int &state_ret);
 
@@ -827,6 +835,7 @@ private:
 public:
 
   const FrameListByActivity &frames_by_activity() const { return frames_by_activity_; }
+  FrameListByActivity &frames_by_activity() { return frames_by_activity_; }
 
   iterator selected_position() { return make_iterator(selected_frame_); }
   WFrame *selected_frame() { return selected_frame_; }
@@ -965,6 +974,8 @@ private:
 public:
 
   const FrameListByActivity &frames_by_activity() const { return frames_by_activity_; }
+  FrameListByActivity &frames_by_activity() { return frames_by_activity_; }
+
   
   WColumn *selected_column() { return selected_column_; }
   iterator selected_position() { return make_iterator(selected_column_); }

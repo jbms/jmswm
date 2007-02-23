@@ -15,7 +15,8 @@ MENU_OBJECTS := menu/menu.o
 WM_OBJECTS := wm/client.o wm/frame.o wm/view.o wm/xwindow.o wm/event.o wm/main.o \
               wm/wm.o wm/key.o wm/persistence.o wm/sizehint.o wm/bar.o \
               wm/volume.o wm/commands.o wm/extra/bar_view_applet.o \
-              wm/extra/cwd.o wm/extra/fullscreen.o wm/extra/battery_applet.o
+              wm/extra/cwd.o wm/extra/fullscreen.o wm/extra/battery_applet.o \
+              wm/extra/gnus_applet.o
 
 OBJECTS := $(UTIL_OBJECTS) $(DRAW_OBJECTS) $(WM_OBJECTS) $(MENU_OBJECTS)
 

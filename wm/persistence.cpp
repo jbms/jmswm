@@ -302,10 +302,11 @@ void WM::load_state_from_server()
     next = boost::next(it);
     WView *view = it->second;
     
-    for (WView::iterator it = view->columns.begin();
+    for (WView::iterator it = view->columns.begin(), next;
          it != view->columns.end();
-         ++it)
+         it = next)
     {
+      next = boost::next(it);
       if (it->frames.empty())
         delete &*it;
     }
@@ -371,4 +372,11 @@ bool WM::place_existing_client(WClient *client)
   }
 
   return placed;
+}
+
+void WM::handle_save_state_event()
+{
+  save_state_event.wait(time_duration::seconds(10));
+  
+  save_state_to_server();
 }

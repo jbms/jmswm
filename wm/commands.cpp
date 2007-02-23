@@ -454,3 +454,128 @@ void remove_current_frame(WM &wm)
     }
   }
 }
+
+
+void copy_marked_frames_to_current_view(WM &wm)
+{
+  if (!wm.selected_view())
+    return;
+  
+  for (WM::ViewMap::const_iterator it = wm.views().begin(), next;
+       it != wm.views().end(); it = next)
+  {
+    next = boost::next(it);
+    WView *view = it->second;
+    if (view == wm.selected_view())
+      continue;
+    
+    for (WView::ColumnList::iterator col_it = view->columns.begin(), next_col;
+         col_it != view->columns.end();
+         col_it = next_col)
+    {
+      next_col = boost::next(col_it);
+      WColumn *col = &*col_it;
+      for (WColumn::FrameList::iterator frame_it = col->frames.begin(),
+             next_frame;
+           frame_it != col->frames.end(); frame_it = next_frame)
+      {
+        next_frame = boost::next(frame_it);
+        WFrame *frame = &*frame_it;
+        if (!frame->marked())
+          continue;
+        frame->set_marked(false);
+        if (frame->client().frame_by_view(wm.selected_view()))
+          return;
+
+        WFrame *new_frame = new WFrame(frame->client());
+        wm.selected_view()->place_frame_in_smallest_column(new_frame);
+        wm.selected_view()->select_frame(new_frame);
+      }
+    }
+  }
+}
+
+void move_marked_frames_to_current_view(WM &wm)
+{
+  if (!wm.selected_view())
+    return;
+  
+  for (WM::ViewMap::const_iterator it = wm.views().begin(), next;
+       it != wm.views().end(); it = next)
+  {
+    next = boost::next(it);
+    WView *view = it->second;
+    if (view == wm.selected_view())
+      continue;
+    
+    for (WView::ColumnList::iterator col_it = view->columns.begin(), next_col;
+         col_it != view->columns.end();
+         col_it = next_col)
+    {
+      next_col = boost::next(col_it);
+      WColumn *col = &*col_it;
+      for (WColumn::FrameList::iterator frame_it = col->frames.begin(),
+             next_frame;
+           frame_it != col->frames.end(); frame_it = next_frame)
+      {
+        next_frame = boost::next(frame_it);
+        WFrame *frame = &*frame_it;
+        if (!frame->marked())
+          continue;
+        frame->set_marked(false);
+        if (frame->client().frame_by_view(wm.selected_view()))
+          return;
+
+        frame->remove();
+        wm.selected_view()->place_frame_in_smallest_column(frame);
+        wm.selected_view()->select_frame(frame);
+      }
+    }
+  }
+}
+
+
+void move_next_by_activity_in_column(WM &wm)
+{
+  if (WFrame *frame = wm.selected_frame())
+  {
+    WColumn *column = frame->column();
+    WColumn::FrameListByActivity::iterator it
+      = column->frames_by_activity().current(*frame);
+    ++it;
+    if (it == column->frames_by_activity().end())
+      it = column->frames_by_activity().begin();
+    WFrame *next = &*it;
+    column->select_frame(next, true);
+  }
+}
+
+void move_next_by_activity_in_view(WM &wm)
+{
+  if (WFrame *frame = wm.selected_frame())
+  {
+    WView *view = frame->view();
+    WView::FrameListByActivity::iterator it
+      = view->frames_by_activity().current(*frame);
+    ++it;
+    if (it == view->frames_by_activity().end())
+      it = view->frames_by_activity().begin();
+    WFrame *next = &*it;
+    view->select_frame(next, true);
+  }
+}
+
+void move_next_by_activity(WM &wm)
+{
+  if (WFrame *frame = wm.selected_frame())
+  {
+    WM::FrameListByActivity::iterator it
+      = wm.frames_by_activity().current(*frame);
+    ++it;
+    if (it == wm.frames_by_activity().end())
+      it = wm.frames_by_activity().begin();
+    WFrame *next = &*it;
+    next->view()->select_frame(next, true);
+    wm.select_view(next->view());
+  }
+}

@@ -2,6 +2,8 @@
 #include <util/event.hpp>
 #include <util/log.hpp>
 #include <assert.h>
+#include <sys/inotify.h>
+#include <sys/inotify-syscalls.h>
 
 EventService::EventService()
 {
@@ -211,4 +213,94 @@ void TimerEvent::wait(const time_duration &duration)
 void TimerEvent::cancel()
 {
   event_del(&ev);
+}
+
+InotifyEvent::InotifyEvent()
+  : initialized(false)
+{
+}
+
+InotifyEvent::InotifyEvent(EventService &s, const Handler &handler)
+  : initialized(false)
+{
+  initialize(s, handler);
+}
+
+InotifyEvent::~InotifyEvent()
+{
+  if (initialized)
+  {
+    event_del(&ev);
+    close(fd);
+  }
+}
+
+void InotifyEvent::initialize(EventService &s, const Handler &handler)
+{
+  assert(initialized == false);
+  length = 0;
+  fd = inotify_init();
+  if (fd < 0)
+    ERROR_SYS("inotify_init");
+  initialized = true;
+  this->handler = handler;
+  event_set(&ev, fd, EV_READ | EV_PERSIST,
+            &InotifyEvent::handle_event, this);
+  if (event_base_set(s.eb, &ev) != 0)
+    ERROR_SYS("event_base_set");
+  if (event_add(&ev, 0) != 0)
+    ERROR_SYS("event_add");
+}
+
+int InotifyEvent::add_watch(const char *pathname, uint32_t mask)
+{
+  int wd = inotify_add_watch(fd, pathname, mask);
+  if (wd < 0)
+    WARN_SYS("inotify_add_watch");
+  return wd;
+}
+
+void InotifyEvent::rm_watch(int wd)
+{
+  inotify_rm_watch(fd, wd);
+}
+
+void InotifyEvent::handle_event(int, short, void *ptr)
+{
+  InotifyEvent *e = (InotifyEvent *)ptr;
+
+  int result;
+
+  do {
+    result = read(e->fd, e->buffer + e->length, BUFFER_SIZE - e->length);
+    if (result < 0)
+    {
+      if (result == -EINTR)
+        continue;
+      ERROR_SYS("inotify read: e->length: %d", e->length);
+    } else if (result == 0)
+    {
+      ERROR_SYS("inotify EOF");
+    } else
+    {
+      e->length += result;
+
+      if (e->length >= (int)sizeof(inotify_event))
+      {
+        inotify_event *ie = (inotify_event *)e->buffer;
+        int event_length = (int)(sizeof(inotify_event) + ie->len);
+        if (e->length >= event_length)
+        {
+          const char *pathname = ie->len ? e->buffer + sizeof(inotify_event) : 0;
+          e->handler(ie->wd, ie->mask, ie->cookie, pathname);
+          int new_length = e->length - event_length;
+          memmove(e->buffer, e->buffer + event_length, new_length);
+          e->length = new_length;
+        }
+      } else if (e->length == BUFFER_SIZE)
+      {
+        ERROR_SYS("invalid inotify data");
+      }
+    }
+  } while (0);
 }

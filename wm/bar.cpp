@@ -101,6 +101,11 @@ void WBar::draw()
        ++it)
   {
     Cell &c = *it;
+
+    // Check for placeholders
+    if (!c.foreground_color || !c.background_color || c.text.empty())
+      continue;
+    
     int width = draw_label_with_background(d, c.text,
                                            style.label_font,
                                            *c.foreground_color,
@@ -122,6 +127,11 @@ void WBar::draw()
     --it;
     
     Cell &c = *it;
+
+    // Check for placeholders
+    if (!c.foreground_color || !c.background_color || c.text.empty())
+      continue;
+    
     int width = draw_label_with_background(d, c.text,
                                            style.label_font,
                                            *c.foreground_color,
@@ -234,14 +244,8 @@ WBar::~WBar()
 }
 
 WBar::CellRef WBar::insert_end(cell_position_t position,
-                               const WColor &foreground_color,
-                               const WColor &background_color,
-                               const utf8_string &text)
+                               const boost::shared_ptr<Cell> &cell)
 {
-  boost::shared_ptr<Cell> cell(new Cell(*this,
-                                        position, foreground_color,
-                                        background_color,
-                                        text));
   cells[position].push_back(*cell);
   
   if (wm().bar_visible())
@@ -251,16 +255,9 @@ WBar::CellRef WBar::insert_end(cell_position_t position,
 }
 
 WBar::CellRef WBar::insert_begin(cell_position_t position,
-                                 const WColor &foreground_color,
-                                 const WColor &background_color,
-                                 const utf8_string &text)
+                                 const boost::shared_ptr<Cell> &cell)
 {
-  boost::shared_ptr<Cell> cell(new Cell(*this,
-                                        position, foreground_color,
-                                        background_color,
-                                        text));
   cells[position].push_front(*cell);
-  
   if (wm().bar_visible())
     scheduled_draw = true;
   
@@ -269,16 +266,10 @@ WBar::CellRef WBar::insert_begin(cell_position_t position,
 
 
 WBar::CellRef WBar::insert_after(const CellRef &ref,
-                           cell_position_t position,
-                           const WColor &foreground_color,
-                           const WColor &background_color,
-                           const utf8_string &text)
+                                 cell_position_t position,
+                                 const boost::shared_ptr<Cell> &cell)
 {
   assert(ref.cell->position == position);
-  boost::shared_ptr<Cell> cell(new Cell(*this,
-                                        position, foreground_color,
-                                        background_color,
-                                        text));
   cells[position].insert(boost::next(cells[position].current(*ref.cell)), *cell);
   
   if (wm().bar_visible())
@@ -289,15 +280,9 @@ WBar::CellRef WBar::insert_after(const CellRef &ref,
 
 WBar::CellRef WBar::insert_before(const CellRef &ref,
                                   cell_position_t position,
-                                  const WColor &foreground_color,
-                                  const WColor &background_color,
-                                  const utf8_string &text)
+                                  const boost::shared_ptr<Cell> &cell)                                  
 {
   assert(ref.cell->position == position);
-  boost::shared_ptr<Cell> cell(new Cell(*this,
-                                        position, foreground_color,
-                                        background_color,
-                                        text));
   cells[position].insert(cells[position].current(*ref.cell), *cell);
   
   if (wm().bar_visible())
@@ -306,35 +291,46 @@ WBar::CellRef WBar::insert_before(const CellRef &ref,
   return CellRef(cell);
 }
 
-WBar::CellRef WBar::insert(InsertPosition pos,
+WBar::CellRef WBar::insert(const InsertPosition &pos,
                            const WColor &foreground_color,
                            const WColor &background_color,
                            const utf8_string &text)
 {
+  boost::shared_ptr<Cell> cell(new Cell(*this, pos.side, foreground_color, background_color, text));
   switch (pos.relative)
   {
   case InsertPosition::BEFORE:
-    return insert_before(pos.ref,
-                         pos.ref.cell->position,
-                         foreground_color,
-                         background_color,
-                         text);
+    return insert_before(pos.ref, pos.ref.cell->position, cell);
+    
   case InsertPosition::AFTER:
-    return insert_after(pos.ref,
-                        pos.ref.cell->position,
-                        foreground_color,
-                        background_color,
-                        text);
+    return insert_after(pos.ref, pos.ref.cell->position, cell);
+    
   case InsertPosition::BEGIN:
-    return insert_begin(pos.side,
-                        foreground_color,
-                        background_color,
-                        text);
+    return insert_begin(pos.side, cell);
+    
   case InsertPosition::END:
   default:
-    return insert_end(pos.side,
-                      foreground_color,
-                      background_color,
-                      text);
+    return insert_end(pos.side, cell);
+  }
+}
+
+
+WBar::CellRef WBar::placeholder(const InsertPosition &pos)
+{
+  boost::shared_ptr<Cell> cell(new Cell(*this, pos.side));
+  switch (pos.relative)
+  {
+  case InsertPosition::BEFORE:
+    return insert_before(pos.ref, pos.ref.cell->position, cell);
+    
+  case InsertPosition::AFTER:
+    return insert_after(pos.ref, pos.ref.cell->position, cell);
+    
+  case InsertPosition::BEGIN:
+    return insert_begin(pos.side, cell);
+    
+  case InsertPosition::END:
+  default:
+    return insert_end(pos.side, cell);
   }
 }

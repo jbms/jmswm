@@ -154,8 +154,8 @@ void WM::xwindow_handle_event()
     case KeyPress:
       handle_keypress(ev.xkey);
       break;
-    case FocusOut:
-      handle_focus_out(ev.xfocus);
+    case FocusIn:
+      handle_focus_in(ev.xfocus);
       break;
     default:
       if (hasXrandr
@@ -293,20 +293,26 @@ void WM::handle_xrandr_event(const XEvent &ev)
   bar.handle_screen_size_changed();
 }
 
-void WM::handle_focus_out(const XFocusChangeEvent &ev)
+void WM::handle_focus_in(const XFocusChangeEvent &ev)
 {
-  /* Prevent programs like matlab from stealing the input focus */
+  /* Prevent programs like matlab from stealing the input focus.
+     Allow programs like emacs to switch input focus. */
   
   if (ev.detail == NotifyNonlinear
       || ev.detail == NotifyNonlinearVirtual)
   {
-    if (WClient *client = client_of_framewin(ev.window))
+    if (WFrame *frame = selected_frame())
     {
-      if (WFrame *frame = selected_frame())
+      if (WClient *client = client_of_framewin(ev.window))
       {
-        if (client == &frame->client())
+        if (&frame->client() != client)
         {
-          client->schedule_set_input_focus();
+          WFrame *visible_frame = client->visible_frame();
+          // White-listed programs can receive input focus.
+          if (visible_frame && client->class_name() == "Emacs")
+            visible_frame->view()->select_frame(visible_frame, true);
+          else
+            frame->client().schedule_set_input_focus();
         }
       }
     }

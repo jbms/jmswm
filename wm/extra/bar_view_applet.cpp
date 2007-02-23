@@ -7,16 +7,17 @@ void BarViewApplet::create_view(WView *view)
     
   if (it == views.end())
   {
-    CellRef ref = wm.bar.insert_end(WBar::LEFT, style.normal.foreground_color,
-                                    style.normal.background_color,
-                                    view->name());
+    CellRef ref = wm.bar.insert(WBar::end(WBar::LEFT),
+                                style.normal.foreground_color,
+                                style.normal.background_color,
+                                view->name());
     views.insert(std::make_pair(view, ref));
   } else
   {
-    CellRef ref = wm.bar.insert_before(it->second,
-                                       WBar::LEFT, style.normal.foreground_color,
-                                       style.normal.background_color,
-                                       view->name());
+    CellRef ref = wm.bar.insert(WBar::before(it->second),
+                                style.normal.foreground_color,
+                                style.normal.background_color,
+                                view->name());
     views.insert(std::make_pair(view, ref));
   }
 }

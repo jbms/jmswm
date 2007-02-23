@@ -69,5 +69,12 @@ void remove_current_frame(WM &wm);
 // TODO: move this to a better file
 utf8_string make_path_pretty(const utf8_string &path);
 
+void move_next_by_activity_in_column(WM &wm);
+void move_next_by_activity_in_view(WM &wm);
+void move_next_by_activity(WM &wm);
+
+
+void copy_marked_frames_to_current_view(WM &wm);
+void move_marked_frames_to_current_view(WM &wm);
 
 #endif /* _WM_COMMANDS_HPP */

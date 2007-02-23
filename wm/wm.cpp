@@ -66,6 +66,7 @@ WM::WM(int argc, char **argv,
     frame_style(dc, style_spec),
     selected_view_(0),
     frame_activity_event(event_service_, boost::bind(&WM::handle_frame_activity, this)),
+    save_state_event(event_service_, boost::bind(&WM::handle_save_state_event, this)),
     global_bindctx(*this, mod_info,
                    root_window(), true),
     menu(*this, mod_info),
@@ -117,6 +118,8 @@ WM::WM(int argc, char **argv,
      changing their event mask. */
   menu.initialize();
   bar.initialize();
+
+  handle_save_state_event();
 }
 
 WM::~WM()

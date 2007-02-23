@@ -13,6 +13,8 @@
 
 class WM;
 
+class WMenuCompletionDisplay;
+
 class WMenu
 {
 public:
@@ -109,6 +111,18 @@ public:
   void flush();
 
 };
+
+#if 0
+class WMenuCompletionDisplay
+{
+public:
+  virtual int required_height(WMenu &menu);
+  virtual void draw(WMenu &menu);
+  virtual bool complete(WMenu::InputState &input);
+  virtual void update_completions(const WMenu::InputState &input);
+  virtual ~WMenuCompletionDisplay();
+};
+#endif 
 
 void menu_backspace(WM &wm);
 void menu_enter(WM &wm);

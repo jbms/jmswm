@@ -88,6 +88,14 @@ private:
         background_color(&background_color)
     {}
 
+    Cell(WBar &bar,
+         cell_position_t position)
+      : bar(bar),
+        position(position),
+        foreground_color(0),
+        background_color(0)
+    {}
+
     ~Cell();
   };
 
@@ -137,6 +145,11 @@ public:
     CellRef(const CellRef &ref)
       : cell(ref.cell)
     {}
+
+    bool is_placeholder() const
+    {
+      return cell->foreground_color == 0;
+    }
 
     const WColor &foreground() const
     {
@@ -210,12 +223,12 @@ public:
   WBar(WM &wm, const WBarStyle::Spec &style_spec);
   ~WBar();
 
-  CellRef insert(InsertPosition pos,
+  CellRef insert(const InsertPosition &pos,
                  const WColor &foreground_color,
                  const WColor &background_color,
                  const utf8_string &text = utf8_string());
 
-  CellRef insert(InsertPosition pos,
+  CellRef insert(const InsertPosition &pos,
                  const WBarCellStyle &style,
                  const utf8_string &text = utf8_string())
   {
@@ -224,27 +237,23 @@ public:
                   text);
   }
 
+  CellRef placeholder(const InsertPosition &pos);
+
+private:
+
   CellRef insert_end(cell_position_t position,
-                     const WColor &foreground_color,
-                     const WColor &background_color,
-                     const utf8_string &text = utf8_string());
+                     const boost::shared_ptr<Cell> &cell);
   
   CellRef insert_begin(cell_position_t position,
-                       const WColor &foreground_color,
-                       const WColor &background_color,
-                       const utf8_string &text = utf8_string());
+                       const boost::shared_ptr<Cell> &cell);
 
   CellRef insert_after(const CellRef &ref,
                        cell_position_t position,
-                       const WColor &foreground_color,
-                       const WColor &background_color,
-                       const utf8_string &text = utf8_string());
+                       const boost::shared_ptr<Cell> &cell);
 
   CellRef insert_before(const CellRef &ref,
                         cell_position_t position,
-                        const WColor &foreground_color,
-                        const WColor &background_color,
-                        const utf8_string &text = utf8_string());
+                        const boost::shared_ptr<Cell> &cell);
 };
 
 #endif /* _WM_BAR_HPP */

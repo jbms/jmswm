@@ -36,7 +36,7 @@ DONE - If the pointer is in a window before a repositiong, it is warped to
   remain in it after.
 
 
-Suppose all positioning is deferred:
+  Suppose all positioning is deferred:
 
 
   - Pointer positioning:
@@ -71,13 +71,17 @@ DONE: track appropriate net_wm property
 
 DONE: cache fixed height info
 
-
 - Remember mouse position in frame, and restore it when warping
 
 
 - Finish frame marking support
 
-- Properly handle frame activity
+  Need to make a general system for operations on multiple frames
+
+   Perhaps mod4-y  and mod4-k y  to duplicate or move all marked frames to current view
+
+
+DONE - Properly handle frame activity
 
    Always set the column timer, regardless of whether the newly selected frame is raised or not.
 
