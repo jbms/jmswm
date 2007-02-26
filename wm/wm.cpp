@@ -154,30 +154,14 @@ void WView::schedule_update_positions()
 void WM::flush(void)
 {
 
-  for (ScheduledTaskViewList::iterator it = scheduled_task_views.begin(), next;
-       it != scheduled_task_views.end();
-       it = next)
-  {
-    next = boost::next(it);
-    it->perform_scheduled_tasks();
-  }
+  BOOST_FOREACH (WView &v, scheduled_task_views)
+    v.perform_scheduled_tasks();
 
-  for (ScheduledTaskColumnList::iterator it = scheduled_task_columns.begin(), next;
-       it != scheduled_task_columns.end();
-       it = next)
-  {
-    next = boost::next(it);
-    it->perform_scheduled_tasks();
-  }
+  BOOST_FOREACH (WColumn &c, scheduled_task_columns)
+    c.perform_scheduled_tasks();
 
-  
-  for (ScheduledTaskClientList::iterator it = scheduled_task_clients.begin(), next;
-       it != scheduled_task_clients.end();
-       it = next)
-  {
-    next = boost::next(it);
-    it->perform_scheduled_tasks();
-  }
+  BOOST_FOREACH (WClient &c, scheduled_task_clients)
+    c.perform_scheduled_tasks();
 
   menu.flush();
 

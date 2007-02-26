@@ -464,18 +464,14 @@ bool WKeyBindingContext::unbind(const WKeySequence &seq)
 
 static void unbind_all(WKeyBindingContext &c, const KeyBindingSpecList &list)
 {
-  for (KeyBindingSpecList::const_iterator it = list.begin();
-       it != list.end();
-       ++it)
-    c.unbind(it->first);
+  BOOST_FOREACH (const WKeySequence &seq, boost::make_transform_range(list, select1st))
+    c.unbind(seq);
 }
 
 static void bind_all(WKeyBindingContext &c, const KeyBindingSpecList &list)
 {
-  for (KeyBindingSpecList::const_iterator it = list.begin();
-       it != list.end();
-       ++it)
-    c.bind(it->first, it->second);
+  BOOST_FOREACH (const KeyBindingSpec &spec, list)
+    c.bind(spec.first, spec.second);
 }
 
 void WM::handle_mapping_notify(const XMappingEvent &ev)

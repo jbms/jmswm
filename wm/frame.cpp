@@ -94,13 +94,10 @@ void WFrame::draw()
     utf8_string tags;
     {
       std::vector<utf8_string> tag_names;
-      std::transform
-        (client().view_frames().begin(),
-         client().view_frames().end(),
-         std::back_inserter(tag_names),
-         boost::bind(&WView::name,
-                     boost::bind(&WClient::ViewFrameMap::value_type::first, _1)));
-      std::sort(tag_names.begin(), tag_names.end());
+      boost::transform(client().view_frames(), std::back_inserter(tag_names),
+                       boost::bind(&WView::name,
+                                   boost::bind(&WClient::ViewFrameMap::value_type::first, _1)));
+      boost::sort(tag_names);
       BOOST_FOREACH(const utf8_string &str, tag_names)
       {
         tags += str;

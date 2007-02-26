@@ -282,10 +282,10 @@ void WM::handle_xrandr_event(const XEvent &ev)
 
     buffer_pixmap.reset(screen_width(), screen_height());
 
-    for (ViewMap::iterator it = views_.begin(); it != views_.end(); ++it)
+    BOOST_FOREACH (WView *view, boost::make_transform_range(views_, select2nd))
     {
-      it->second->compute_bounds();
-      it->second->schedule_update_positions();
+      view->compute_bounds();
+      view->schedule_update_positions();
     }
   }
 

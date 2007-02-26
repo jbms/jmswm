@@ -9,11 +9,11 @@
 
 #include <util/event.hpp>
 
-#include <vector>
+#include <boost/shared_ptr.hpp>
 
 class WM;
 
-class WMenuCompletionDisplay;
+class WMenuCompletions;
 
 class WMenu
 {
@@ -27,15 +27,26 @@ public:
     utf8_string::size_type cursor_position;
   };
 
-  typedef std::pair<utf8_string, InputState> CompletionResult;
-  typedef std::vector<CompletionResult> CompletionList;
-
-  CompletionList completions;
   bool completions_valid;
-  int selected_completion;
-  int completion_columns;
-  int completion_column_width;
-  int completion_lines;
+  typedef boost::shared_ptr<WMenuCompletions> Completions;
+  Completions completions;
+  int queued_completions;
+  bool use_delay;
+  bool use_separate_thread;
+
+  class CompletionState
+  {
+  public:
+    WMenu &menu;
+    bool expired;
+    bool recompute;
+    
+    CompletionState(WMenu &menu)
+      : menu(menu), expired(false), recompute(false)
+    {}
+  };
+  
+  boost::shared_ptr<CompletionState> completion_state;
   
   Window xwin_;
 
@@ -56,12 +67,13 @@ public:
 
   InputState input;
   utf8_string prompt;
-  
-  typedef boost::function<void (const utf8_string &)> SuccessAction;
-  typedef boost::function<void (void)> FailureAction;
-  typedef boost::function<void (CompletionList &list, const InputState &state)>
-    Completer;
 
+  typedef enum { COMMAND_ENTER, COMMAND_CONTROL_ENTER } success_command_t;
+  
+  typedef boost::function<void (const utf8_string &, success_command_t)> SuccessAction;
+  typedef boost::function<void (void)> FailureAction;
+  typedef boost::function<Completions (const InputState &state)> Completer;
+  
   Completer completer;
   SuccessAction success_action;
   FailureAction failure_action;
@@ -98,9 +110,11 @@ public:
   }
 
   bool read_string(const utf8_string &prompt,
-                   const SuccessAction &success_action,
+                   const SuccessAction &success_action, 
                    const FailureAction &failure_action = FailureAction(),
-                   const Completer &completer = Completer());
+                   const Completer &completer = Completer(),
+                   bool use_delay = true,
+                   bool use_separate_thread = false);
 
   void handle_expose(const XExposeEvent &ev);
   void handle_screen_size_changed();
@@ -112,17 +126,16 @@ public:
 
 };
 
-#if 0
-class WMenuCompletionDisplay
+class WMenuCompletions
 {
 public:
-  virtual int required_height(WMenu &menu);
-  virtual void draw(WMenu &menu);
-  virtual bool complete(WMenu::InputState &input);
-  virtual void update_completions(const WMenu::InputState &input);
-  virtual ~WMenuCompletionDisplay();
+  virtual int compute_height(WMenu &menu, int width, int height) = 0;
+  virtual void draw(WMenu &menu, const WRect &rect, WDrawable &d) = 0;
+
+  /* Returns true if completions should be recomputed */
+  virtual bool complete(WMenu::InputState &input) = 0;
+  virtual ~WMenuCompletions();
 };
-#endif 
 
 void menu_backspace(WM &wm);
 void menu_enter(WM &wm);

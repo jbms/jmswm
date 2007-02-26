@@ -126,12 +126,8 @@ struct PersistentWMInfo
   PersistentWMInfo() {}
   PersistentWMInfo(WM &wm)
   {
-    for (WM::ViewMap::const_iterator it = wm.views().begin();
-         it != wm.views().end();
-         ++it)
-    {
-      views.push_back(PersistentViewInfo(it->second));
-    }
+    BOOST_FOREACH (WView *view, boost::make_transform_range(wm.views(), select2nd))
+      views.push_back(PersistentViewInfo(view));
   }
 };
 
@@ -182,10 +178,8 @@ struct PersistentClientInfo
   PersistentClientInfo() {}
   PersistentClientInfo(WClient *client)
   {
-    for (WClient::ViewFrameMap::const_iterator it = client->view_frames().begin();
-         it != client->view_frames().end();
-         ++it)
-      frames.push_back(PersistentFrameInfo(it->second));
+    BOOST_FOREACH (WFrame *frame, boost::make_transform_range(client->view_frames(), select2nd))
+      frames.push_back(PersistentFrameInfo(frame));
   }
 };
 
@@ -215,19 +209,17 @@ void WM::save_state_to_server()
   /**
    * Save client information to each client
    */
-  for (ClientMap::const_iterator it = managed_clients.begin();
-       it != managed_clients.end();
-       ++it)
+  BOOST_FOREACH (WClient *client, boost::make_transform_range(managed_clients, select2nd))
   {
     std::ostringstream ostr;
     try
     {
       {
         boost::archive::binary_oarchive ar(ostr, boost::archive::no_header);
-        PersistentClientInfo info(it->second);
+        PersistentClientInfo info(client);
         ar & info;
       }
-      set_persistent_state_data(*this, it->second->xwin(), ostr.str());
+      set_persistent_state_data(*this, client->xwin(), ostr.str());
     } catch (boost::archive::archive_exception &e)
     {
       ERROR("archive_exception occurred: %s", e.what());
@@ -295,28 +287,16 @@ void WM::load_state_from_server()
     XFree(top_level_windows);
   }
 
-  for (ViewMap::iterator it = views_.begin(), next;
-       it != views_.end();
-       it = next)
+  BOOST_FOREACH (WView *view, boost::make_transform_range(views_, select2nd))
   {
-    next = boost::next(it);
-    WView *view = it->second;
-    
-    for (WView::iterator it = view->columns.begin(), next;
-         it != view->columns.end();
-         it = next)
+    BOOST_FOREACH (WColumn &col, view->columns)
     {
-      next = boost::next(it);
-      if (it->frames.empty())
-        delete &*it;
+      if (col.frames.empty())
+        delete &col;
     }
-
-    /*
 
     if (view->columns.empty() && selected_view() != view)
       delete view;
-
-    */
   }
 }
 

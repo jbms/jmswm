@@ -96,12 +96,8 @@ void WBar::draw()
   WRect rect3 = rect2.inside_border(style.padding_pixels + style.spacing);
   rect3.height = label_height();
 
-  for (CellList::iterator it = cells[LEFT].begin();
-       it != cells[LEFT].end();
-       ++it)
+  BOOST_FOREACH (Cell &c, cells[LEFT])
   {
-    Cell &c = *it;
-
     // Check for placeholders
     if (!c.foreground_color || !c.background_color || c.text.empty())
       continue;
@@ -120,14 +116,8 @@ void WBar::draw()
     rect3.x += width + style.cell_spacing;
   }
 
-  for (CellList::iterator it = cells[RIGHT].end();
-       it != cells[RIGHT].begin();
-       )
+  BOOST_FOREACH (Cell &c, boost::make_reverse_range(cells[RIGHT]))
   {
-    --it;
-    
-    Cell &c = *it;
-
     // Check for placeholders
     if (!c.foreground_color || !c.background_color || c.text.empty())
       continue;

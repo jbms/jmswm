@@ -12,8 +12,7 @@ private:
   typedef std::map<ascii_string, Action> CommandMap;
   CommandMap commands;
 
-  void get_completions(WMenu::CompletionList &list,
-                       const WMenu::InputState &s) const;
+  WMenu::Completer completer() const;
   
 public:
   void add(const ascii_string &name,
@@ -43,7 +42,6 @@ void increase_priority(WM &wm);
 void decrease_priority(WM &wm);
 void increase_column_priority(WM &wm);
 void decrease_column_priority(WM &wm);
-void execute_action_interactive(WM &wm);
 void close_current_client(WM &wm);
 void kill_current_client(WM &wm);
 

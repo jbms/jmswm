@@ -32,7 +32,10 @@
 #include <boost/bind/protect.hpp>
 
 #include <boost/utility.hpp>
-#include <boost/foreach.hpp>
+
+
+#include <util/range.hpp>
+
 
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/composite_key.hpp>
@@ -58,9 +61,6 @@
 
 // WM headers
 #include <wm/wm.hpp>
-
 #include <wm/xwindow.hpp>
-
-
 
 #endif /* _WM_ALL_HPP */

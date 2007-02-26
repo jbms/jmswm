@@ -1,5 +1,6 @@
 
 #include <wm/all.hpp>
+#include <boost/thread/thread.hpp>
 
 const static long MENU_WINDOW_EVENT_MASK = ExposureMask | KeyPressMask;
 
@@ -38,12 +39,15 @@ void WMenu::initialize()
 
   scheduled_update_server = false;
   scheduled_draw = false;
+
 }
 
 bool WMenu::read_string(const utf8_string &prompt,
                         const SuccessAction &success_action,
                         const FailureAction &failure_action,
-                        const Completer &completer)
+                        const Completer &completer,
+                        bool use_delay,
+                        bool use_separate_thread)
 {
 
   if (active)
@@ -55,6 +59,9 @@ bool WMenu::read_string(const utf8_string &prompt,
   this->failure_action = failure_action;
   this->completer = completer;
 
+  this->use_delay = use_delay;
+  this->use_separate_thread = use_separate_thread;
+
   input.text.clear();
   input.cursor_position = 0;
 
@@ -62,8 +69,7 @@ bool WMenu::read_string(const utf8_string &prompt,
 
   scheduled_update_server = true;
   scheduled_draw = true;
-
-  completions.clear();
+  queued_completions = 0;
   
   compute_bounds();
   handle_input_changed();
@@ -77,53 +83,14 @@ void WMenu::compute_bounds()
   int height = wm().shaded_height();
   bounds.width = wm().screen_width();
 
-  /* Determine how many columns to use */
-
-  if (!completions.empty())
+  if (completions)
   {
-    WFrameStyle &style = wm().frame_style;
+    // FIXME: don't hardcode this 2/3 constant
+    // Limit completions to 2/3 of remaining height
+    int available_height = (wm().screen_height() - height) * 2 / 3;
+
     
-    int maximum_width = 0;
-    for (CompletionList::iterator it = completions.begin();
-         it != completions.end();
-         ++it)
-    {
-      if ((int)it->first.size() > maximum_width)
-        maximum_width = (int)it->first.size();
-    }
-
-    int maximum_pixels = maximum_width * style.label_font.approximate_width();
-
-    int available_width = bounds.width - style.highlight_pixels
-      - style.shadow_pixels
-      - 2 * style.padding_pixels;
-
-    // FIXME: use a style entry instead of a constant here for padding
-    int column_width = maximum_pixels + 10 + style.spacing * 2
-      + 2 * style.label_horizontal_padding;
-
-    if (column_width > available_width)
-      column_width = available_width;
-
-    completion_columns = available_width / column_width;
-
-    completion_column_width = column_width;
-
-    int line_height = style.label_vertical_padding * 2
-      + style.label_font.height();
-
-    int available_height = (wm_.screen_height() - height) * 2 / 3;
-
-    int max_lines = available_height / line_height;
-
-    completion_lines = (completions.size() + completion_columns - 1)
-      / completion_columns;
-    if (completion_lines > max_lines)
-      completion_lines = max_lines;
-
-    height += style.highlight_pixels + style.shadow_pixels
-      + 2 * style.padding_pixels + 2 * style.spacing
-      + completion_lines * line_height;
+    height += completions->compute_height(*this, bounds.width, available_height);
   }
   
   bounds.height = height;
@@ -217,63 +184,11 @@ void WMenu::draw()
     = style.normal.inactive;
 
   // Draw completions
+  if (completions)
   {
     WRect rect(0, 0, bounds.width, bounds.height - wm_.shaded_height());
 
-    WColor c(wm_.dc, "grey10");
-
-    fill_rect(d, c, rect);
-
-    draw_border(d, substyle.highlight_color, style.highlight_pixels,
-                substyle.shadow_color, style.shadow_pixels,
-                rect);
-
-    WRect rect2 = rect.inside_tl_br_border(style.highlight_pixels,
-                                           style.shadow_pixels);
-
-    draw_border(d, substyle.padding_color, style.padding_pixels, rect2);
-
-    
-    int max_pos_index = completion_lines * completion_columns;
-
-    int line_height = style.label_vertical_padding * 2
-      + style.label_font.height();
-    
-    // FIXME: allow an offset
-    if (max_pos_index > (int)completions.size())
-      max_pos_index = (int)completions.size();
-
-    int base_y = rect2.y + style.spacing;
-
-    for (int pos_index = 0; pos_index < max_pos_index; ++pos_index)
-    {
-      int row = pos_index / completion_columns;
-      int col = pos_index % completion_columns;
-
-      WRect label_rect1(rect2.x + completion_column_width * col,
-                       base_y + line_height * row,
-                       completion_column_width, line_height);
-
-      WRect label_rect2 = label_rect1.inside_border(style.spacing);
-
-      WRect label_rect3 = label_rect2.inside_lr_tb_border
-        (style.label_horizontal_padding,
-         style.label_vertical_padding);
-
-      if (pos_index == selected_completion)
-      {
-        const WColor &text_color = substyle.background_color;
-        draw_label_with_text_background(d, completions[pos_index].first,
-                                        style.label_font,
-                                        text_color, substyle.label_background_color,
-                                        label_rect3);
-      } else
-      {
-        const WColor &text_color = substyle.label_background_color;        
-        draw_label(d, completions[pos_index].first, style.label_font,
-                   text_color, label_rect3);
-      }
-    }
+    completions->draw(*this, rect, d);
   }
 
   // Draw input area
@@ -325,19 +240,79 @@ void WMenu::draw()
             0, 0);
 }
 
+static void menu_perform_completion(WMenu &menu)
+{
+  if (menu.completions)
+  {
+    if (menu.completions->complete(menu.input))
+      menu.handle_input_changed();
+    menu.scheduled_draw = true;
+  }
+}
+
+static void set_menu_completions(WMenu &menu, const WMenu::Completions &completions)
+{
+  menu.completions = completions;
+  menu.completions_valid = true;
+  menu.scheduled_draw = true;
+  menu.scheduled_update_server = true;
+  menu.compute_bounds();
+
+  while (menu.queued_completions > 0)
+  {
+    --menu.queued_completions;
+    menu_perform_completion(menu);
+  }
+}
+
+
+static void finished_updating_completions(const boost::weak_ptr<WMenu::CompletionState> &completion_state,
+                                          const WMenu::Completions &completions)
+{
+  if (boost::shared_ptr<WMenu::CompletionState> s = completion_state.lock())
+  {
+    s->menu.completion_state.reset();
+    if (s->recompute)
+      s->menu.update_completions();
+    else if (!s->expired)
+      set_menu_completions(s->menu, completions);
+    /* TODO: decide if expired completions should also be shown somehow. */
+  }
+}
+
+static void update_completions_separate_thread(const boost::weak_ptr<WMenu::CompletionState> &completion_state,
+                                               const WMenu::Completer &completer,
+                                               const WMenu::InputState &input,
+                                               EventService &event_service)
+{
+  WMenu::Completions completions(completer(input));
+
+  event_service.post(boost::bind(&finished_updating_completions, completion_state, completions));
+}
+
+
+
 void WMenu::update_completions()
 {
-  WARN("here");
-  CompletionList new_list;
-
-  completer(new_list, input);
-
-  completions = new_list;
-  completions_valid = true;
-  scheduled_draw = true;
-  scheduled_update_server = true;
-  selected_completion = -1;
-  compute_bounds();
+  if (use_separate_thread)
+  {
+    if (completion_state)
+    {
+      completion_state->recompute = true;
+    } else
+    {
+      completion_state.reset(new CompletionState(*this));
+      boost::thread(boost::bind(&update_completions_separate_thread,
+                                boost::weak_ptr<CompletionState>(completion_state),
+                                completer,
+                                input,
+                                boost::ref(wm().event_service())));
+    }
+  } else
+  {
+    Completions new_completions(completer(input));
+    set_menu_completions(*this, new_completions);
+  }
 }
 
 void WMenu::handle_input_changed()
@@ -348,16 +323,25 @@ void WMenu::handle_input_changed()
     return;
   
   completions_valid = false;
-  selected_completion = -1;
 
-  // 100ms delay
-  completion_delay.wait_for(0, 100000);
+  if (completion_state)
+    completion_state->expired = true;
 
-  WARN("here");
+  if (use_delay)
+  {
+    // 100ms delay
+    completion_delay.wait(time_duration::milliseconds(100));
+  } else
+  {
+    update_completions();
+  }
 }
 
 void WMenu::handle_keypress(const XKeyEvent &ev)
 {
+  if (!active)
+    return;
+  
   if (bindctx.process_keypress(ev))
     return;
 
@@ -398,6 +382,21 @@ void menu_backspace(WM &wm)
   }
 }
 
+static void menu_inactivate(WMenu &menu)
+{
+  if (menu.active)
+  {
+    menu.active = false;
+    menu.scheduled_update_server = true;
+    menu.completion_delay.cancel();
+    menu.success_action.clear();
+    menu.failure_action.clear();
+    menu.completer.clear();
+    menu.completions.reset();
+    menu.completion_state.reset();
+  }
+}
+
 void menu_enter(WM &wm)
 {
   WMenu &menu = wm.menu;
@@ -406,13 +405,9 @@ void menu_enter(WM &wm)
     return;
 
   if (menu.success_action)
-    menu.success_action(menu.input.text);
+    menu.success_action(menu.input.text, WMenu::COMMAND_ENTER);
 
-  menu.active = false;
-  
-  menu.scheduled_update_server = true;
-
-  menu.completion_delay.cancel();
+  menu_inactivate(menu);
 }
 
 void menu_abort(WM &wm)
@@ -425,11 +420,7 @@ void menu_abort(WM &wm)
   if (menu.failure_action)
     menu.failure_action();
 
-  menu.active = false;
-  
-  menu.scheduled_update_server = true;
-
-  menu.completion_delay.cancel();
+  menu_inactivate(menu);
 }
 
 void menu_forward_char(WM &wm)
@@ -521,20 +512,15 @@ void menu_complete(WM &wm)
   if (!menu.active)
     return;
 
-  if (!menu.completions_valid)
-    return;
+  if (menu.completer)
+  {
+    if (menu.completions_valid)
+      menu_perform_completion(menu);
+    else
+      ++menu.queued_completions;
+  }
+}
 
-  if (menu.completions.empty())
-    return;
-
-  if (menu.selected_completion < 0)
-    menu.selected_completion = 0;
-
-  else
-    menu.selected_completion =
-      (menu.selected_completion + 1) % menu.completions.size();
-
-  menu.input = menu.completions[menu.selected_completion].second;
-
-  menu.scheduled_draw = true;
+WMenuCompletions::~WMenuCompletions()
+{
 }

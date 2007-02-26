@@ -1,37 +1,29 @@
 
+FINAL_TARGET := jmswm
+
 .PHONY: all clean
 
-all: jmswm
+all: $(FINAL_TARGET)
 
-clean:
-	rm -f $(OBJECTS) libdraw.a libutil.a libmenu.a jmswm
 
-UTIL_OBJECTS := util/close_on_exec.o util/log.o util/event.o
+CONFIG := build-config
 
-DRAW_OBJECTS := draw/draw.o
+include $(CONFIG)/components
+include $(CONFIG)/compile-flags
+include $(CONFIG)/link-flags
 
-MENU_OBJECTS := menu/menu.o
+include $(foreach component,$(COMPONENTS),$(CONFIG)/$(component)-objects)
 
-WM_OBJECTS := wm/client.o wm/frame.o wm/view.o wm/xwindow.o wm/event.o wm/main.o \
-              wm/wm.o wm/key.o wm/persistence.o wm/sizehint.o wm/bar.o \
-              wm/volume.o wm/commands.o wm/extra/bar_view_applet.o \
-              wm/extra/cwd.o wm/extra/fullscreen.o wm/extra/battery_applet.o \
-              wm/extra/gnus_applet.o
+COMPONENT_LIBS := $(foreach component,$(COMPONENTS),lib$(component).a)
 
-OBJECTS := $(UTIL_OBJECTS) $(DRAW_OBJECTS) $(WM_OBJECTS) $(MENU_OBJECTS)
+OBJECTS := $(foreach component,$(COMPONENTS),$($(shell echo "$(component)" | tr 'a-z' 'A-Z')_OBJECTS))
 
 SOURCES := $(OBJECTS:%.o=%.cpp)
 
-LDLIBS := -levent -lboost_serialization -lboost_signals -lboost_thread \
-          -lboost_filesystem \
-          -lX11 -lXrandr $(shell pkg-config --libs pango xft pangoxft alsa)
+clean:
+	rm -f $(OBJECTS) $(COMPONENT_LIBS) $(FINAL_TARGET)
 
-CXXFLAGS += -g -Wall -Werror $(shell pkg-config --cflags pango xft pangoxft alsa) \
-            -pthread
-
-CPPFLAGS += -I.
-
-$(OBJECTS): Makefile
+$(OBJECTS): Makefile $(CONFIG)/compile-flags
 
 # PCH support does not work with anonymous namespaces until GCC 4.2.0
 
@@ -40,18 +32,17 @@ $(OBJECTS): Makefile
 
 # $(OBJECTS): wm/all.hpp.gch
 
-%.a:
-	$(AR) rc $@ $(filter %.o,$^)
+$(COMPONENT_LIBS:.a=.d): lib%.d: $(CONFIG)/%-objects Makefile
+	echo "$(@:.d=.a): $($(shell echo "$*" | tr 'a-z' 'A-Z')_OBJECTS)" > "$@"
 
+$(COMPONENT_LIBS): lib%.a: Makefile
+	$(AR) rc $@ $($(shell echo "$*" | tr 'a-z' 'A-Z')_OBJECTS)
 
-libdraw.a: $(DRAW_OBJECTS)
-libmenu.a: $(MENU_OBJECTS)
-libutil.a: $(UTIL_OBJECTS)
+$(FINAL_TARGET): $(COMPONENT_LIBS) $(CONFIG)/link-flags Makefile $(CONFIG)/components
+	$(LINK.cpp) $(COMPONENT_LIBS) $(COMPONENT_LIBS) $(LOADLIBES) $(LDLIBS) -o $@
 
-jmswm: $(WM_OBJECTS) libdraw.a libutil.a libmenu.a
-	$(LINK.cpp) $(WM_OBJECTS) libdraw.a libutil.a libmenu.a $(LOADLIBES) $(LDLIBS) -o $@
-
-$(OBJECTS:.o=.d): %.d: %.cpp Makefile
+$(OBJECTS:.o=.d): %.d: %.cpp Makefile $(CONFIG)/compile-flags
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -M -MF $@ -MP $< -MT $(@:.d=.o)
 
-include $(OBJECTS:.o=.d)
+-include $(OBJECTS:.o=.d)
+-include $(COMPONENT_LIBS:.a=.d)

@@ -1,5 +1,6 @@
 #include <wm/all.hpp>
 #include <wm/commands.hpp>
+#include <menu/list_completion.hpp>
 
 void WCommandList::add(const ascii_string &name,
                        const Action &action)
@@ -9,21 +10,9 @@ void WCommandList::add(const ascii_string &name,
   commands.insert(std::make_pair(name, action));
 }
 
-void WCommandList::get_completions(WMenu::CompletionList &list,
-                                   const WMenu::InputState &s) const
+WMenu::Completer WCommandList::completer() const
 {
-  for (CommandMap::const_iterator it = commands.begin();
-       it != commands.end();
-       ++it)
-  {
-    if (boost::algorithm::starts_with(it->first, s.text))
-    {
-      WMenu::InputState state;
-      state.text = it->first;
-      state.cursor_position = state.text.size();
-      list.push_back(std::make_pair(state.text, state));
-    }
-  }
+  return prefix_completer(boost::make_transform_range(commands, select1st));
 }
 
 void WCommandList::execute(WM &wm, const ascii_string &name) const
@@ -43,7 +32,8 @@ void WCommandList::execute_interactive(WM &wm) const
   wm.menu.read_string("Command: ",
                       boost::bind(&WCommandList::execute, this, boost::ref(wm), _1),
                       boost::function<void (void)>(),
-                      boost::bind(&WCommandList::get_completions, this, _1, _2));
+                      completer(),
+                      false /* no delay */);
 }
 
 void select_left(WM &wm)
@@ -282,40 +272,6 @@ void execute_shell_command_selected_cwd(WM &wm, const ascii_string &command)
   return execute_shell_command_cwd(command, get_selected_cwd(wm));
 }
 
-
-void execute_action(WM &wm, const ascii_string &command)
-{
-  if (command == "quit")
-  {
-    wm.quit();
-  } else if (command == "restart")
-  {
-    wm.restart();
-  }
-}
-
-void get_action_completions(WMenu::CompletionList &list,
-                            const WMenu::InputState &s)
-{
-  WMenu::InputState state;
-
-  state.text = "quit";
-  state.cursor_position = state.text.size();
-  list.push_back(std::make_pair(state.text, state));
-
-  state.text = "restart";
-  state.cursor_position = state.text.size();
-  list.push_back(std::make_pair(state.text, state));
-}
-
-void execute_action_interactive(WM &wm)
-{
-  wm.menu.read_string("Action: ",
-                      boost::bind(&execute_action, boost::ref(wm), _1),
-                      boost::function<void (void)>(),
-                      &get_action_completions);
-}
-
 void close_current_client(WM &wm)
 {
   if (WFrame *frame = wm.selected_frame())
@@ -330,8 +286,7 @@ void kill_current_client(WM &wm)
 
 void execute_shell_command_interactive(WM &wm)
 {
-  wm.menu.read_string("Command: ", &execute_shell_command,
-                      boost::function<void (void)>());
+  wm.menu.read_string("Command: ", boost::bind(&execute_shell_command, _1));
 }
 
 void execute_shell_command_cwd_interactive(WM &wm)
@@ -364,18 +319,19 @@ void switch_to_view(WM &wm, const utf8_string &name)
 void switch_to_view_interactive(WM &wm)
 {
   wm.menu.read_string("Switch to tag: ",
-                      boost::bind(&switch_to_view, boost::ref(wm), _1));
+                      boost::bind(&switch_to_view, boost::ref(wm), _1),
+                      WMenu::FailureAction(),
+                      prefix_completer(boost::make_transform_range(wm.views(), select1st)),
+                      false /* no delay */);
 }
 
 void switch_to_view_by_letter(WM &wm, char c)
 {
-  for (WM::ViewMap::const_iterator it = wm.views().begin();
-       it != wm.views().end();
-       ++it)
+  BOOST_FOREACH (const WM::ViewMap::value_type &x, wm.views())
   {
-    if (it->first[0] == c)
+    if (x.first[0] == c)
     {
-      wm.select_view(it->second);
+      wm.select_view(x.second);
       break;
     }
   }
@@ -460,34 +416,20 @@ void copy_marked_frames_to_current_view(WM &wm)
 {
   if (!wm.selected_view())
     return;
-  
-  for (WM::ViewMap::const_iterator it = wm.views().begin(), next;
-       it != wm.views().end(); it = next)
+
+  BOOST_FOREACH (WView *view, boost::make_transform_range(wm.views(), select2nd))
   {
-    next = boost::next(it);
-    WView *view = it->second;
-    if (view == wm.selected_view())
-      continue;
-    
-    for (WView::ColumnList::iterator col_it = view->columns.begin(), next_col;
-         col_it != view->columns.end();
-         col_it = next_col)
+    BOOST_FOREACH (WColumn &col, view->columns)
     {
-      next_col = boost::next(col_it);
-      WColumn *col = &*col_it;
-      for (WColumn::FrameList::iterator frame_it = col->frames.begin(),
-             next_frame;
-           frame_it != col->frames.end(); frame_it = next_frame)
+      BOOST_FOREACH (WFrame &frame, col.frames)
       {
-        next_frame = boost::next(frame_it);
-        WFrame *frame = &*frame_it;
-        if (!frame->marked())
+        if (!frame.marked())
           continue;
-        frame->set_marked(false);
-        if (frame->client().frame_by_view(wm.selected_view()))
+        frame.set_marked(false);
+        if (frame.client().frame_by_view(wm.selected_view()))
           return;
 
-        WFrame *new_frame = new WFrame(frame->client());
+        WFrame *new_frame = new WFrame(frame.client());
         wm.selected_view()->place_frame_in_smallest_column(new_frame);
         wm.selected_view()->select_frame(new_frame);
       }
@@ -499,36 +441,22 @@ void move_marked_frames_to_current_view(WM &wm)
 {
   if (!wm.selected_view())
     return;
-  
-  for (WM::ViewMap::const_iterator it = wm.views().begin(), next;
-       it != wm.views().end(); it = next)
+
+  BOOST_FOREACH (WView *view, boost::make_transform_range(wm.views(), select2nd))
   {
-    next = boost::next(it);
-    WView *view = it->second;
-    if (view == wm.selected_view())
-      continue;
-    
-    for (WView::ColumnList::iterator col_it = view->columns.begin(), next_col;
-         col_it != view->columns.end();
-         col_it = next_col)
+    BOOST_FOREACH (WColumn &col, view->columns)
     {
-      next_col = boost::next(col_it);
-      WColumn *col = &*col_it;
-      for (WColumn::FrameList::iterator frame_it = col->frames.begin(),
-             next_frame;
-           frame_it != col->frames.end(); frame_it = next_frame)
+      BOOST_FOREACH (WFrame &frame, col.frames)
       {
-        next_frame = boost::next(frame_it);
-        WFrame *frame = &*frame_it;
-        if (!frame->marked())
+        if (!frame.marked())
           continue;
-        frame->set_marked(false);
-        if (frame->client().frame_by_view(wm.selected_view()))
+        frame.set_marked(false);
+        if (frame.client().frame_by_view(wm.selected_view()))
           return;
 
-        frame->remove();
-        wm.selected_view()->place_frame_in_smallest_column(frame);
-        wm.selected_view()->select_frame(frame);
+        frame.remove();
+        wm.selected_view()->place_frame_in_smallest_column(&frame);
+        wm.selected_view()->select_frame(&frame);
       }
     }
   }

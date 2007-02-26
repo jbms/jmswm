@@ -1,0 +1,4 @@
+CXXFLAGS += -g -Wall -Werror $(shell pkg-config --cflags pango xft pangoxft alsa) \
+            -pthread
+
+CPPFLAGS += -I.

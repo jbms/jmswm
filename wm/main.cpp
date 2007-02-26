@@ -11,6 +11,10 @@
 #include <wm/extra/gnus_applet.hpp>
 #include <wm/extra/cwd.hpp>
 
+#include <menu/url_completion.hpp>
+
+#include <boost/filesystem/path.hpp>
+
 static bool is_search_query(const utf8_string &text)
 {
   if (boost::algorithm::contains(text, "://"))
@@ -48,11 +52,17 @@ void launch_browser(WM &wm, const utf8_string &text)
 void launch_browser_interactive(WM &wm)
 {
   wm.menu.read_string("URL: ",
-                      boost::bind(&launch_browser, boost::ref(wm), _1));
+                      boost::bind(&launch_browser, boost::ref(wm), _1),
+                      WMenu::FailureAction(),
+                      url_completer("/home/jbms/.firefox-profile"),
+                      true /* use delay */,
+                      true /* use separate thread */);
 }
 
 int main(int argc, char **argv)
 {
+
+  boost::filesystem::path::default_name_check(boost::filesystem::no_check);
 
   /* Set up child handling */
   {
@@ -130,16 +140,16 @@ int main(int argc, char **argv)
     style_spec.marked.active_selected.padding_color = "gold3";
     style_spec.marked.active_selected.background_color = "black";
     style_spec.marked.active_selected.label_foreground_color = "black";
-    style_spec.marked.active_selected.label_background_color = "royalblue1";
-    style_spec.marked.active_selected.label_extra_color = "royalblue3";
+    style_spec.marked.active_selected.label_background_color = royalblue1;
+    style_spec.marked.active_selected.label_extra_color = royalblue3;
   
     style_spec.marked.inactive_selected.highlight_color = "grey20";
     style_spec.marked.inactive_selected.shadow_color = "grey20";
     style_spec.marked.inactive_selected.padding_color = "black";
     style_spec.marked.inactive_selected.background_color = "black";
     style_spec.marked.inactive_selected.label_foreground_color = "black";
-    style_spec.marked.inactive_selected.label_background_color = "royalblue3";
-    style_spec.marked.inactive_selected.label_extra_color = "royalblue4";
+    style_spec.marked.inactive_selected.label_background_color = royalblue3;
+    style_spec.marked.inactive_selected.label_extra_color = royalblue4;
 
     style_spec.marked.inactive.highlight_color = "grey20";
     style_spec.marked.inactive.shadow_color = "grey20";
@@ -244,8 +254,8 @@ int main(int argc, char **argv)
   
   wm.bind("mod4-x b", launch_browser_interactive);
 
-    wm.bind("mod4-x c",
-              boost::bind(&execute_shell_command, "~/bin/browser-clipboard"));
+  wm.bind("mod4-x c",
+          boost::bind(&execute_shell_command, "~/bin/browser-clipboard"));
 
   wm.bind("mod4-c", close_current_client);
   wm.bind("mod4-k c", kill_current_client);

@@ -1,0 +1,1 @@
+MENU_OBJECTS := menu/menu.o menu/list_completion.o menu/url_completion.o

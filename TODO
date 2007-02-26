@@ -91,3 +91,46 @@ DONE - Properly handle frame activity
 
    Maintain by-column, by-view, global lists of frames in order of activity
 
+
+Make sure that the global frame activity list is updated correctly.
+
+
+
+ - Completion:
+
+ void update_completions(const WMenu::InputState &input);
+
+ bool complete(WMenu::InputState &input);
+
+
+
+----
+
+
+completer returns WMenuCompletions
+
+
+
+boost::shared_ptr<WMenuCompletions> complete(const WMenu::InputState &state);
+
+
+
+boost::function<void (WMenu::InputState &state, const utf8_string &completion)> 
+
+
+
+----
+
+
+
+DONE - Range/collection support:
+
+
+DONE - Fix foreach to precompute "next" iterator
+
+DONE - Make select1st/select2nd ranges available
+
+DONE - Make range algorithms available
+
+
+

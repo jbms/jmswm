@@ -138,12 +138,8 @@ void WClient::update_size_hints_from_server()
 
   /* Have all columns containing this client update positions, so that
      minimum size and aspect ratio hints are handled. */
-  for (ViewFrameMap::iterator it = view_frames_.begin();
-       it != view_frames_.end();
-       ++it)
-  {
-    it->second->column()->schedule_update_positions();
-  }
+  BOOST_FOREACH (WFrame *f, boost::make_transform_range(view_frames_, select2nd))
+    f->column()->schedule_update_positions();
 
   update_fixed_height();
 }
@@ -220,12 +216,8 @@ void WClient::update_fixed_height()
   {
     /* Have all columns containing this client update positions, so that
        the new fixed height is taken into account. */
-    for (ViewFrameMap::iterator it = view_frames_.begin();
-         it != view_frames_.end();
-         ++it)
-    {
-      it->second->column()->schedule_update_positions();
-    }
+    BOOST_FOREACH (WFrame *f, boost::make_transform_range(view_frames_, select2nd))
+      f->column()->schedule_update_positions();
   }
 }
 
@@ -342,17 +334,10 @@ void WM::place_client(WClient *c)
 void WM::unmanage_client(WClient *client)
 {
   unmanage_client_hook(client);
-  for (WClient::ViewFrameMap::iterator it = client->view_frames_.begin(),
-         next;
-       it != client->view_frames_.end();
-       it = next)
+
+  BOOST_FOREACH (WFrame *f, boost::make_transform_range(client->view_frames_, select2nd))
   {
-    next = boost::next(it);
-    
-    WFrame *f = it->second;
-
     f->remove();
-
     delete f;
   }
 
