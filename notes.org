@@ -1,0 +1,23 @@
+#+CATEGORY: jmswm
+
+* Miscellaneous
+** TODO Proper use of window properties/standard conformance
+** TODO Fix focus-stealing robustness
+** TODO Robustness against too many frames per column or columns per view
+** TODO Improve fixed-height frame support (improve the heuristics)
+** TODO Transient handling (maybe)
+** TODO Remember mouse position in frame, and restore it when warping
+** TODO Finish frame marking support
+** TODO Need to make a general system for operations on multiple frames
+** TODO Make sure that the global frame activity list is updated correctly.
+** TODO Maybe select most recently active frame in column when a frame is removed.
+* Menu system
+** TODO Make completion window not full width of screen for better readability
+** TODO Add history for completions
+** TODO Fix bookmark completion style
+** TODO Add shell command and file completion.
+* Bugs
+** TODO Fix Flash-related hang
+   The problem seems to also be related to the persistence system.
+** DONE Fix GDB stack traces so that they make sense
+   CLOSED: [2007-03-28 Wed 19:33]

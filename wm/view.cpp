@@ -394,16 +394,16 @@ void WFrame::remove()
   WColumn::iterator cur_frame_it = column()->make_iterator(this);
   if (column()->selected_frame() == this)
   {
-    WColumn::iterator it = cur_frame_it;
-    if (it == column()->frames.begin())
-      it = boost::next(it);
-    else
-      it = boost::prior(it);
-    if (it != column()->frames.end())
-      column()->select_frame(it);
-    else
+    // Select most recently active frame
+    WColumn::FrameListByActivity::iterator cur_activity_it
+      = column()->frames_by_activity_.current(*this), it;
+    it = column()->frames_by_activity_.begin();
+    if (it == cur_activity_it)
+      ++it;
+    if (it == column()->frames_by_activity_.end())
       column()->select_frame(0);
-
+    else
+      column()->select_frame(&*it);
   }
 
   client().schedule_update_server();

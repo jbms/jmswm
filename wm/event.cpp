@@ -110,11 +110,19 @@ Time WM::get_timestamp()
   return last_timestamp;
 }
 
+static bool safe_XPending(Display *dpy)
+{
+  // Use an extra call to XPending to work around Xlib bugs
+  XPending(dpy);
+  
+  return XPending(dpy);
+}
+
 void WM::xwindow_handle_event()
 {
   XEvent ev;
 
-  if (!XPending(display()))
+  if (!safe_XPending(display()))
     return;
   do {
     XNextEvent(display(), &ev);
@@ -167,7 +175,7 @@ void WM::xwindow_handle_event()
       //DEBUG("  Unhandled event: %s", event_type_to_string(ev.type));
       break;
     }
-  } while (XPending(display()));
+  } while (safe_XPending(display()));
 
   // No flush here; the event loop flushes
 }

@@ -59,6 +59,36 @@ void launch_browser_interactive(WM &wm)
                       true /* use separate thread */);
 }
 
+void switch_to_agenda(WM &wm)
+{
+  /* Look for plan view */
+  WView *view = wm.view_by_name("plan");
+  WFrame *matching_frame = 0;
+
+  if (view)
+  {
+    BOOST_FOREACH (WFrame &f, view->frames_by_activity())
+    {
+      if (f.client().name() == "*Org Agenda*" && f.client().class_name() == "Emacs")
+      {
+        matching_frame = &f;
+        break;
+      }
+    }
+    if (matching_frame)
+    {
+      view->select_frame(matching_frame, true);
+    }
+    wm.select_view(view);
+  } else
+  {
+    switch_to_view(wm, "plan");
+  }
+
+  if (!matching_frame)
+    execute_shell_command("~/bin/org-agenda");
+}
+
 int main(int argc, char **argv)
 {
 
@@ -140,16 +170,16 @@ int main(int argc, char **argv)
     style_spec.marked.active_selected.padding_color = "gold3";
     style_spec.marked.active_selected.background_color = "black";
     style_spec.marked.active_selected.label_foreground_color = "black";
-    style_spec.marked.active_selected.label_background_color = royalblue1;
-    style_spec.marked.active_selected.label_extra_color = royalblue3;
+    style_spec.marked.active_selected.label_background_color = "royalblue1";
+    style_spec.marked.active_selected.label_extra_color = "royalblue3";
   
     style_spec.marked.inactive_selected.highlight_color = "grey20";
     style_spec.marked.inactive_selected.shadow_color = "grey20";
     style_spec.marked.inactive_selected.padding_color = "black";
     style_spec.marked.inactive_selected.background_color = "black";
     style_spec.marked.inactive_selected.label_foreground_color = "black";
-    style_spec.marked.inactive_selected.label_background_color = royalblue3;
-    style_spec.marked.inactive_selected.label_extra_color = royalblue4;
+    style_spec.marked.inactive_selected.label_background_color = "royalblue3";
+    style_spec.marked.inactive_selected.label_extra_color = "royalblue4";
 
     style_spec.marked.inactive.highlight_color = "grey20";
     style_spec.marked.inactive.shadow_color = "grey20";
@@ -221,7 +251,7 @@ int main(int argc, char **argv)
   
   //wm.bind("mod4-d", toggle_shaded);
   /* JUST FOR TESTING */
-  wm.bind("mod4-mod1-d", toggle_decorated);
+  wm.bind("mod4-k d", toggle_decorated);
   wm.bind("mod4-d", toggle_bar_visible);
 
   wm.bind("mod4-space", toggle_marked);
@@ -382,6 +412,8 @@ int main(int argc, char **argv)
   wm.bind("mod4-k k", remove_current_frame);
   wm.bind("mod4-y", move_marked_frames_to_current_view);
   wm.bind("mod4-k y", copy_marked_frames_to_current_view);
+
+  wm.bind("mod4-x p", switch_to_agenda);
 
   do
   {

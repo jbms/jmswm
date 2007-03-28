@@ -61,13 +61,12 @@ int WMenuURLCompletions::compute_height(WMenu &menu, int width, int height)
   int available_height = height;
 
   // FIXME: use a style entry instead of a constant here for padding
-  column_margin = 15;
+  column_margin = style.spacing;
 
   int available_width = width - style.highlight_pixels
     - style.shadow_pixels
     - 2 * style.padding_pixels
-    - (columns - 1) * column_margin
-    - columns * 2 * style.spacing;
+    - (columns - 1) * column_margin;
 
   // FIXME: use a style entry instead of a constant here for padding
   column_width = available_width / columns;
@@ -99,6 +98,7 @@ void WMenuURLCompletions::draw(WMenu &menu, const WRect &rect, WDrawable &d)
 
   // FIXME: don't hardcode this color
   WColor c(d.draw_context(), "grey10");
+  //WColor c(d.draw_context(), "black");  
 
   fill_rect(d, c, rect);
 
@@ -125,13 +125,13 @@ void WMenuURLCompletions::draw(WMenu &menu, const WRect &rect, WDrawable &d)
     size_t row = pos_index / columns;
     size_t col = pos_index % columns;
 
-    WRect cell_rect(rect2.x + style.spacing + column_width * col,
+    WRect cell_rect(rect2.x + style.spacing + (column_width + column_margin) * col,
                     base_y + style.spacing + line_height * row,
                     column_width, line_height);
 
     const WColor *url_color, *title_color;
 
-    WColor title_unselected(d.draw_context(), "white");
+    WColor title_unselected(d.draw_context(), "gold1");
     WColor title_selected(d.draw_context(), "black");
 
     if ((int)pos_index == selected)
@@ -142,6 +142,9 @@ void WMenuURLCompletions::draw(WMenu &menu, const WRect &rect, WDrawable &d)
       title_color = &title_selected;
     } else
     {
+      WColor c(d.draw_context(), "black");
+      fill_rect(d, c, cell_rect);
+      
       url_color = &substyle.label_background_color;
       title_color = &title_unselected;
     }
@@ -291,7 +294,7 @@ static WMenu::Completions url_completions(const boost::shared_ptr<boost::optiona
   }
 
   if (!results.empty())
-    completions.reset(new WMenuURLCompletions(results, 2 /* 2 column display */));
+    completions.reset(new WMenuURLCompletions(results, 1 /* 1 column display */));
 
   return completions;
 }

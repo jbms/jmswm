@@ -2,6 +2,8 @@ syntax: glob
 
 *.d
 *.o
-jmswm
+jmswm*
 src/*
 *.a
+boost/*
+sys/*
