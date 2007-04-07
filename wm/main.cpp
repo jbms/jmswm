@@ -9,11 +9,19 @@
 #include <wm/extra/bar_view_applet.hpp>
 #include <wm/extra/battery_applet.hpp>
 #include <wm/extra/gnus_applet.hpp>
+#include <wm/extra/network_applet.hpp>
 #include <wm/extra/cwd.hpp>
 
 #include <menu/url_completion.hpp>
 
 #include <boost/filesystem/path.hpp>
+
+static ascii_string rgb(unsigned char r, unsigned char g, unsigned char b)
+{
+  char buf[30];
+  sprintf(buf, "#%02x%02x%02x", r, g, b);
+  return ascii_string(buf);
+}
 
 static bool is_search_query(const utf8_string &text)
 {
@@ -384,6 +392,16 @@ int main(int argc, char **argv)
   TimeApplet time_applet(wm, def_bar_style,
                          WBar::end(WBar::RIGHT));
 
+  WBarCellStyle::Spec net_applet_style;
+  net_applet_style.foreground_color = "white";
+  // nice color: 200,50,40;
+  // even better: 200,50,30
+  // good: 255,60,40
+  net_applet_style.background_color = rgb(200,50,30);
+
+  NetworkApplet net_applet(wm, net_applet_style,
+                           WBar::begin(WBar::RIGHT));
+
   WBarCellStyle::Spec gnus_style;
   gnus_style.foreground_color = "black";
   gnus_style.background_color = "gold1";
@@ -391,6 +409,7 @@ int main(int argc, char **argv)
 
   GnusApplet gnus_applet(wm, gnus_style,
                          WBar::begin(WBar::RIGHT));
+
 
   for (char c = 'a'; c <= 'z'; ++c)
   {

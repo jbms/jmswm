@@ -1,3 +1,4 @@
 LDLIBS := -levent -lboost_serialization -lboost_signals -lboost_thread \
           -lboost_filesystem -lboost_regex \
-          -lX11 -lXrandr $(shell pkg-config --libs pango xft pangoxft alsa)
+          -lX11 -lXrandr $(shell pkg-config --libs pango xft pangoxft alsa) \
+          -liw

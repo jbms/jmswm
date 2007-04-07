@@ -144,10 +144,11 @@ void WBar::draw()
 
 void WBar::handle_screen_size_changed()
 {
+  compute_bounds();
+  
   if (!wm().bar_visible())
     return;
   
-  compute_bounds();
   scheduled_update_server = true;
 }
 

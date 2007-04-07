@@ -1,23 +1,82 @@
 #+CATEGORY: jmswm
 
+* Configuration
+** TODO Support loading styles from a configuration file
 * Miscellaneous
+** TODO Perhaps implement a sticky frame feature
+Perhaps have it show the frame on any view it is tagged for, and also
+on the current view.
 ** TODO Proper use of window properties/standard conformance
 ** TODO Fix focus-stealing robustness
 ** TODO Robustness against too many frames per column or columns per view
+Perhaps this can be handled by just showing only one frame at a time
+in this case, with no indication that there are other frames behind
+it.
 ** TODO Improve fixed-height frame support (improve the heuristics)
 ** TODO Transient handling (maybe)
 ** TODO Remember mouse position in frame, and restore it when warping
 ** TODO Finish frame marking support
 ** TODO Need to make a general system for operations on multiple frames
-** TODO Make sure that the global frame activity list is updated correctly.
-** TODO Maybe select most recently active frame in column when a frame is removed.
+** DONE Make sure that the global frame activity list is updated correctly.
+   CLOSED: [2007-03-28 Wed 22:26]
+** DONE Maybe select most recently active frame in column when a frame is removed.
+   CLOSED: [2007-03-28 Wed 22:26]
+* Navigation
+** TODO Fix prefix-letter view switching
+Change prefix-letter commands to switch to most recent view with the
+same name, and then rotate between them after that.
+** TODO Better support view namespaces perhaps
+This may require status bar applet changes as well.
+* Fullscreen
+Perhaps change the way fullscreen mode is implemented such that a
+fullscreen client isn't in a separate view; rather any change will
+bring the client out of fullscreen mode.
+** TODO Make fullscreen mode interact better with opening new clients
+** TODO Perhaps support programs that try to switch to fullscreen mode themselves
+Programs that do this include mplayer and feh.
+* Frame layout
+** TODO Automatic column rearrangement on frame removal
+Perhaps automatically move some clients to another column when removal
+of a frame results in there being fewer columns than the desired
+number.
+** TODO Implement a system for specifying the number of desired columns per view
+Perhaps this can be done by simply saving values for each view name.
+* Status bar applets
+** Volume applet
+*** TODO Use ALSA notification to avoid update delay
+** Music applet
+*** Implement this after setting up music playing system for laptop
+** CPU speed applet perhaps
+** Mail status applet
+*** TODO Support key binding for switching to next mail group
+Perhaps mod4-x m
+Maybe also support a key for composing mail.
 * Menu system
 ** TODO Make completion window not full width of screen for better readability
 ** TODO Add history for completions
 ** TODO Fix bookmark completion style
 ** TODO Add shell command and file completion.
+* Program launching
+** TODO Add support for startup notification
+* Views
+** Perhaps store previously-used view names
+** Perhaps keep track of common directories for view names
+** Perhaps always do automatic frame layout, rather than manual placement
+There would need to be ways to give hints to the system, or perhaps
+override it.
+
+It would likely be confusing if frames are moved around a lot
+automatically.
+
+Maybe support showing multiple views at a time.
+
 * Bugs
 ** TODO Fix Flash-related hang
    The problem seems to also be related to the persistence system.
 ** DONE Fix GDB stack traces so that they make sense
    CLOSED: [2007-03-28 Wed 19:33]
+
+** TODO Avoid crashes when invalid keysyms or colors are specified
+
+** DONE Fix bar not being positioned properly in some cases after using xrandr
+   CLOSED: [2007-04-07 Sat 16:25]

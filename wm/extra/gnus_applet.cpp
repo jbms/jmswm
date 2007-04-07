@@ -10,7 +10,6 @@ void GnusApplet::handle_inotify_event(int wd, uint32_t mask, uint32_t cookie,
 {
   if (wd == this->wd && mask & IN_CLOSE_WRITE)
     update();
-  DEBUG("mask = 0x%08x, pathname: %s", mask, pathname);
 }
 
 void GnusApplet::update()
