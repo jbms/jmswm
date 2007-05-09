@@ -43,6 +43,8 @@ public:
 
   GnusApplet(WM &wm, const WBarCellStyle::Spec &style_spec,
              const WBar::InsertPosition &pos);
+
+  void switch_to_mail(WM &wm);
   
 };
 

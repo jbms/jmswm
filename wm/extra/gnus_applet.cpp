@@ -2,6 +2,8 @@
 #include <wm/extra/gnus_applet.hpp>
 #include <fstream>
 #include <sys/inotify.h>
+#include <boost/algorithm/string.hpp>
+#include <wm/commands.hpp>
 
 static const char *mail_status_filename = "/tmp/jbms/mail-status";
 
@@ -84,4 +86,41 @@ GnusApplet::GnusApplet(WM &wm, const WBarCellStyle::Spec &style_spec,
   wd = inotify.add_watch(mail_status_filename, IN_CLOSE_WRITE);
   placeholder = wm.bar.placeholder(pos);
   update();
+}
+
+void GnusApplet::switch_to_mail(WM &wm)
+{
+  WView *view = wm.view_by_name("plan");
+  WFrame *matching_frame = 0;
+
+  ascii_string group_name;
+  if (!groups.empty())
+    group_name = groups.begin()->first;
+
+  if (view)
+  {
+    BOOST_FOREACH (WFrame &f, view->frames_by_activity())
+    {
+      const utf8_string &name = f.client().name();
+      if ((f.client().class_name() == "Emacs")
+          && (name == "*Group*" || name == "*Article*" || boost::algorithm::starts_with(name, "*Summary")
+              || name == "*Server*"))
+      {
+        matching_frame = &f;
+        break;
+      }
+    }
+    if (matching_frame)
+    {
+      view->select_frame(matching_frame, true);
+    }
+    wm.select_view(view);
+  } else
+  {
+    switch_to_view(wm, "plan");
+  }
+
+  std::string command("~/bin/gnus-select-group ");
+  command += group_name;
+  execute_shell_command(command.c_str());
 }

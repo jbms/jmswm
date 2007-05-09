@@ -81,4 +81,23 @@ void update_client_visible_name_and_context(WClient *client)
     } else
       client->set_visible_name(client->name());
   }
+
+  // Handle Conkeror
+  else if (client->class_name() == "Xulrunner-bin")
+  {
+    utf8_string sep = " - ";
+    utf8_string::size_type pos = client->name().rfind(sep);
+    utf8_string url, title;
+    if (pos != utf8_string::npos)
+    {
+      url = client->name().substr(pos + sep.length());
+      title = client->name().substr(0, pos);
+    }
+    else
+    {
+      url = title = client->name();
+    }
+    client->set_visible_name(title);
+    client->set_context_info(url);
+  }
 }

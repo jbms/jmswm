@@ -23,6 +23,7 @@ WView::WView(WM &wm, const utf8_string &name)
 
 WView::~WView()
 {
+  WARN("here");
   wm().destroy_view_hook(this);
   wm_.views_.erase(name_);
 }
@@ -358,6 +359,7 @@ void WColumn::perform_scheduled_tasks()
 
 WColumn::~WColumn()
 {
+  WARN("here");
   assert(frames.empty());
   
   WView::iterator cur_col_it = view()->make_iterator(this);
@@ -390,7 +392,7 @@ WFrame::~WFrame()
 
 void WFrame::remove()
 {
-
+  WARN("here");
   WColumn::iterator cur_frame_it = column()->make_iterator(this);
   if (column()->selected_frame() == this)
   {

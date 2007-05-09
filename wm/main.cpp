@@ -295,6 +295,9 @@ int main(int argc, char **argv)
   wm.bind("mod4-x c",
           boost::bind(&execute_shell_command, "~/bin/browser-clipboard"));
 
+  wm.bind("mod4-z",
+          boost::bind(&execute_shell_command, "xscreensaver-command -lock"));
+
   wm.bind("mod4-c", close_current_client);
   wm.bind("mod4-k c", kill_current_client);
   
@@ -433,6 +436,8 @@ int main(int argc, char **argv)
   wm.bind("mod4-k y", copy_marked_frames_to_current_view);
 
   wm.bind("mod4-x p", switch_to_agenda);
+
+  wm.bind("mod4-x m", boost::bind(&GnusApplet::switch_to_mail, boost::ref(gnus_applet), _1));
 
   do
   {
