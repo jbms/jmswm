@@ -248,6 +248,9 @@ public:
   }
 };
 
+int compute_label_width(WDrawable &d, const utf8_string &text, const WFont &font,
+                        int available_width);
+
 void draw_label(WDrawable &d, const utf8_string &text,
                 const WFont &font, const WColor &c,
                 const WRect &rect);
@@ -295,6 +298,12 @@ void draw_border(WDrawable &d,
 
 void draw_border(WDrawable &d,
                  const WColor &c, int width,
+                 const WRect &rect);
+
+void draw_border(WDrawable &d,
+                 const WColor &c,
+                 int left_width, int top_width,
+                 int right_width, int bottom_width,
                  const WRect &rect);
 
 

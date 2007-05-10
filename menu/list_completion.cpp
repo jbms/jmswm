@@ -21,7 +21,7 @@ public:
   WMenuListCompletions(const CompletionList &list, const StringCompletionApplicator &applicator,
                        bool complete_common_prefix);
 
-  virtual int compute_height(WMenu &menu, int width, int height);
+  virtual void compute_dimensions(WMenu &menu, int width, int height, int &out_width, int &out_height);
   virtual void draw(WMenu &menu, const WRect &rect, WDrawable &d);
   virtual bool complete(WMenu::InputState &input);
   virtual ~WMenuListCompletions();
@@ -38,12 +38,13 @@ WMenuListCompletions::WMenuListCompletions(const CompletionList &list, const Str
     throw std::invalid_argument("empty completion list");
 }
 
-int WMenuListCompletions::compute_height(WMenu &menu, int width, int height)
+void WMenuListCompletions::compute_dimensions(WMenu &menu, int width, int height, int &out_width, int &out_height)
 {
   // FIXME: don't use this style
   WFrameStyle &style = menu.wm().frame_style;
 
-  int available_height = height;
+  int available_height = height - (style.highlight_pixels + style.shadow_pixels
+                                   + 2 * style.spacing);
 
   int maximum_width = 0;
   BOOST_FOREACH (const utf8_string &str, completions)
@@ -55,11 +56,10 @@ int WMenuListCompletions::compute_height(WMenu &menu, int width, int height)
   int maximum_pixels = maximum_width * style.label_font.approximate_width();
 
   int available_width = width - style.highlight_pixels
-    - style.shadow_pixels
-    - 2 * style.padding_pixels;
+    - style.shadow_pixels;
 
   // FIXME: use a style entry instead of a constant here for padding
-  column_width = maximum_pixels + 10 + style.spacing * 2
+  column_width = maximum_pixels + 10
     + 2 * style.label_horizontal_padding;
 
   if (column_width > available_width)
@@ -82,7 +82,19 @@ int WMenuListCompletions::compute_height(WMenu &menu, int width, int height)
     + 2 * style.padding_pixels + 2 * style.spacing
     + lines * line_height;
 
-  return height;
+  out_height = height;
+
+  int required_columns;
+
+  if (lines == 1)
+    required_columns = completions.size();
+  else
+    required_columns = columns;
+
+  int required_width = required_columns * column_width + style.highlight_pixels
+    + style.shadow_pixels;
+  
+  out_width = required_width;
 }
   
 void WMenuListCompletions::draw(WMenu &menu, const WRect &rect, WDrawable &d)
@@ -94,7 +106,9 @@ void WMenuListCompletions::draw(WMenu &menu, const WRect &rect, WDrawable &d)
     = style.normal.inactive;
 
   // FIXME: don't hardcode this color
-  WColor c(d.draw_context(), "grey10");
+  WColor white_color(d.draw_context(), "white");
+  WColor c(d.draw_context(), "black");
+  //WColor c(d.draw_context(), "grey10");
 
   fill_rect(d, c, rect);
 
@@ -102,12 +116,14 @@ void WMenuListCompletions::draw(WMenu &menu, const WRect &rect, WDrawable &d)
               substyle.shadow_color, style.shadow_pixels,
               rect);
 
-  WRect rect2 = rect.inside_tl_br_border(style.highlight_pixels,
-                                         style.shadow_pixels);
+  draw_border(d, white_color, style.highlight_pixels,
+              style.highlight_pixels, style.shadow_pixels, 0,
+              rect);
 
-  draw_border(d, substyle.padding_color, style.padding_pixels, rect2);
-
-    
+  WRect rect2 = rect.inside_border(style.highlight_pixels,
+                                   style.highlight_pixels,
+                                   style.shadow_pixels, 0);
+  
   int max_pos_index = lines * columns;
     
   // FIXME: allow an offset
@@ -125,7 +141,7 @@ void WMenuListCompletions::draw(WMenu &menu, const WRect &rect, WDrawable &d)
                       base_y + line_height * row,
                       column_width, line_height);
 
-    WRect label_rect2 = label_rect1.inside_border(style.spacing);
+    WRect label_rect2 = label_rect1.inside_lr_tb_border(0, style.spacing);
 
     WRect label_rect3 = label_rect2.inside_lr_tb_border
       (style.label_horizontal_padding,
@@ -150,42 +166,54 @@ void WMenuListCompletions::draw(WMenu &menu, const WRect &rect, WDrawable &d)
 /* Returns true if completions should be recomputed */
 bool WMenuListCompletions::complete(WMenu::InputState &input)
 {
-  if (!complete_common_prefix)
-  {
-    if (selected  < 0)
-      selected = 0;
-    else
-      selected = (selected + 1) % completions.size();
-      
-    applicator(input, completions[selected]);
-    return false;
-  }
-  else
+  if (complete_common_prefix)
   {
     // Find the largest common prefix
 
     utf8_string prefix = completions[0];
+    int perfect_match_index = 0;
     for (size_t i = 1; i < completions.size(); ++i)
     {
       const utf8_string &str = completions[i];
       if (prefix.empty())
         break;
       if (prefix.length() > str.length())
+      {
         prefix.resize(str.length());
+        perfect_match_index = -1;
+      }
       utf8_string::iterator it = boost::mismatch(prefix, str.begin()).first;
-      prefix.erase(it, prefix.end());
+      if (it != prefix.end())
+      {
+        prefix.erase(it, prefix.end());
+        perfect_match_index = -1;
+      }
+      if (str == prefix)
+        perfect_match_index = i;
     }
 
     WMenu::InputState new_state = input;
     applicator(new_state, prefix);
+    complete_common_prefix = false;
     if (new_state.text != input.text || new_state.cursor_position != input.cursor_position)
     {
       input = new_state;
+      if (perfect_match_index != -1)
+      {
+        selected = perfect_match_index;
+        return false;
+      }
       return true;
     }
-    complete_common_prefix = false;
-    return false;
   }
+
+  if (selected  < 0)
+    selected = 0;
+  else
+    selected = (selected + 1) % completions.size();
+      
+  applicator(input, completions[selected]);
+  return false;
 }
   
 WMenuListCompletions::~WMenuListCompletions()

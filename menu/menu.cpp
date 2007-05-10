@@ -3,6 +3,7 @@
 #include <boost/thread/thread.hpp>
 
 const static long MENU_WINDOW_EVENT_MASK = ExposureMask | KeyPressMask;
+const static long COMPLETIONS_WINDOW_EVENT_MASK = ExposureMask;
 
 WMenu::WMenu(WM &wm_, const WModifierInfo &mod_info)
   : wm_(wm_),
@@ -26,12 +27,24 @@ void WMenu::initialize()
                         wm().default_visual(),
                         CWEventMask, &wa);
 
+  wa.event_mask = COMPLETIONS_WINDOW_EVENT_MASK;
+
+  completions_xwin_ = XCreateWindow(wm().display(), wm().root_window(),
+                                    0, 0, 100, 100,
+                                    0,
+                                    wm().default_depth(),
+                                    InputOutput,
+                                    wm().default_visual(),
+                                    CWEventMask, &wa);
+
   current_window_bounds.x = 0;
   current_window_bounds.y = 0;
   current_window_bounds.width = 100;
   current_window_bounds.height = 100;
 
-  map_state = STATE_UNMAPPED;
+  current_completions_window_bounds = current_window_bounds;
+
+  map_state = completions_map_state = STATE_UNMAPPED;
 
   active = false;
 
@@ -79,23 +92,65 @@ bool WMenu::read_string(const utf8_string &prompt,
 
 void WMenu::compute_bounds()
 {
-  // Fixme: don't use shaded_height()
+  // FIXME: don't use shaded_height()
   int height = wm().shaded_height();
   bounds.width = wm().screen_width();
-
-  if (completions)
-  {
-    // FIXME: don't hardcode this 2/3 constant
-    // Limit completions to 2/3 of remaining height
-    int available_height = (wm().screen_height() - height) * 2 / 3;
-
-    
-    height += completions->compute_height(*this, bounds.width, available_height);
-  }
-  
   bounds.height = height;
   bounds.x = 0;
   bounds.y = wm().screen_height() - bounds.height;
+
+  // FIXME: this is not the correct style to use
+  WFrameStyle &style = wm().frame_style;
+
+  WRect inner_rect = bounds.inside_tl_br_border(style.highlight_pixels,
+                                                style.shadow_pixels);
+  if (!prompt.empty())
+  {
+    // FIXME: don't use frame_style, instead use the proper style
+    // FIXME: don't use bounds.width, instead use the proper width
+    int prompt_width = compute_label_width(wm().buffer_pixmap.drawable(),
+                                           prompt,
+                                           style.label_font,
+                                           inner_rect.width - 2 * style.label_horizontal_padding);
+    prompt_rect = inner_rect;
+    prompt_rect.width = prompt_width + 2 * style.label_horizontal_padding;
+    prompt_text_rect = prompt_rect.inside_lr_tb_border(style.label_horizontal_padding,
+                                                       style.label_vertical_padding);
+    input_rect = inner_rect;
+    input_rect.x += prompt_rect.width;
+    input_rect.width -= prompt_rect.width;
+  } else
+  {
+    input_rect = inner_rect;
+  }
+  input_text_rect = input_rect.inside_lr_tb_border(style.label_horizontal_padding,
+                                                   style.label_vertical_padding);
+  compute_completions_bounds();
+}
+
+void WMenu::compute_completions_bounds()
+{
+  if (completions)
+  {
+    // FIXME: don't hardcode this constant
+    // Limit completions to a fraction of remaining height
+    int available_height = (wm().screen_height() - bounds.height) * 3 / 8;
+
+    // FIXME: don't hardcode this constant
+    int width = bounds.width / 2;
+
+    int out_width, out_height;
+
+    completions->compute_dimensions(*this, width, available_height, out_width, out_height);
+
+    // FIXME: this is not the correct style to use
+    WFrameStyle &style = wm().frame_style;
+
+    completions_bounds.height = out_height;
+    completions_bounds.width = out_width;
+    completions_bounds.x = input_rect.x - style.highlight_pixels;
+    completions_bounds.y = bounds.y - out_height;
+  }
 }
 
 void WMenu::handle_expose(const XExposeEvent &ev)
@@ -131,12 +186,30 @@ void WMenu::flush()
                           bounds.width, bounds.height);
         current_window_bounds = bounds;
       }
-      
+
       if (map_state != STATE_MAPPED)
       {
         XMapRaised(wm().display(), xwin_);
         map_state = STATE_MAPPED;
       }
+
+      if (completions)
+      {
+
+        if (current_completions_window_bounds != completions_bounds)
+        {
+          XMoveResizeWindow(wm().display(), completions_xwin_,
+                            completions_bounds.x, completions_bounds.y,
+                            completions_bounds.width, completions_bounds.height);
+          current_completions_window_bounds = completions_bounds;
+        }
+
+        if (completions_map_state != STATE_MAPPED)
+        {
+          XMapRaised(wm().display(), completions_xwin_);
+          completions_map_state = STATE_MAPPED;
+        }
+      }      
 
       if (!keyboard_grabbed)
       {
@@ -163,6 +236,15 @@ void WMenu::flush()
     }
   }
 
+  if (!active || !completions)
+  {
+    if (completions_map_state != STATE_UNMAPPED)
+    {
+      XUnmapWindow(wm().display(), completions_xwin_);
+      completions_map_state = STATE_UNMAPPED;
+    }
+  }
+
   if (active && (scheduled_update_server || scheduled_draw))
   {
     draw();
@@ -172,6 +254,16 @@ void WMenu::flush()
   scheduled_update_server = false;
 }
 
+// FIXME: don't duplicate this here
+/*
+static ascii_string rgb(unsigned char r, unsigned char g, unsigned char b)
+{
+  char buf[30];
+  sprintf(buf, "#%02x%02x%02x", r, g, b);
+  return ascii_string(buf);
+}
+*/
+
 void WMenu::draw()
 {
   WDrawable &d = wm().buffer_pixmap.drawable();
@@ -180,64 +272,64 @@ void WMenu::draw()
   WFrameStyle &style = wm().frame_style;
 
   // FIXME: this is not the correct style to use
-  WFrameStyleSpecialized &substyle
-    = style.normal.inactive;
+  //WFrameStyleSpecialized &substyle
+  //  = style.normal.inactive;
 
   // Draw completions
   if (completions)
   {
-    WRect rect(0, 0, bounds.width, bounds.height - wm_.shaded_height());
+    WRect rect(0, 0, completions_bounds.width, completions_bounds.height);
 
     completions->draw(*this, rect, d);
+    XCopyArea(wm().display(), d.drawable(),
+              completions_xwin(),
+              wm().dc.gc(),
+              0, 0, completions_bounds.width, completions_bounds.height,
+              0, 0);
   }
 
   // Draw input area
   {
-    WRect rect(0, bounds.height - wm_.shaded_height(), bounds.width, wm_.shaded_height());
+    //WColor red_color(d.draw_context(), rgb(200,50,30));
 
-    fill_rect(d, substyle.background_color, rect);
+    WColor white_color(d.draw_context(), "white");
 
-    draw_border(d, substyle.highlight_color, style.highlight_pixels,
-                substyle.shadow_color, style.shadow_pixels,
-                rect);
+    draw_border(d, white_color, style.highlight_pixels,
+                white_color, style.shadow_pixels,
+                bounds);
 
-    WRect rect2 = rect.inside_tl_br_border(style.highlight_pixels,
-                                           style.shadow_pixels);
+    // draw prompt area
+    if (!prompt.empty())
+    {
+      WColor prompt_bg(d.draw_context(), "grey30");
+      WColor prompt_fg(d.draw_context(), "white");
+      fill_rect(d, prompt_bg, prompt_rect);
+      draw_label(d, prompt, style.label_font, prompt_fg, prompt_text_rect);
+    }
 
-    draw_border(d, substyle.padding_color, style.padding_pixels, rect2);
 
-    WRect rect3 = rect2.inside_border(style.padding_pixels + style.spacing);
-    rect3.height = wm().bar_height();
+    WColor input_bg(d.draw_context(), "black");
+    WColor input_fg(d.draw_context(), "grey85");
 
-    //fill_rect(d, substyle.label_background_color, rect3);
-    fill_rect(d, substyle.background_color, rect3);
+    fill_rect(d, input_bg, input_rect);
 
     utf8_string text;
-    text = prompt;
-
-    int cursor_base = text.length();
-
     text += input.text;
 
-    int actual_cursor_position = cursor_base + input.cursor_position;
+    int actual_cursor_position = input.cursor_position;
 
     text += ' ';
 
     draw_label_with_cursor
-      (d, text, style.label_font,
-       substyle.label_background_color,
-       substyle.label_foreground_color,
-       substyle.label_background_color,
-       rect3.inside_lr_tb_border(style.label_horizontal_padding,
-                                 style.label_vertical_padding),
-       actual_cursor_position);
+      (d, text, style.label_font, input_fg, input_bg, input_fg,
+       input_text_rect, actual_cursor_position);
+    
+    XCopyArea(wm().display(), d.drawable(),
+              xwin(),
+              wm().dc.gc(),
+              bounds.x, bounds.y, bounds.width, bounds.height,
+              0, 0);
   }
-
-  XCopyArea(wm().display(), d.drawable(),
-            xwin(),
-            wm().dc.gc(),
-            0, 0, bounds.width, bounds.height,
-            0, 0);
 }
 
 static void menu_perform_completion(WMenu &menu)

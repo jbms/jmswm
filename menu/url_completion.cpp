@@ -38,7 +38,7 @@ private:
 public:
   WMenuURLCompletions(const CompletionList &list, int columns);
 
-  virtual int compute_height(WMenu &menu, int width, int height);
+  virtual void compute_dimensions(WMenu &menu, int width, int height, int &out_width, int &out_height);
   virtual void draw(WMenu &menu, const WRect &rect, WDrawable &d);
   virtual bool complete(WMenu::InputState &input);
   virtual ~WMenuURLCompletions();
@@ -53,39 +53,33 @@ WMenuURLCompletions::WMenuURLCompletions(const CompletionList &list, int columns
     throw std::invalid_argument("empty completion list");
 }
 
-int WMenuURLCompletions::compute_height(WMenu &menu, int width, int height)
+
+// Ignore columns -- always use 1 column
+void WMenuURLCompletions::compute_dimensions(WMenu &menu, int width, int height, int &out_width, int &out_height)
 {
   // FIXME: don't use this style
   WFrameStyle &style = menu.wm().frame_style;
 
-  int available_height = height;
+  int available_height = height - (style.highlight_pixels + style.shadow_pixels
+                                   + 2 * style.spacing);
 
-  // FIXME: use a style entry instead of a constant here for padding
-  column_margin = style.spacing;
-
-  int available_width = width - style.highlight_pixels
-    - style.shadow_pixels
-    - 2 * style.padding_pixels
-    - (columns - 1) * column_margin;
-
-  // FIXME: use a style entry instead of a constant here for padding
-  column_width = available_width / columns;
 
   line_height = style.label_vertical_padding * 2
     + style.label_font.height() + 2 * style.spacing;
 
   int max_lines = available_height / line_height;
 
-  lines = (completions.size() + columns - 1)
-    / columns;
+  lines = completions.size();
+  
   if (lines > max_lines)
     lines = max_lines;
 
   height = style.highlight_pixels + style.shadow_pixels
-    + 2 * style.padding_pixels + 2 * style.spacing
+    + 2 * style.spacing
     + lines * line_height;
 
-  return height;
+  out_height = height;
+  out_width = width;
 }
   
 void WMenuURLCompletions::draw(WMenu &menu, const WRect &rect, WDrawable &d)
@@ -97,37 +91,36 @@ void WMenuURLCompletions::draw(WMenu &menu, const WRect &rect, WDrawable &d)
     = style.normal.inactive;
 
   // FIXME: don't hardcode this color
-  WColor c(d.draw_context(), "grey10");
+  WColor white_color(d.draw_context(), "white");
+  WColor c(d.draw_context(), "black");
   //WColor c(d.draw_context(), "black");  
 
   fill_rect(d, c, rect);
 
-  draw_border(d, substyle.highlight_color, style.highlight_pixels,
-              substyle.shadow_color, style.shadow_pixels,
+  draw_border(d, white_color, style.highlight_pixels,
+              style.highlight_pixels, style.shadow_pixels, 0,
               rect);
 
-  WRect rect2 = rect.inside_tl_br_border(style.highlight_pixels,
-                                         style.shadow_pixels);
+  WRect rect2 = rect.inside_border(style.highlight_pixels,
+                                   style.highlight_pixels,
+                                   style.shadow_pixels, 0);
 
-  draw_border(d, substyle.padding_color, style.padding_pixels, rect2);
+  //draw_border(d, substyle.padding_color, style.padding_pixels, rect2);
 
     
-  size_t max_pos_index = lines * columns;
+  size_t max_pos_index = lines;
     
   // FIXME: allow an offset
   if (max_pos_index > completions.size())
     max_pos_index = completions.size();
 
-  size_t base_y = rect2.y + style.spacing;
+  size_t base_y = rect2.y;
 
   for (size_t pos_index = 0; pos_index < max_pos_index; ++pos_index)
   {
-    size_t row = pos_index / columns;
-    size_t col = pos_index % columns;
-
-    WRect cell_rect(rect2.x + style.spacing + (column_width + column_margin) * col,
-                    base_y + style.spacing + line_height * row,
-                    column_width, line_height);
+    WRect cell_rect(rect2.x,
+                    base_y + style.spacing + line_height * pos_index,
+                    rect2.width, line_height);
 
     const WColor *url_color, *title_color;
 

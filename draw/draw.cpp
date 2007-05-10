@@ -266,6 +266,27 @@ void draw_label_with_text_background(WDrawable &d, const utf8_string &text,
   pango_attr_list_unref(attr_list);
 }
 
+int compute_label_width(WDrawable &d,
+                        const utf8_string &text,
+                        const WFont &font,
+                        int available_width)
+{
+  PangoLayout *pl = pango_layout_new(d.draw_context().pango_context());
+  pango_layout_set_text(pl, text.data(), text.length());
+  pango_layout_set_font_description(pl, font.pango_font_description());
+  pango_layout_set_width(pl, available_width * PANGO_SCALE);
+  pango_layout_set_single_paragraph_mode(pl, TRUE);
+  pango_layout_set_ellipsize(pl, PANGO_ELLIPSIZE_MIDDLE);
+
+  PangoLayoutLine *line = pango_layout_get_line(pl, 0);
+
+  PangoRectangle ink_rect;
+  pango_layout_line_get_pixel_extents(line, &ink_rect, 0);
+
+  g_object_unref(pl);
+  return ink_rect.width;
+}
+
 int draw_label_with_background(WDrawable &d,
                                const utf8_string &text,
                                const WFont &font,
@@ -446,4 +467,20 @@ void draw_border(WDrawable &d,
                         rect.height - width));
   fill_rect(d, c, WRect(rect.x + width, rect.y + rect.height - width,
                         rect.width - width, width));
+}
+
+void draw_border(WDrawable &d,
+                 const WColor &c,
+                 int left_width, int top_width,
+                 int right_width, int bottom_width,
+                 const WRect &rect)
+{
+  fill_rect(d, c, WRect(rect.x, rect.y, left_width, rect.height));
+  fill_rect(d, c, WRect(rect.x + left_width, rect.y, rect.width - right_width, top_width));
+  
+  fill_rect(d, c, WRect(rect.x + rect.width - right_width, rect.y, right_width,
+                        rect.height));
+  fill_rect(d, c, WRect(rect.x + left_width, rect.y + rect.height - bottom_width,
+                        rect.width - right_width, bottom_width));
+  
 }

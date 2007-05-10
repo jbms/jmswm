@@ -1,1 +1,1 @@
-UTIL_OBJECTS := util/close_on_exec.o util/log.o util/event.o
+UTIL_OBJECTS := util/close_on_exec.o util/log.o util/event.o util/spawn.o

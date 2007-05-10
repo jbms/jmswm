@@ -333,6 +333,7 @@ void WM::place_client(WClient *c)
 
 void WM::unmanage_client(WClient *client)
 {
+  WARN("here");
   unmanage_client_hook(client);
 
   BOOST_FOREACH (WFrame *f, boost::make_transform_range(client->view_frames_, select2nd))

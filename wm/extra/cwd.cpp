@@ -83,7 +83,8 @@ void update_client_visible_name_and_context(WClient *client)
   }
 
   // Handle Conkeror
-  else if (client->class_name() == "Xulrunner-bin")
+  else if (client->class_name() == "Xulrunner-bin"
+           && !(client->window_type_flags() & WClient::WINDOW_TYPE_DIALOG))
   {
     utf8_string sep = " - ";
     utf8_string::size_type pos = client->name().rfind(sep);

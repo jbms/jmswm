@@ -16,6 +16,8 @@
 
 #include <boost/filesystem/path.hpp>
 
+#include <util/spawn.hpp>
+
 static ascii_string rgb(unsigned char r, unsigned char g, unsigned char b)
 {
   char buf[30];
@@ -48,18 +50,12 @@ void launch_browser(WM &wm, const utf8_string &text)
   {
     program = "/home/jbms/bin/browser-google-results";
   }
-  if (fork() == 0)
-  {
-    setsid();
-    close(STDIN_FILENO);
-    execl(program.c_str(), program.c_str(), arg.c_str(), (char *)0);
-    exit(-1);
-  }
+  spawnl(program.c_str(), program.c_str(), arg.c_str(), (const char *)0);
 }
 
 void launch_browser_interactive(WM &wm)
 {
-  wm.menu.read_string("URL: ",
+  wm.menu.read_string("URL:",
                       boost::bind(&launch_browser, boost::ref(wm), _1),
                       WMenu::FailureAction(),
                       url_completer("/home/jbms/.firefox-profile"),

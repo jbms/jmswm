@@ -51,6 +51,7 @@ Perhaps this can be done by simply saving values for each view name.
 *** TODO Support key binding for switching to next mail group
 Perhaps mod4-x m
 Maybe also support a key for composing mail.
+** Devices info (USB, cdrom, mounted devices)
 * Menu system
 ** TODO Make completion window not full width of screen for better readability
 ** TODO Add history for completions
@@ -80,3 +81,11 @@ Maybe support showing multiple views at a time.
 
 ** DONE Fix bar not being positioned properly in some cases after using xrandr
    CLOSED: [2007-04-07 Sat 16:25]
+** TODO Fix mail status not showing up when gnus is not started before wm
+Perhaps because /tmp/jbms is not getting created.
+* Coding style
+** Using namespaces
+
+** Make X event handling more generic/simpler
+* Screen locking
+

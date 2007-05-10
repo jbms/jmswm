@@ -221,7 +221,8 @@ void WM::handle_expose(const XExposeEvent &ev)
     
     client->schedule_draw();
   }
-  else if (ev.window == menu.xwin())
+  // TODO: maybe separate these two cases
+  else if (ev.window == menu.xwin() || ev.window == menu.completions_xwin())
     menu.handle_expose(ev);
   
   else if (ev.window == bar.xwin())
@@ -304,7 +305,8 @@ void WM::handle_xrandr_event(const XEvent &ev)
 void WM::handle_focus_in(const XFocusChangeEvent &ev)
 {
   /* Prevent programs like matlab from stealing the input focus.
-     Allow programs like emacs to switch input focus. */
+     Allow programs like emacs to switch input focus (if white list is
+     enabled). */
   
   if (ev.detail == NotifyNonlinear
       || ev.detail == NotifyNonlinearVirtual)
@@ -315,11 +317,18 @@ void WM::handle_focus_in(const XFocusChangeEvent &ev)
       {
         if (&frame->client() != client)
         {
+          /**
+           * White listing functionality is disabled because it isn't
+           * needed.  Selecting a frame by setting input focus is
+           * fragile and doesn't work in many cases.
+           */
+#if 0 
           WFrame *visible_frame = client->visible_frame();
           // White-listed programs can receive input focus.
           if (visible_frame && client->class_name() == "Emacs")
             visible_frame->view()->select_frame(visible_frame, true);
           else
+#endif 
             frame->client().schedule_set_input_focus();
         }
       }

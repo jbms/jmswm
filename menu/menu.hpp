@@ -49,6 +49,7 @@ public:
   boost::shared_ptr<CompletionState> completion_state;
   
   Window xwin_;
+  Window completions_xwin_;
 
   bool active;
 
@@ -56,14 +57,14 @@ public:
 
   WKeyBindingContext bindctx;
 
-  WRect current_window_bounds;
+  WRect current_window_bounds, current_completions_window_bounds;
 
   bool scheduled_update_server;
   bool scheduled_draw;
 
   bool keyboard_grabbed;
 
-  enum map_state_t { STATE_MAPPED, STATE_UNMAPPED } map_state;
+  enum map_state_t { STATE_MAPPED, STATE_UNMAPPED } map_state, completions_map_state;
 
   InputState input;
   utf8_string prompt;
@@ -78,9 +79,13 @@ public:
   SuccessAction success_action;
   FailureAction failure_action;
 
-  WRect bounds;
+  WRect bounds, completions_bounds, input_rect, input_text_rect, prompt_rect, prompt_text_rect;
 
+  // recompute input line and completion bounds
   void compute_bounds();
+
+  // recompute just completions bounds
+  void compute_completions_bounds();
 
   void initialize();
 
@@ -96,6 +101,7 @@ public:
   WMenu(WM &wm_, const WModifierInfo &mod_info);
   
   Window xwin() { return xwin_; }
+  Window completions_xwin() { return completions_xwin_; }
 
   WM &wm() { return wm_; }
 
@@ -129,7 +135,7 @@ public:
 class WMenuCompletions
 {
 public:
-  virtual int compute_height(WMenu &menu, int width, int height) = 0;
+  virtual void compute_dimensions(WMenu &menu, int width, int height, int &out_width, int &out_height) = 0;
   virtual void draw(WMenu &menu, const WRect &rect, WDrawable &d) = 0;
 
   /* Returns true if completions should be recomputed */

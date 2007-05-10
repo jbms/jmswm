@@ -1,6 +1,7 @@
 #include <wm/all.hpp>
 #include <wm/commands.hpp>
 #include <menu/list_completion.hpp>
+#include <util/spawn.hpp>
 
 void WCommandList::add(const ascii_string &name,
                        const Action &action)
@@ -29,7 +30,7 @@ void WCommandList::execute(WM &wm, const ascii_string &name) const
 
 void WCommandList::execute_interactive(WM &wm) const
 {
-  wm.menu.read_string("Command: ",
+  wm.menu.read_string("Command:",
                       boost::bind(&WCommandList::execute, this, boost::ref(wm), _1),
                       boost::function<void (void)>(),
                       completer(),
@@ -218,20 +219,21 @@ void decrease_column_priority(WM &wm)
 
 void execute_shell_command(const ascii_string &command)
 {
-  if (fork() == 0)
-  {
-    setsid();
-    close(STDIN_FILENO);
-    execl("/bin/sh", "/bin/sh", "-c", command.c_str(), (char *)0);
-    exit(-1);
-  }
+  spawnl("/bin/sh", "/bin/sh", "-c", command.c_str(), (char *)0);
 }
 
 utf8_string get_selected_cwd(WM &wm)
 {
   utf8_string cwd;
+  using boost::algorithm::starts_with;
   if (WFrame *frame = wm.selected_frame())
+  {
     cwd = frame->client().context_info();
+    if (starts_with(cwd, "file://"))
+      cwd = cwd.substr(7);
+    else if (!starts_with(cwd, "/") && !starts_with(cwd, "~"))
+      cwd.clear();
+  }
   return cwd;
 }
 
@@ -256,15 +258,7 @@ utf8_string make_path_pretty(const utf8_string &path)
 void execute_shell_command_cwd(const ascii_string &command,
                                const utf8_string &cwd)
 {
-  if (fork() == 0)
-  {
-    if (!cwd.empty())
-      chdir(resolve_cwd(cwd).c_str());
-    setsid();
-    close(STDIN_FILENO);
-    execl("/bin/sh", "/bin/sh", "-c", command.c_str(), (char *)0);
-    exit(-1);
-  }
+  spawnl("/bin/sh", "/bin/sh", "-c", command.c_str(), (char *)0);
 }
 
 void execute_shell_command_selected_cwd(WM &wm, const ascii_string &command)
@@ -286,7 +280,7 @@ void kill_current_client(WM &wm)
 
 void execute_shell_command_interactive(WM &wm)
 {
-  wm.menu.read_string("Command: ", boost::bind(&execute_shell_command, _1));
+  wm.menu.read_string("Command:", boost::bind(&execute_shell_command, _1));
 }
 
 void execute_shell_command_cwd_interactive(WM &wm)
@@ -300,7 +294,7 @@ void execute_shell_command_cwd_interactive(WM &wm)
     cwd = make_path_pretty(buf);
   }
   
-  wm.menu.read_string(cwd + " $ ",
+  wm.menu.read_string(cwd + " $",
                       boost::bind(&execute_shell_command_cwd, _1, cwd));
 }
 
@@ -318,7 +312,7 @@ void switch_to_view(WM &wm, const utf8_string &name)
 
 void switch_to_view_interactive(WM &wm)
 {
-  wm.menu.read_string("Switch to tag: ",
+  wm.menu.read_string("Switch to tag:",
                       boost::bind(&switch_to_view, boost::ref(wm), _1),
                       WMenu::FailureAction(),
                       prefix_completer(boost::make_transform_range(wm.views(), select1st)),
@@ -363,7 +357,7 @@ void move_current_frame_to_other_view_interactive(WM &wm)
 {
   if (WFrame *frame = wm.selected_frame())
   {
-    wm.menu.read_string("Move to view: ",
+    wm.menu.read_string("Move to view:",
                         boost::bind(&move_frame_to_view, weak_iptr<WFrame>(frame),
                                     _1));
   }
@@ -394,7 +388,7 @@ void copy_current_frame_to_other_view_interactive(WM &wm)
 {
   if (WFrame *frame = wm.selected_frame())
   {
-    wm.menu.read_string("Duplicate to view: ",
+    wm.menu.read_string("Duplicate to view:",
                         boost::bind(&copy_frame_to_view, weak_iptr<WFrame>(frame),
                                     _1));
   }
