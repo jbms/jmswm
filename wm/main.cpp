@@ -50,7 +50,7 @@ void launch_browser(WM &wm, const utf8_string &text)
   {
     program = "/home/jbms/bin/browser-google-results";
   }
-  spawnl(program.c_str(), program.c_str(), arg.c_str(), (const char *)0);
+  spawnl(0, program.c_str(), program.c_str(), arg.c_str(), (const char *)0);
 }
 
 void launch_browser_interactive(WM &wm)

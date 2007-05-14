@@ -16,7 +16,7 @@ static void reset_signal_handling()
   while (sigaction(SIGINT, &act, 0) != 0 && errno == EINTR);
 }
 
-int spawnl(const char *path, ...)
+int spawnl(const char *working_dir, const char *path, ...)
 {
   const int max_args = 31;
   va_list argp;
@@ -33,6 +33,8 @@ int spawnl(const char *path, ...)
     reset_signal_handling();
     setsid();
     close(STDIN_FILENO);
+    if (working_dir)
+      chdir(working_dir);
     execv(path, argv);
     exit(-1);
   }

@@ -12,6 +12,6 @@
  *
  * The standard input file descriptor is closed in the new process.
  */
-int spawnl(const char *path, ...);
+int spawnl(const char *working_dir, const char *path, ...);
 
 #endif /* _UTIL_SPAWN_HPP */

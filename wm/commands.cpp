@@ -219,7 +219,7 @@ void decrease_column_priority(WM &wm)
 
 void execute_shell_command(const ascii_string &command)
 {
-  spawnl("/bin/sh", "/bin/sh", "-c", command.c_str(), (char *)0);
+  spawnl(0, "/bin/sh", "/bin/sh", "-c", command.c_str(), (char *)0);
 }
 
 utf8_string get_selected_cwd(WM &wm)
@@ -258,7 +258,8 @@ utf8_string make_path_pretty(const utf8_string &path)
 void execute_shell_command_cwd(const ascii_string &command,
                                const utf8_string &cwd)
 {
-  spawnl("/bin/sh", "/bin/sh", "-c", command.c_str(), (char *)0);
+  ascii_string resolved_cwd(resolve_cwd(cwd));
+  spawnl(resolved_cwd.c_str(), "/bin/sh", "/bin/sh", "-c", command.c_str(), (char *)0);
 }
 
 void execute_shell_command_selected_cwd(WM &wm, const ascii_string &command)
