@@ -106,7 +106,7 @@ namespace
     static const boost::regex category_regex("^#\\+CATEGORY:[ \t]*([^ \t].*)$");
     static const boost::regex outline_regex("^(\\*)+[ \t]*([^* \t][^*]*)$");
     static const boost::regex org_url("\\[\\[((?:http|ftp|https)://[^\\]]+)\\]\\[([^\\]]+)\\]\\]");
-    static const boost::regex text_url("(?:http|ftp|https)://[0-9A-Za-z_!~*'().;?:@&=+$,%#-]+");
+    static const boost::regex text_url("(?:http|ftp|https)://[/0-9A-Za-z_!~*'().;?:@&=+$,%#-]+");
 
     cache.clear();
 
@@ -176,8 +176,10 @@ namespace
 
     boost::filesystem::ifstream ifs(path());
     std::string line;
+    if (!ifs)
+      WARN("failed to open org list file: %s", path().native_file_string().c_str());
     std::set<boost::filesystem::path> new_paths;
-    while (!getline(ifs, line))
+    while (getline(ifs, line))
     {
       try
       {
@@ -201,12 +203,15 @@ namespace
     BOOST_FOREACH (const boost::filesystem::path &path, new_paths)
     {
       if (!sources.count(path))
-        sources.insert(std::make_pair(path, new OrgFileBookmarkSource(path)));
+      {
+        sources.insert(std::make_pair(path, boost::shared_ptr<OrgFileBookmarkSource>(new OrgFileBookmarkSource(path))));
+      }
     }
   }
   
   void OrgFileListBookmarkSource::get_bookmarks(std::vector<BookmarkSpec> &result)
   {
+    update_cache();
     boost::for_each(boost::make_transform_range(sources, select2nd),
                     boost::bind(&OrgFileBookmarkSource::get_bookmarks, _1, boost::ref(result)));
   }
@@ -328,6 +333,39 @@ static bool compare_url_results(const std::pair<int, URLSpec> &a, const std::pai
   return false;
 }
 
+static bool order_url_to_remove_duplicates(const BookmarkSpec &a,
+                                           const BookmarkSpec &b)
+{
+  int val = a.url.compare(b.url);
+  if (val < 0)
+    return true;
+  if (val > 0)
+    return false;
+
+  val = a.title.size() - b.title.size();
+  if (val < 0)
+    return false;
+  if (val > 0)
+    return true;
+
+  val = a.categories.size() - b.categories.size();
+  if (val > 0)
+    return true;
+  return false;
+}
+
+static bool compare_url_to_remove_duplicates(const BookmarkSpec &a,
+                                            const BookmarkSpec &b)
+{
+  return a.url == b.url;
+}
+
+static void remove_duplicate_bookmarks(std::vector<BookmarkSpec> &spec)
+{
+  boost::sort(spec, order_url_to_remove_duplicates);
+  spec.erase(boost::unique(spec, compare_url_to_remove_duplicates), spec.end());
+}
+
 static WMenu::Completions url_completions(const boost::shared_ptr<boost::optional<std::vector<BookmarkSpec> > > &bookmarks,
                                           const boost::shared_ptr<BookmarkSource> &source,
                                           const WMenu::InputState &input)
@@ -336,8 +374,9 @@ static WMenu::Completions url_completions(const boost::shared_ptr<boost::optiona
   {
     *bookmarks = std::vector<BookmarkSpec>();
     source->get_bookmarks(bookmarks->get());
+    remove_duplicate_bookmarks(bookmarks->get());
   }
-  
+
   WMenu::Completions completions;
 
   std::vector<std::pair<int, URLSpec> > results;
@@ -435,4 +474,34 @@ void launch_browser_interactive(WM &wm, const boost::shared_ptr<BookmarkSource> 
                       url_completer(source),
                       true /* use delay */,
                       true /* use separate thread */);
+}
+
+void write_bookmark(const ascii_string &url, const utf8_string &title,
+                    const boost::filesystem::path &output_org_path)
+{
+  boost::filesystem::ofstream ofs(output_org_path, std::ios_base::ate | std::ios_base::out);
+  if (!ofs)
+  {
+    // FIXME: decide how to handle this error
+    WARN("Failed to write bookmark");
+    return;
+  }
+
+  ofs << "* [[" << url << "][" << title << "]]\n";
+}
+
+void bookmark_current_url(WM &wm, const boost::filesystem::path &output_org_path)
+{
+  using boost::algorithm::starts_with;
+  if (WFrame *frame = wm.selected_frame())
+  {
+    const utf8_string &context = frame->client().context_info();
+    if (starts_with(context, "http://")
+        || starts_with(context, "ftp://")
+        || starts_with(context, "https://"))
+    {
+      const utf8_string &title = frame->client().visible_name();
+      write_bookmark(context, title, output_org_path);
+    }
+  }
 }

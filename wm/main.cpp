@@ -250,8 +250,11 @@ int main(int argc, char **argv)
 
   boost::shared_ptr<AggregateBookmarkSource> bookmark_source(new AggregateBookmarkSource());
   bookmark_source->add_source(html_bookmark_source("/home/jbms/.firefox-profile/bookmarks.html"));
+  bookmark_source->add_source(org_file_list_bookmark_source("/home/jbms/misc/plan/org-agenda-files"));
+  bookmark_source->add_source(org_file_bookmark_source("/home/jbms/.jmswm/bookmarks.org"));
   
   wm.bind("mod4-x b", boost::bind(&launch_browser_interactive, boost::ref(wm), bookmark_source));
+  wm.bind("mod4-x k", boost::bind(&bookmark_current_url, boost::ref(wm), "/home/jbms/.jmswm/bookmarks.org"));
 
   wm.bind("mod4-x c",
           boost::bind(&execute_shell_command, "~/bin/browser-clipboard"));

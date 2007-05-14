@@ -45,4 +45,10 @@ class WM;
 void launch_browser(WM &wm, const utf8_string &text);
 void launch_browser_interactive(WM &wm, const boost::shared_ptr<BookmarkSource> &source);
 
+void write_bookmark(const ascii_string &url, const utf8_string &title,
+                    const boost::filesystem::path &output_org_path);
+
+void bookmark_current_url(WM &wm, const boost::filesystem::path &output_org_path);
+
+
 #endif /* _WM_EXTRA_WEB_BROWSER_HPP */
