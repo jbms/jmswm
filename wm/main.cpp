@@ -12,7 +12,7 @@
 #include <wm/extra/network_applet.hpp>
 #include <wm/extra/cwd.hpp>
 
-#include <menu/url_completion.hpp>
+#include <wm/extra/web_browser.hpp>
 
 #include <boost/filesystem/path.hpp>
 
@@ -23,44 +23,6 @@ static ascii_string rgb(unsigned char r, unsigned char g, unsigned char b)
   char buf[30];
   sprintf(buf, "#%02x%02x%02x", r, g, b);
   return ascii_string(buf);
-}
-
-static bool is_search_query(const utf8_string &text)
-{
-  if (boost::algorithm::contains(text, "://"))
-    return false;
-
-  if (text.find(' ') != utf8_string::npos)
-    return true;
-
-  if (text.find('.') != utf8_string::npos)
-    return false;
-
-  return true;
-}
-
-void launch_browser(WM &wm, const utf8_string &text)
-{
-  ascii_string program = "/home/jbms/bin/browser";
-  utf8_string arg = text;
-  if (text.empty())
-  {
-    arg = "http://www.google.com";
-  } else if (is_search_query(text))
-  {
-    program = "/home/jbms/bin/browser-google-results";
-  }
-  spawnl(0, program.c_str(), program.c_str(), arg.c_str(), (const char *)0);
-}
-
-void launch_browser_interactive(WM &wm)
-{
-  wm.menu.read_string("URL:",
-                      boost::bind(&launch_browser, boost::ref(wm), _1),
-                      WMenu::FailureAction(),
-                      url_completer("/home/jbms/.firefox-profile"),
-                      true /* use delay */,
-                      true /* use separate thread */);
 }
 
 void switch_to_agenda(WM &wm)
@@ -285,8 +247,11 @@ int main(int argc, char **argv)
               boost::bind(&execute_shell_command_selected_cwd,
                           boost::ref(wm),
                           "~/bin/emacs"));
+
+  boost::shared_ptr<AggregateBookmarkSource> bookmark_source(new AggregateBookmarkSource());
+  bookmark_source->add_source(html_bookmark_source("/home/jbms/.firefox-profile/bookmarks.html"));
   
-  wm.bind("mod4-x b", launch_browser_interactive);
+  wm.bind("mod4-x b", boost::bind(&launch_browser_interactive, boost::ref(wm), bookmark_source));
 
   wm.bind("mod4-x c",
           boost::bind(&execute_shell_command, "~/bin/browser-clipboard"));

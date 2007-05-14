@@ -2,6 +2,7 @@
 #include <wm/commands.hpp>
 #include <menu/list_completion.hpp>
 #include <util/spawn.hpp>
+#include <util/path.hpp>
 
 void WCommandList::add(const ascii_string &name,
                        const Action &action)
@@ -237,28 +238,10 @@ utf8_string get_selected_cwd(WM &wm)
   return cwd;
 }
 
-utf8_string resolve_cwd(const utf8_string &path)
-{
-  utf8_string cwd(path);
-  if (!cwd.empty() && cwd[0] == '~')
-  {
-    cwd = "/home/jbms" + cwd.substr(1);
-  }
-  return cwd;
-}
-
-utf8_string make_path_pretty(const utf8_string &path)
-{
-  utf8_string context = path;
-  if (context.find("/home/jbms") == 0)
-    context = "~" + context.substr(10);
-  return context;
-}
-
 void execute_shell_command_cwd(const ascii_string &command,
                                const utf8_string &cwd)
 {
-  ascii_string resolved_cwd(resolve_cwd(cwd));
+  ascii_string resolved_cwd(expand_path_home(cwd));
   spawnl(resolved_cwd.c_str(), "/bin/sh", "/bin/sh", "-c", command.c_str(), (char *)0);
 }
 
@@ -292,7 +275,7 @@ void execute_shell_command_cwd_interactive(WM &wm)
     char buf[256];
     buf[255] = 0;
     getcwd(buf, 256);
-    cwd = make_path_pretty(buf);
+    cwd = compact_path_home(buf);
   }
   
   wm.menu.read_string(cwd + " $",

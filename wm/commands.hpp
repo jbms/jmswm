@@ -64,9 +64,6 @@ void copy_current_frame_to_other_view_interactive(WM &wm);
 void move_current_frame_to_other_view_interactive(WM &wm);
 void remove_current_frame(WM &wm);
 
-// TODO: move this to a better file
-utf8_string make_path_pretty(const utf8_string &path);
-
 void move_next_by_activity_in_column(WM &wm);
 void move_next_by_activity_in_view(WM &wm);
 void move_next_by_activity(WM &wm);

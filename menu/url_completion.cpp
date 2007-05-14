@@ -3,40 +3,25 @@
 #include <menu/url_completion.hpp>
 #include <menu/list_completion.hpp>
 
-#include <boost/filesystem/fstream.hpp>
-#include <boost/regex.hpp>
+//#include <boost/filesystem/fstream.hpp>
+//#include <boost/regex.hpp>
 
-#include <boost/optional.hpp>
+//#include <boost/optional.hpp>
 
-class Bookmark
-{
-public:
-  ascii_string url;
-  utf8_string title;
-  /* TODO: maybe add last visit or add date */
-
-  Bookmark()
-  {}
-  
-  Bookmark(const ascii_string &url, const utf8_string &title)
-    : url(url), title(title)
-  {}
-};
 
 class WMenuURLCompletions : public WMenuCompletions
 {
 private:
-  typedef std::vector<Bookmark> CompletionList;
+  typedef std::vector<URLSpec> CompletionList;
   CompletionList completions;
   
   int selected;
-  int columns;
   int column_width;
   int column_margin;
   int lines;
   int line_height;
 public:
-  WMenuURLCompletions(const CompletionList &list, int columns);
+  WMenuURLCompletions(const CompletionList &list);
 
   virtual void compute_dimensions(WMenu &menu, int width, int height, int &out_width, int &out_height);
   virtual void draw(WMenu &menu, const WRect &rect, WDrawable &d);
@@ -44,10 +29,9 @@ public:
   virtual ~WMenuURLCompletions();
 };
 
-WMenuURLCompletions::WMenuURLCompletions(const CompletionList &list, int columns)
+WMenuURLCompletions::WMenuURLCompletions(const CompletionList &list)
   : completions(list),
-    selected(-1),
-    columns(columns)
+    selected(-1)
 {
   if (list.empty())
     throw std::invalid_argument("empty completion list");
@@ -182,120 +166,7 @@ WMenuURLCompletions::~WMenuURLCompletions()
 {
 }
 
-
-
-static std::string decode_html(const std::string &str)
+boost::shared_ptr<WMenuCompletions> make_url_completions(const URLSpecList &list)
 {
-  std::string result;
-
-  for (size_t i = 0; i < str.length(); ++i)
-  {
-    if (str[i] == '&')
-    {
-      size_t end = str.find(';', i);
-      if (end != std::string::npos)
-      {
-        std::string seq = str.substr(i, end - i + 1);
-        if (seq == "&gt;")
-          result += '>';
-        else if (seq == "&lt;")
-          result += '<';
-        else if (seq == "&amp;")
-          result += '&';
-        else
-          result += seq;
-        i = end + 1;
-        continue;
-      }
-    }
-    result += str[i];
-  }
-  return result;
-}
-
-typedef std::vector<Bookmark> BookmarkList;
-
-typedef boost::shared_ptr<BookmarkList> BookmarkListPtr;
-
-static void load_bookmarks(BookmarkList &list, const boost::filesystem::path &mozilla_profile_dir)
-{
-
-  static const boost::regex bookmark_regex("<A HREF=\"([^\"]*)\"[^>]*>([^<]*)</A>");
-
-  
-  boost::filesystem::path path(mozilla_profile_dir / "bookmarks.html");
-  boost::filesystem::ifstream ifs(path);
-  if (!ifs)
-  {
-    WARN("Failed to load Mozilla bookmarks from: %s", path.native_file_string().c_str());
-    return;
-  }
-
-  std::string line;
-  while (getline(ifs, line))
-  {
-    boost::smatch results;
-    if (regex_search(line, results, bookmark_regex))
-    {
-      ascii_string enc_url = results[1];
-      utf8_string enc_title = results[2];
-
-      list.push_back(Bookmark(decode_html(enc_url), decode_html(enc_title)));
-    }
-  }
-}
-
-static WMenu::Completions url_completions(const boost::shared_ptr<boost::optional<BookmarkList> > &bookmarks,
-                                          const boost::filesystem::path &mozilla_profile_dir,
-                                          const WMenu::InputState &input)
-{
-  if (!*bookmarks)
-  {
-    *bookmarks = BookmarkList();
-    load_bookmarks(bookmarks->get(), mozilla_profile_dir);
-  }
-  
-  WMenu::Completions completions;
-
-  std::vector<Bookmark> results;
-  std::vector<utf8_string> words;
-  boost::algorithm::split(words, input.text, boost::algorithm::is_any_of(" "),
-                          boost::algorithm::token_compress_on);
-  
-  BOOST_FOREACH (const Bookmark &b, bookmarks->get())
-  {
-    bool good = true;
-    bool none = true;
-    BOOST_FOREACH (const utf8_string &word, words)
-    {
-      if (word.empty())
-        continue;
-
-      if (!boost::algorithm::ifind_first(b.url, word)
-          && !boost::algorithm::ifind_first(b.title, word))
-      {
-        good = false;
-        break;
-      }
-      none = false;
-    }
-
-    if (good && !none)
-    {
-      results.push_back(b);
-    }
-  }
-
-  if (!results.empty())
-    completions.reset(new WMenuURLCompletions(results, 1 /* 1 column display */));
-
-  return completions;
-}
-
-WMenu::Completer url_completer(const boost::filesystem::path &mozilla_profile_dir)
-{
-  return boost::bind(&url_completions,
-                     boost::shared_ptr<boost::optional<BookmarkList> >
-                     (new boost::optional<BookmarkList>),
-                     mozilla_profile_dir, _1);
+  return boost::shared_ptr<WMenuCompletions>(new WMenuURLCompletions(list));
 }

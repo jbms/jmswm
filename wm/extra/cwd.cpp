@@ -1,6 +1,7 @@
 
 #include <wm/all.hpp>
 #include <wm/commands.hpp>
+#include <util/path.hpp>
 
 void update_client_visible_name_and_context(WClient *client)
 {
@@ -52,7 +53,7 @@ void update_client_visible_name_and_context(WClient *client)
       {
         utf8_string context = name.substr(dir_start + 2,
                                           name.size() - dir_start - 2 - 1);
-        context = make_path_pretty(context);
+        context = compact_path_home(context);
         if (context.size() > 1 && context[context.size() - 1] == '/')
           context.resize(context.size() - 1);
         client->set_context_info(context);

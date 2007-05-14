@@ -93,3 +93,6 @@ Perhaps because /tmp/jbms is not getting created.
 ** Make X event handling more generic/simpler
 * Screen locking
 
+
+* Visual apperance
+** TODO Look into SYNC extension and _NET_WM_SYNC_REQUEST

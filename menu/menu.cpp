@@ -18,6 +18,7 @@ void WMenu::initialize()
 {
   XSetWindowAttributes wa;
   wa.event_mask = MENU_WINDOW_EVENT_MASK;
+  wa.save_under = True;
   
   xwin_ = XCreateWindow(wm().display(), wm().root_window(),
                         0, 0, 100, 100,
@@ -25,7 +26,7 @@ void WMenu::initialize()
                         wm().default_depth(),
                         InputOutput,
                         wm().default_visual(),
-                        CWEventMask, &wa);
+                        CWEventMask | CWSaveUnder, &wa);
 
   wa.event_mask = COMPLETIONS_WINDOW_EVENT_MASK;
 
@@ -35,7 +36,7 @@ void WMenu::initialize()
                                     wm().default_depth(),
                                     InputOutput,
                                     wm().default_visual(),
-                                    CWEventMask, &wa);
+                                    CWEventMask | CWSaveUnder, &wa);
 
   current_window_bounds.x = 0;
   current_window_bounds.y = 0;

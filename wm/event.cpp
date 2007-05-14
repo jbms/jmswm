@@ -1,6 +1,6 @@
 #include <wm/all.hpp>
 
-#define DEBUG_DISPLAY_XEVENTS
+//#define DEBUG_DISPLAY_XEVENTS
 
 #ifdef DEBUG_DISPLAY_XEVENTS
 static const char *event_type_to_string(int type)
