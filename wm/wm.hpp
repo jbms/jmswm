@@ -36,6 +36,8 @@
 
 #include <util/time.hpp>
 
+#include <util/property.hpp>
+
 
 const long WM_UNMANAGED_CLIENT_EVENT_MASK = (StructureNotifyMask |
                                              PropertyChangeMask);
@@ -467,7 +469,9 @@ class WClient
 /* For the WM scheduled work clients list */
   : public boost::intrusive::ilist_auto_base_hook<0>,
 
-    public weak_iptr<WClient>::base
+    public weak_iptr<WClient>::base,
+
+    public PropertyContainer
 {
 private:
   WM &wm_;

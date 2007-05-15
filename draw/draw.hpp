@@ -274,12 +274,15 @@ int draw_label_with_background(WDrawable &d,
                                int label_vertical_padding,
                                bool right_aligned);
 
-void draw_label_with_cursor(WDrawable &d, const utf8_string &text,
-                            const WFont &font, const WColor &c,
-                            const WColor &cursor_foreground,
-                            const WColor &cursor_background,
-                            const WRect &rect,
-                            int cursor_position);
+void draw_label_with_cursor_and_selection(WDrawable &d, const utf8_string &text,
+                                          const WFont &font, const WColor &c,
+                                          const WColor &cursor_foreground,
+                                          const WColor &cursor_background,
+                                          const WColor &selection_foreground,
+                                          const WColor &selection_background,
+                                          const WRect &rect,
+                                          int cursor_position,
+                                          int selection_position);
 
 void fill_rect(WDrawable &d, const WColor &background,
                const WRect &rect);

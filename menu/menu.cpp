@@ -57,6 +57,7 @@ void WMenu::initialize()
 }
 
 bool WMenu::read_string(const utf8_string &prompt,
+                        const utf8_string &initial_text,
                         const SuccessAction &success_action,
                         const FailureAction &failure_action,
                         const Completer &completer,
@@ -76,8 +77,14 @@ bool WMenu::read_string(const utf8_string &prompt,
   this->use_delay = use_delay;
   this->use_separate_thread = use_separate_thread;
 
-  input.text.clear();
+  input.text = initial_text;
+  if (!initial_text.empty())
+    mark_position = initial_text.length();
+  else
+    mark_position = -1;
+  
   input.cursor_position = 0;
+
 
   this->prompt = prompt;
 
@@ -317,13 +324,15 @@ void WMenu::draw()
     utf8_string text;
     text += input.text;
 
-    int actual_cursor_position = input.cursor_position;
-
     text += ' ';
 
-    draw_label_with_cursor
+    WColor selection_bg(d.draw_context(), "blue");
+    WColor selection_fg(d.draw_context(), "grey85");
+
+    draw_label_with_cursor_and_selection
       (d, text, style.label_font, input_fg, input_bg, input_fg,
-       input_text_rect, actual_cursor_position);
+       selection_fg, selection_bg,
+       input_text_rect, input.cursor_position, mark_position);
     
     XCopyArea(wm().display(), d.drawable(),
               xwin(),
@@ -340,6 +349,7 @@ static void menu_perform_completion(WMenu &menu)
     if (menu.completions->complete(menu.input))
       menu.handle_input_changed();
     menu.scheduled_draw = true;
+    menu.mark_position = -1;
   }
 }
 
@@ -452,6 +462,9 @@ void WMenu::handle_keypress(const XKeyEvent &ev)
 
     if (isgraph(c) || c == ' ')
     {
+      if (mark_position != -1 && mark_position > (int)input.cursor_position)
+        input.text.erase(input.cursor_position, mark_position - input.cursor_position);
+      mark_position = -1;
       input.text.insert(input.cursor_position, buffer, 1);
       input.cursor_position++;
 
@@ -612,6 +625,16 @@ void menu_complete(WM &wm)
     else
       ++menu.queued_completions;
   }
+}
+
+void menu_set_mark(WM &wm)
+{
+  WMenu &menu = wm.menu;
+  if (!menu.active)
+    return;
+
+  menu.mark_position = menu.input.cursor_position;
+  menu.scheduled_draw = true;
 }
 
 WMenuCompletions::~WMenuCompletions()

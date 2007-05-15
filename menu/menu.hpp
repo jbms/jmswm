@@ -26,6 +26,7 @@ public:
     utf8_string text;
     utf8_string::size_type cursor_position;
   };
+  int mark_position;
 
   bool completions_valid;
   typedef boost::shared_ptr<WMenuCompletions> Completions;
@@ -116,6 +117,7 @@ public:
   }
 
   bool read_string(const utf8_string &prompt,
+                   const utf8_string &initial_text,
                    const SuccessAction &success_action, 
                    const FailureAction &failure_action = FailureAction(),
                    const Completer &completer = Completer(),
@@ -153,5 +155,6 @@ void menu_end_of_line(WM &wm);
 void menu_delete(WM &wm);
 void menu_kill_line(WM &wm);
 void menu_complete(WM &wm);
+void menu_set_mark(WM &wm);
 
 #endif /* _MENU_HPP */

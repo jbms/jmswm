@@ -341,12 +341,15 @@ int draw_label_with_background(WDrawable &d,
   return frame_width;
 }
 
-void draw_label_with_cursor(WDrawable &d, const utf8_string &text,
-                            const WFont &font, const WColor &c,
-                            const WColor &cursor_foreground,
-                            const WColor &cursor_background,
-                            const WRect &rect,
-                            int cursor_position)
+void draw_label_with_cursor_and_selection(WDrawable &d, const utf8_string &text,
+                                          const WFont &font, const WColor &c,
+                                          const WColor &cursor_foreground,
+                                          const WColor &cursor_background,
+                                          const WColor &selection_foreground,
+                                          const WColor &selection_background,
+                                          const WRect &rect,
+                                          int cursor_position,
+                                          int selection_position)
 {
   PangoLayout *pl = pango_layout_new(d.draw_context().pango_context());
   pango_layout_set_text(pl, text.data(), text.length());
@@ -371,6 +374,37 @@ void draw_label_with_cursor(WDrawable &d, const utf8_string &text,
   attr2->start_index = cursor_position;
   attr2->end_index = cursor_position + 1;
   pango_attr_list_insert(attr_list, attr2);
+
+  if (selection_position != -1 && selection_position != cursor_position)
+  {
+    int selection_start, selection_end;
+    if (selection_position < cursor_position)
+    {
+      selection_start = selection_position;
+      selection_end = cursor_position;
+    } else
+    {
+      selection_start = cursor_position + 1;
+      selection_end = selection_position;
+    }
+    PangoAttribute *attr3
+      = pango_attr_background_new(selection_background.red(),
+                                  selection_background.green(),
+                                  selection_background.blue());
+    attr3->start_index = selection_start;
+    attr3->end_index = selection_end;
+    pango_attr_list_insert(attr_list, attr3);
+
+    PangoAttribute *attr4
+      = pango_attr_foreground_new(selection_foreground.red(),
+                                  selection_foreground.green(),
+                                  selection_foreground.blue());
+    
+    attr4->start_index = selection_start;
+    attr4->end_index = selection_end;
+    pango_attr_list_insert(attr_list, attr4);
+  }
+
   
   pango_layout_set_attributes(pl, attr_list);
 

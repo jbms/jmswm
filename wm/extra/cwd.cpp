@@ -1,5 +1,6 @@
 
 #include <wm/all.hpp>
+#include <wm/extra/cwd.hpp>
 #include <wm/commands.hpp>
 #include <util/path.hpp>
 
@@ -32,6 +33,7 @@ void update_client_visible_name_and_context(WClient *client)
     if (parts.size() >= 2 && parts.size() <= 4)
     {
       client->set_context_info(parts[1]);
+      client_cwd(client) = parts[1];
 
       if (parts.size() == 4)
         client->set_visible_name("[" + parts[0] + "]" + " " + parts[3]);
@@ -60,6 +62,7 @@ void update_client_visible_name_and_context(WClient *client)
         context = compact_path_home(context);
         if (context.size() > 1 && context[context.size() - 1] == '/')
           context.resize(context.size() - 1);
+        client_cwd(client) = context;
         client->set_context_info(context);
         client->set_visible_name(name.substr(0, dir_start));
 
@@ -69,6 +72,7 @@ void update_client_visible_name_and_context(WClient *client)
       {
         client->set_visible_name(name);
         client->set_context_info(utf8_string());
+        client_cwd(client).remove();
       }
     }
   }
@@ -109,6 +113,10 @@ void update_client_visible_name_and_context(WClient *client)
     }
     if (parts.size() >= 4)
     {
+      web_browser_title(client) = parts[1];
+      web_browser_url(client) = parts[0];
+      web_browser_frame_id(client) = parts[2];
+      web_browser_frame_tag(client) = parts[3];
       if (parts[1].empty())
         client->set_visible_name(parts[0]);
       else

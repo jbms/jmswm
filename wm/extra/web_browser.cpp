@@ -14,6 +14,7 @@
 #include <boost/regex.hpp>
 #include <boost/algorithm/string.hpp>
 #include <util/spawn.hpp>
+#include <wm/extra/cwd.hpp>
 
 WMenu::Completer url_completer(const boost::shared_ptr<BookmarkSource> &source);
 
@@ -106,7 +107,7 @@ namespace
     static const boost::regex category_regex("^#\\+CATEGORY:[ \t]*([^ \t].*)$");
     static const boost::regex outline_regex("^(\\*)+[ \t]*([^* \t][^*]*)$");
     static const boost::regex org_url("\\[\\[((?:http|ftp|https)://[^\\]]+)\\]\\[([^\\]]+)\\]\\]");
-    static const boost::regex text_url("(?:http|ftp|https)://[/0-9A-Za-z_!~*'().;?:@&=+$,%#-]+");
+    static const boost::regex text_url("(?:http|ftp|https)://[/0-9A-Za-z_!~*'.;?:@&=+$,%#-]+");
 
     cache.clear();
 
@@ -443,6 +444,9 @@ static bool is_search_query(const utf8_string &text)
   if (boost::algorithm::contains(text, "://"))
     return false;
 
+  if (boost::algorithm::starts_with(text, "about:"))
+    return false;
+
   if (text.find(' ') != utf8_string::npos)
     return true;
 
@@ -452,24 +456,97 @@ static bool is_search_query(const utf8_string &text)
   return true;
 }
 
-void launch_browser(WM &wm, const utf8_string &text)
+static  ascii_string url_escape(const utf8_string &in)
 {
-  ascii_string program = "/home/jbms/bin/browser";
-  utf8_string arg = text;
-  if (text.empty())
+  static const char hexDigits[16] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
+  ascii_string out;
+  utf8_string::const_iterator p = in.begin();
+  while (p != in.end())
   {
-    arg = "http://www.google.com";
-  } else if (is_search_query(text))
-  {
-    program = "/home/jbms/bin/browser-google-results";
+    char c = *p;
+    if (isalnum(c) || c == '_' || c == '-')
+      out += c;
+    else if (c == ' ')
+      out += '+';
+    else {
+      out += '%';
+      out += hexDigits[c / 16];
+      out += hexDigits[c % 16];
+    }
+    p++;
   }
+  return out;
+}
+
+static ascii_string get_search_query_url(const utf8_string &query, bool direct)
+{
+  ascii_string out("http://www.google.com/search?q=");
+  out += url_escape(query);
+  if (direct)
+    out += "&btnI";
+  return out;
+}
+
+const ascii_string get_url_from_user_input(const utf8_string &text, bool direct)
+{
+  if (text.empty())
+    return "http://www.google.com";
+  else if (is_search_query(text))
+    return get_search_query_url(text, direct);
+  else
+    return text;
+}
+
+void launch_browser(const utf8_string &text, bool direct)
+{
+  ascii_string program = "/home/jbms/bin/conkeror";
+  utf8_string arg = get_url_from_user_input(text, direct);
   spawnl(0, program.c_str(), program.c_str(), arg.c_str(), (const char *)0);
+}
+
+void load_url_in_existing_frame(const ascii_string &frame_id,
+                                const utf8_string &text,
+                                bool direct)
+{
+  const ascii_string &url = get_url_from_user_input(text, direct);
+  ascii_string program = "/home/jbms/bin/conkeror-load-existing";
+  spawnl(0, program.c_str(), program.c_str(), frame_id.c_str(), url.c_str(), (const char *)0);
 }
 
 void launch_browser_interactive(WM &wm, const boost::shared_ptr<BookmarkSource> &source)
 {
-  wm.menu.read_string("URL:",
-                      boost::bind(&launch_browser, boost::ref(wm), _1),
+  utf8_string initial_text;
+  if (WFrame *frame = wm.selected_frame())
+  {
+    if (Property<ascii_string> url = web_browser_url(frame->client()))
+      initial_text = url.get();
+  }
+  
+  wm.menu.read_string("URL:", initial_text,
+                      boost::bind(&launch_browser, _1, false),
+                      WMenu::FailureAction(),
+                      url_completer(source),
+                      true /* use delay */,
+                      true /* use separate thread */);
+}
+
+void load_url_existing_interactive(WM &wm, const boost::shared_ptr<BookmarkSource> &source)
+{
+  utf8_string initial_text;
+  ascii_string frame_id;
+  if (WFrame *frame = wm.selected_frame())
+  {
+    if (Property<ascii_string> id = web_browser_frame_id(frame->client()))
+      frame_id = id.get();
+    else
+      return launch_browser_interactive(wm, source);
+    
+    if (Property<ascii_string> url = web_browser_url(frame->client()))
+      initial_text = url.get();
+  }
+  
+  wm.menu.read_string("URL:", initial_text,
+                      boost::bind(&load_url_in_existing_frame, frame_id, _1, false),
                       WMenu::FailureAction(),
                       url_completer(source),
                       true /* use delay */,
@@ -479,7 +556,7 @@ void launch_browser_interactive(WM &wm, const boost::shared_ptr<BookmarkSource> 
 void write_bookmark(const ascii_string &url, const utf8_string &title,
                     const boost::filesystem::path &output_org_path)
 {
-  boost::filesystem::ofstream ofs(output_org_path, std::ios_base::ate | std::ios_base::out);
+  boost::filesystem::ofstream ofs(output_org_path, std::ios_base::app | std::ios_base::out);
   if (!ofs)
   {
     // FIXME: decide how to handle this error
@@ -492,16 +569,11 @@ void write_bookmark(const ascii_string &url, const utf8_string &title,
 
 void bookmark_current_url(WM &wm, const boost::filesystem::path &output_org_path)
 {
-  using boost::algorithm::starts_with;
   if (WFrame *frame = wm.selected_frame())
   {
-    const utf8_string &context = frame->client().context_info();
-    if (starts_with(context, "http://")
-        || starts_with(context, "ftp://")
-        || starts_with(context, "https://"))
-    {
-      const utf8_string &title = frame->client().visible_name();
-      write_bookmark(context, title, output_org_path);
-    }
+    Property<ascii_string> url = web_browser_url(frame->client());
+    Property<utf8_string> title = web_browser_title(frame->client());
+    if (url && title)
+      write_bookmark(url.get(), title.get(), output_org_path);
   }
 }

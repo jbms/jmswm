@@ -254,6 +254,7 @@ int main(int argc, char **argv)
   bookmark_source->add_source(org_file_bookmark_source("/home/jbms/.jmswm/bookmarks.org"));
   
   wm.bind("mod4-x b", boost::bind(&launch_browser_interactive, boost::ref(wm), bookmark_source));
+  wm.bind("mod4-x mod4-b", boost::bind(&load_url_existing_interactive, boost::ref(wm), bookmark_source));
   wm.bind("mod4-x k", boost::bind(&bookmark_current_url, boost::ref(wm), "/home/jbms/.jmswm/bookmarks.org"));
 
   wm.bind("mod4-x c",
@@ -300,6 +301,7 @@ int main(int argc, char **argv)
   wm.menu.bind("Delete", menu_delete);
   wm.menu.bind("control-k", menu_kill_line);
   wm.menu.bind("Tab", menu_complete);
+  wm.menu.bind("control-space", menu_set_mark);
 
   WBarCellStyle::Spec def_bar_style;
   def_bar_style.foreground_color = "black";

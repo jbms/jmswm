@@ -42,7 +42,11 @@ boost::shared_ptr<BookmarkSource> html_bookmark_source(const boost::filesystem::
 
 class WM;
 
-void launch_browser(WM &wm, const utf8_string &text);
+void launch_browser(const utf8_string &text, bool direct);
+void load_url_in_existing_frame(const ascii_string &frame_id,
+                                const utf8_string &text,
+                                bool direct);
+void load_url_existing_interactive(WM &wm, const boost::shared_ptr<BookmarkSource> &source);
 void launch_browser_interactive(WM &wm, const boost::shared_ptr<BookmarkSource> &source);
 
 void write_bookmark(const ascii_string &url, const utf8_string &title,
