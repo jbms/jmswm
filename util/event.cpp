@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <sys/inotify.h>
 #include <sys/inotify-syscalls.h>
+#include <util/close_on_exec.hpp>
 
 EventService::EventService()
 {
@@ -242,6 +243,7 @@ void InotifyEvent::initialize(EventService &s, const Handler &handler)
   fd = inotify_init();
   if (fd < 0)
     ERROR_SYS("inotify_init");
+  set_close_on_exec_flag(fd, true);
   initialized = true;
   this->handler = handler;
   event_set(&ev, fd, EV_READ | EV_PERSIST,

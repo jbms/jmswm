@@ -33,6 +33,9 @@ int spawnl(const char *working_dir, const char *path, ...)
     reset_signal_handling();
     setsid();
     close(STDIN_FILENO);
+    // Close all open file descriptors
+    for (int i = 3; i < 1024; ++i)
+      close(i);
     if (working_dir)
       chdir(working_dir);
     execv(path, argv);
