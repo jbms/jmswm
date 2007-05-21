@@ -236,14 +236,15 @@ void BatteryApplet::event_handler()
   char bat_ch;
   switch (state)
   {
-  case INACTIVE:
-    bat_ch = '=';
-    break;
   case CHARGING:
     bat_ch = '^';
     break;
   case DISCHARGING:
     bat_ch = 'v';
+    break;
+  default:
+  case INACTIVE:
+    bat_ch = '=';
     break;
   }
 
