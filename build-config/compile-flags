@@ -1,4 +1,4 @@
-CXXFLAGS += -g -Wall -Werror $(shell pkg-config --cflags pango xft pangoxft alsa) \
+CXXFLAGS += -g -O3 -march=pentium3 -W -Werror $(shell pkg-config --cflags pango xft pangoxft alsa) \
             -pthread
 
 CPPFLAGS += -I.
