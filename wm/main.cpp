@@ -18,6 +18,8 @@
 
 #include <util/spawn.hpp>
 
+#include <style/db.hpp>
+
 static ascii_string rgb(unsigned char r, unsigned char g, unsigned char b)
 {
   char buf[30];
@@ -72,117 +74,28 @@ int main(int argc, char **argv)
   set_close_on_exec_flag(ConnectionNumber(xdisplay.display()), true);
 
   EventService event_service;
-  
-  // Style
 
-  WFrameStyle::Spec style_spec;
+  // Style database
+  style::DB style_db;
 
-  ascii_string font_name = "fixed 10";
-  
-  style_spec.label_font = font_name;
-  style_spec.client_background_color = "black";
-
-  style_spec.normal.active_selected.highlight_color = "gold1";
-  style_spec.normal.active_selected.shadow_color = "gold1";
-  style_spec.normal.active_selected.padding_color = "gold3";
-  style_spec.normal.active_selected.background_color = "black";
-  style_spec.normal.active_selected.label_foreground_color = "black";
-  style_spec.normal.active_selected.label_background_color = "gold1";
-  style_spec.normal.active_selected.label_extra_color = "gold3";
-
-
-#if 1
-  style_spec.normal.inactive_selected.highlight_color = "grey20";
-  style_spec.normal.inactive_selected.shadow_color = "grey20";
-  style_spec.normal.inactive_selected.padding_color = "black";
-  style_spec.normal.inactive_selected.background_color = "black";
-  style_spec.normal.inactive_selected.label_foreground_color = "black";
-  style_spec.normal.inactive_selected.label_background_color = "gold3";
-  style_spec.normal.inactive_selected.label_extra_color = "gold4";
-
-  style_spec.normal.inactive.highlight_color = "grey20";
-  style_spec.normal.inactive.shadow_color = "grey20";
-  style_spec.normal.inactive.padding_color = "black";
-  style_spec.normal.inactive.background_color = "black";
-  style_spec.normal.inactive.label_foreground_color = "black";
-  style_spec.normal.inactive.label_background_color = "grey85";
-  style_spec.normal.inactive.label_extra_color = "grey70";
-#else
-  style_spec.normal.inactive_selected.highlight_color = "grey20";
-  style_spec.normal.inactive_selected.shadow_color = "grey20";
-  style_spec.normal.inactive_selected.padding_color = "black";
-  style_spec.normal.inactive_selected.background_color = "black";
-  style_spec.normal.inactive_selected.label_foreground_color = "black";
-  style_spec.normal.inactive_selected.label_background_color = "grey85";
-  style_spec.normal.inactive_selected.label_extra_color = "grey70";
-
-  style_spec.normal.inactive.highlight_color = "grey20";
-  style_spec.normal.inactive.shadow_color = "grey20";
-  style_spec.normal.inactive.padding_color = "black";
-  style_spec.normal.inactive.background_color = "black";
-  style_spec.normal.inactive.label_foreground_color = "black";
-  style_spec.normal.inactive.label_background_color = "grey75";
-  style_spec.normal.inactive.label_extra_color = "grey60";
-#endif
-
+  try
   {
-
-    ascii_string royalblue1 = "#4169e1",
-      royalblue2 = "#3e64d6",
-      royalblue3 = "#3a5eca",
-      royalblue4 = "#3759bf";
-    style_spec.marked.active_selected.highlight_color = "gold1";
-    style_spec.marked.active_selected.shadow_color = "gold1";
-    style_spec.marked.active_selected.padding_color = "gold3";
-    style_spec.marked.active_selected.background_color = "black";
-    style_spec.marked.active_selected.label_foreground_color = "black";
-    style_spec.marked.active_selected.label_background_color = "royalblue1";
-    style_spec.marked.active_selected.label_extra_color = "royalblue3";
-  
-    style_spec.marked.inactive_selected.highlight_color = "grey20";
-    style_spec.marked.inactive_selected.shadow_color = "grey20";
-    style_spec.marked.inactive_selected.padding_color = "black";
-    style_spec.marked.inactive_selected.background_color = "black";
-    style_spec.marked.inactive_selected.label_foreground_color = "black";
-    style_spec.marked.inactive_selected.label_background_color = "royalblue3";
-    style_spec.marked.inactive_selected.label_extra_color = "royalblue4";
-
-    style_spec.marked.inactive.highlight_color = "grey20";
-    style_spec.marked.inactive.shadow_color = "grey20";
-    style_spec.marked.inactive.padding_color = "black";
-    style_spec.marked.inactive.background_color = "black";
-    style_spec.marked.inactive.label_foreground_color = "black";
-    style_spec.marked.inactive.label_background_color = "light steel blue";
-    style_spec.marked.inactive.label_extra_color = "steel blue";
-
+    style_db.load(boost::filesystem::path(getenv("HOME")) / ".jmswm" / "style");
+  } catch (style::LoadError &e)
+  {
+    WARN("%s:%d:%d Style load error: %s", e.filename().c_str(),
+         e.line_number(), e.column_number(),
+         e.message().c_str());
+    if (e.line_number() > 0)
+    {
+      WARN("%s", e.line().c_str());
+      WARN("%*s^", e.column_number(), "");
+    }
+    ERROR("fatal error");
   }
   
-  style_spec.highlight_pixels = 1;
-  style_spec.shadow_pixels = 1;
-  style_spec.padding_pixels = 1;
-  style_spec.spacing = 2;
-  style_spec.label_horizontal_padding = 5;
-  style_spec.label_vertical_padding = 2;
-  style_spec.label_component_spacing = 1;
-
-  WBarStyle::Spec bar_style_spec;
-
-  bar_style_spec.label_font = style_spec.label_font;
-  bar_style_spec.highlight_pixels = 1;
-  bar_style_spec.shadow_pixels = 1;
-  bar_style_spec.padding_pixels = 1;
-  bar_style_spec.spacing = 2;
-  bar_style_spec.label_horizontal_padding = 5;
-  bar_style_spec.label_vertical_padding = 2;
-  bar_style_spec.cell_spacing = 2;
-  bar_style_spec.highlight_color = "grey20";
-  bar_style_spec.shadow_color = "grey20";
-  bar_style_spec.padding_color = "black";
-  bar_style_spec.background_color = "black";
-  
   WM wm(argc, argv, xdisplay.display(), event_service,
-        style_spec, bar_style_spec);
-
+        style_db["wm_frame"], style_db["bar"]);
   /**
    * Commands
    */
@@ -303,18 +216,7 @@ int main(int argc, char **argv)
   wm.menu.bind("Tab", menu_complete);
   wm.menu.bind("control-space", menu_set_mark);
 
-  WBarCellStyle::Spec def_bar_style;
-  def_bar_style.foreground_color = "black";
-  def_bar_style.background_color = "grey85";
-
-  BarViewAppletStyle::Spec bar_view_info_style;
-
-  bar_view_info_style.normal = def_bar_style;
-  
-  bar_view_info_style.selected.foreground_color = "black";
-  bar_view_info_style.selected.background_color = "gold1";
-
-  BarViewApplet bar_view_info(wm, bar_view_info_style);
+  BarViewApplet bar_view_info(wm, style_db["view_applet"]);
 
   wm.bind("mod4-comma", boost::bind(&BarViewApplet::select_prev,
                                 boost::ref(bar_view_info)));
@@ -322,29 +224,11 @@ int main(int argc, char **argv)
   wm.bind("mod4-period", boost::bind(&BarViewApplet::select_next,
                                 boost::ref(bar_view_info)));
 
-
-  WBarCellStyle::Spec bat_inactive_style, bat_charging_style, bat_discharging_style;
-
-  bat_inactive_style = def_bar_style;
-  bat_charging_style = def_bar_style;
-  bat_discharging_style.foreground_color = "white";
-  bat_discharging_style.background_color = "grey25";
-
-  BatteryApplet battery_applet(wm, bat_charging_style,
-                               bat_discharging_style,
-                               bat_inactive_style,
+  BatteryApplet battery_applet(wm, style_db["battery_applet"],
                                WBar::end(WBar::RIGHT));
 
-  WBarCellStyle::Spec muted_style, unmuted_style;
-
-  muted_style.foreground_color = "white";
-  muted_style.background_color = "red";
-  
-  unmuted_style.foreground_color = "white";
-  unmuted_style.background_color = "blue";
-
   /* TODO: check for exceptions */
-  VolumeApplet volume_applet(wm, unmuted_style, muted_style,
+  VolumeApplet volume_applet(wm, style_db["volume_applet"],
                              WBar::end(WBar::RIGHT));
 
   wm.bind("XF86AudioLowerVolume",
@@ -357,28 +241,14 @@ int main(int argc, char **argv)
           boost::bind(&VolumeApplet::toggle_mute,
                       boost::ref(volume_applet)));
 
-
-  TimeApplet time_applet(wm, def_bar_style,
+  TimeApplet time_applet(wm, style_db["time_applet"],
                          WBar::end(WBar::RIGHT));
 
-  WBarCellStyle::Spec net_applet_style;
-  net_applet_style.foreground_color = "white";
-  // nice color: 200,50,40;
-  // even better: 200,50,30
-  // good: 255,60,40
-  net_applet_style.background_color = rgb(200,50,30);
-
-  NetworkApplet net_applet(wm, net_applet_style,
+  NetworkApplet net_applet(wm, style_db["network_applet"],
                            WBar::begin(WBar::RIGHT));
 
-  WBarCellStyle::Spec gnus_style;
-  gnus_style.foreground_color = "black";
-  gnus_style.background_color = "gold1";
-  
-
-  GnusApplet gnus_applet(wm, gnus_style,
+  GnusApplet gnus_applet(wm, style_db["gnus_applet"],
                          WBar::begin(WBar::RIGHT));
-
 
   for (char c = 'a'; c <= 'z'; ++c)
   {

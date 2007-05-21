@@ -63,7 +63,7 @@ void GnusApplet::update()
   }
 }
 
-GnusApplet::GnusApplet(WM &wm, const WBarCellStyle::Spec &style_spec,
+GnusApplet::GnusApplet(WM &wm, const style::Spec &style_spec,
                        const WBar::InsertPosition &pos)
   : wm(wm), style(wm.dc, style_spec),
     inotify(wm.event_service(),

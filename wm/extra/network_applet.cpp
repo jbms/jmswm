@@ -29,13 +29,13 @@ class NetworkAppletState
                        const char *pathname);
 public:
   NetworkAppletState(WM &wm,
-                     const WBarCellStyle::Spec &spec,
+                     const style::Spec &spec,
                      const WBar::InsertPosition &position);
   ~NetworkAppletState();
 };
 
 NetworkAppletState::NetworkAppletState(WM &wm,
-                     const WBarCellStyle::Spec &spec,
+                     const style::Spec &spec,
                      const WBar::InsertPosition &position)
   : wm(wm),
     style(wm.dc, spec),
@@ -148,7 +148,7 @@ NetworkAppletState::~NetworkAppletState()
 }
 
 NetworkApplet::NetworkApplet(WM &wm,
-                             const WBarCellStyle::Spec &spec,
+                             const style::Spec &spec,
                              const WBar::InsertPosition &position)
   : state(new NetworkAppletState(wm, spec, position))
 {}

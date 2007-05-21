@@ -5,10 +5,14 @@
 #include <wm/volume.hpp>
 #include <wm/commands.hpp>
 
+STYLE_DEFINITION(VolumeAppletStyle,
+                 ((muted, WBarCellStyle, style::Spec),
+                  (unmuted, WBarCellStyle, style::Spec)))
+
 class VolumeApplet
 {
   WM &wm;
-  WBarCellStyle unmuted_style, muted_style;
+  VolumeAppletStyle style;
   TimerEvent ev;
   
   WBar::CellRef cell;
@@ -37,26 +41,19 @@ class VolumeApplet
     sprintf(buffer, "vol: %d%%", volume_percent);
     cell.set_text(buffer);
     if (muted)
-    {
-      cell.set_foreground(muted_style.foreground_color);
-      cell.set_background(muted_style.background_color);
-    } else
-    {
-      cell.set_foreground(unmuted_style.foreground_color);
-      cell.set_background(unmuted_style.background_color);
-    }
+      cell.set_style(style.muted);
+    else
+      cell.set_style(style.unmuted);
   }
 public:
 
   VolumeApplet(WM &wm,
-               const WBarCellStyle::Spec &unmuted_style_spec,
-               const WBarCellStyle::Spec &muted_style_spec,               
+               const style::Spec &style_spec,
                WBar::InsertPosition position)
-    : wm(wm), unmuted_style(wm.dc, unmuted_style_spec),
-      muted_style(wm.dc, muted_style_spec),
+    : wm(wm), style(wm.dc, style_spec),
       ev(wm.event_service(), boost::bind(&VolumeApplet::event_handler, this))
   {
-    cell = wm.bar.insert(position, unmuted_style);
+    cell = wm.bar.insert(position, style.unmuted);
     event_handler();
   }
 

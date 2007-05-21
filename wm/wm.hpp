@@ -21,7 +21,7 @@
 
 #include <util/log.hpp>
 
-#include <wm/define_style.hpp>
+#include <style/style.hpp>
 
 #include <wm/key.hpp>
 
@@ -66,57 +66,32 @@ class WFrame;
 class WView;
 class WColumn;
 
-WM_DEFINE_STYLE_TYPE(WFrameStyleSpecialized,
-                     /* style type features */
-                     ()
-                     ((WColor, ascii_string, highlight_color))
-                     ((WColor, ascii_string, shadow_color))
-                     ((WColor, ascii_string, padding_color))
-                     ((WColor, ascii_string, background_color))
-                         
-                     ((WColor, ascii_string, label_foreground_color))
-                     ((WColor, ascii_string, label_background_color))
-                     ((WColor, ascii_string, label_extra_color)),
+STYLE_DEFINITION(WFrameStyleSpecialized,
+                 ((highlight_color, WColor, ascii_string),
+                  (shadow_color, WColor, ascii_string),
+                  (padding_color, WColor, ascii_string),
+                  (background_color, WColor, ascii_string),
+                  (label_foreground_color, WColor, ascii_string),
+                  (label_background_color, WColor, ascii_string),
+                  (label_extra_color, WColor, ascii_string)))
 
-                     /* regular features */
-                     ()
-                     )
+STYLE_DEFINITION(WFrameStyleScheme,
+                 ((active_selected, WFrameStyleSpecialized, style::Spec),
+                  (inactive_selected, WFrameStyleSpecialized, style::Spec),
+                  (inactive, WFrameStyleSpecialized, style::Spec)))
 
-WM_DEFINE_STYLE_TYPE(WFrameStyleScheme,
-                     ()
-                     ((WFrameStyleSpecialized, WFrameStyleSpecialized::Spec,
-                       active_selected))
-                     ((WFrameStyleSpecialized, WFrameStyleSpecialized::Spec,
-                       inactive_selected))
-                     ((WFrameStyleSpecialized, WFrameStyleSpecialized::Spec,
-                       inactive)),
-
-                     /* regular features */
-                     ()
-                     )
-                     
-
-WM_DEFINE_STYLE_TYPE(WFrameStyle,
-                     
-                     /* style type features */
-                     ()
-                     ((WFont, ascii_string, label_font))
-                     ((WColor, ascii_string, client_background_color))
-
-                     ((WFrameStyleScheme, WFrameStyleScheme::Spec, normal))
-                     ((WFrameStyleScheme, WFrameStyleScheme::Spec, marked)),
-
-                     /* regular features */
-                     ()
-                     ((int, highlight_pixels))
-                     ((int, shadow_pixels))
-                     ((int, padding_pixels))
-                     ((int, spacing))
-                     ((int, label_horizontal_padding))
-                     ((int, label_vertical_padding))
-                     ((int, label_component_spacing))
-
-                     )
+STYLE_DEFINITION(WFrameStyle,
+                 ((label_font, WFont, ascii_string),
+                  (client_background_color, WColor, ascii_string),
+                  (normal, WFrameStyleScheme, style::Spec),
+                  (marked, WFrameStyleScheme, style::Spec),
+                  (highlight_pixels, int),
+                  (shadow_pixels, int),
+                  (padding_pixels, int),
+                  (spacing, int),
+                  (label_horizontal_padding, int),
+                  (label_vertical_padding, int),
+                  (label_component_spacing, int)))
 
 class WM : public WXContext
 {
@@ -124,8 +99,8 @@ public:
 
   WM(int argc, char **argv,
      Display *dpy, EventService &event_service_,
-     const WFrameStyle::Spec &style_spec,
-     const WBarStyle::Spec &bar_style_spec);
+     const style::Spec &style_spec,
+     const style::Spec &bar_style_spec);
   ~WM();
 
   /**

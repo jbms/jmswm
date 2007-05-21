@@ -196,7 +196,7 @@ WBar::Cell::~Cell()
     bar.scheduled_draw = true;
 }
 
-WBar::WBar(WM &wm_, const WBarStyle::Spec &style_spec)
+WBar::WBar(WM &wm_, const style::Spec &style_spec)
   : wm_(wm_),
     style(wm_.dc, style_spec),
     scheduled_update_server(true),

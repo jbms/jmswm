@@ -12,7 +12,7 @@ class NetworkApplet
 public:
 
   NetworkApplet(WM &wm,
-                const WBarCellStyle::Spec &spec,
+                const style::Spec &spec,
                 const WBar::InsertPosition &position);
   ~NetworkApplet();
 };

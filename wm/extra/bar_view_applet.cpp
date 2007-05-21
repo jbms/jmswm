@@ -94,7 +94,7 @@ void BarViewApplet::select_prev()
 }
 
 
-BarViewApplet::BarViewApplet(WM &wm, const BarViewAppletStyle::Spec &style_spec)
+BarViewApplet::BarViewApplet(WM &wm, const style::Spec &style_spec)
   : wm(wm), style(wm.dc, style_spec)
 {
   wm.create_view_hook.connect(bind(&BarViewApplet::create_view, this, _1));

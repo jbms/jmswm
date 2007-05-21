@@ -3,6 +3,8 @@
 
 #include <draw/draw.hpp>
 
+#include <style/db.hpp>
+
 #include <chaos/preprocessor/tuple.h>
 #include <chaos/preprocessor/tuple/core.h>
 #include <chaos/preprocessor/tuple/size.h>
@@ -31,7 +33,7 @@
   {          \
   public:    \
     CHAOS_PP_EXPR(CHAOS_PP_TUPLE_FOR_EACH(STYLE_DEFINITION_HELPER1, properties)) \
-    name(WDrawContext &dc_, const Spec &spec_)                                 \
+    name(WDrawContext &dc_, const style::Spec &spec_)                          \
       : CHAOS_PP_ENUMERATE(CHAOS_PP_TRANSFORM(STYLE_DEFINITION_HELPER2,        \
                                               (CHAOS_PP_TUPLE)properties))     \
     {}                                                                         \

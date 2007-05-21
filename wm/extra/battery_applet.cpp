@@ -253,9 +253,20 @@ void BatteryApplet::event_handler()
   cell.set_text(ostr.str());
 
   if (state == INACTIVE)
-    cell.set_style(inactive_style);
+    cell.set_style(style.inactive);
   else if (state == CHARGING)
-    cell.set_style(charging_style);
+    cell.set_style(style.charging);
   else if (state == DISCHARGING)
-    cell.set_style(discharging_style);
+    cell.set_style(style.discharging);
+}
+
+BatteryApplet::BatteryApplet(WM &wm,
+                             const style::Spec &style_spec,
+                             WBar::InsertPosition position)
+  : wm(wm),
+    style(wm.dc, style_spec),
+    ev(wm.event_service(), boost::bind(&BatteryApplet::event_handler, this))
+{
+  cell = wm.bar.insert(position, style.inactive);
+  event_handler();
 }

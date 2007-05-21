@@ -51,8 +51,8 @@ static void set_root_window_cursor(WXContext &xc)
 
 WM::WM(int argc, char **argv,
        Display *dpy, EventService &event_service_,
-       const WFrameStyle::Spec &style_spec,
-       const WBarStyle::Spec &bar_style_spec)
+       const style::Spec &style_spec,
+       const style::Spec &bar_style_spec)
   : WXContext(dpy),
     event_service_(event_service_),
     x_connection_event(event_service_, ConnectionNumber(dpy), EV_READ,

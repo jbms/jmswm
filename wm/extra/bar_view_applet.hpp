@@ -3,15 +3,9 @@
 
 #include <wm/all.hpp>
 
-WM_DEFINE_STYLE_TYPE(BarViewAppletStyle,
-                     /* style type features */
-                     ()
-                     ((WBarCellStyle, WBarCellStyle::Spec, selected))
-                     ((WBarCellStyle, WBarCellStyle::Spec, normal)),
-
-                     /* regular features */
-                     ()
-                     )
+STYLE_DEFINITION(BarViewAppletStyle,
+                 ((selected, WBarCellStyle, style::Spec),
+                  (normal, WBarCellStyle, style::Spec)))
 
 class BarViewApplet
 {
@@ -40,7 +34,7 @@ public:
   void select_next();
   void select_prev();
   
-  BarViewApplet(WM &wm, const BarViewAppletStyle::Spec &style_spec);
+  BarViewApplet(WM &wm, const style::Spec &style_spec);
   
 };
 

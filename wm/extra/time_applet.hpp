@@ -36,7 +36,7 @@ class TimeApplet
   }
 public:
 
-  TimeApplet(WM &wm, const WBarCellStyle::Spec &style_spec,
+  TimeApplet(WM &wm, const style::Spec &style_spec,
              WBar::InsertPosition position)
     : wm(wm), style(wm.dc, style_spec),
       ev(wm.event_service(), boost::bind(&TimeApplet::event_handler, this))

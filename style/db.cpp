@@ -266,7 +266,7 @@ namespace style
     std::string name = scanner.text_data();
 
     if (context.top()->properties.count(name))
-      throw Error("duplicate definnition", scanner.token_start());
+      throw Error("duplicate definition", scanner.token_start());
 
     scanner.next_token();
     
@@ -279,9 +279,15 @@ namespace style
     case ScannerT::EQUALS:
       scanner.next_token();
       if (scanner.current_token() == ScannerT::INTEGER)
+      {
         value = scanner.number_data();
+        scanner.next_token();
+      }
       else if (scanner.current_token() == ScannerT::STRING)
+      {
         value = scanner.text_data();
+        scanner.next_token();
+      }
       else
       {
         DBState::Path p;
@@ -300,6 +306,7 @@ namespace style
         scanner.next_token();
         DBState::Path p;
         iterator path_start = scanner.token_start();
+        parse_path(p);
         if (const StyleEntryValue *value_ptr = db_state.lookup(context.top(), p))
         {
           const StyleSpecData *spec_data = boost::get<const StyleSpecData>(value_ptr);
@@ -314,6 +321,7 @@ namespace style
     default:
       expect(ScannerT::LBRACE);
       value = StyleSpecData(context.top(), parent);
+      scanner.next_token();
       style_spec = true;
     }
     std::pair<StyleSpecData::PropertyMap::iterator, bool> pair

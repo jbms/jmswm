@@ -5,44 +5,28 @@
 
 #include <boost/intrusive/ilist.hpp>
 
-#include <wm/define_style.hpp>
+#include <style/style.hpp>
 
 #include <boost/shared_ptr.hpp>
 
-WM_DEFINE_STYLE_TYPE(WBarStyle,
-                     
-                     /* style type features */
-                     ()
-                     ((WFont, ascii_string, label_font))
 
-                     ((WColor, ascii_string, highlight_color))
-                     ((WColor, ascii_string, shadow_color))
-                     ((WColor, ascii_string, padding_color))
-                     ((WColor, ascii_string, background_color)),
+STYLE_DEFINITION(WBarStyle,
+                 ((label_font, WFont, ascii_string),
+                  (highlight_color, WColor, ascii_string),
+                  (shadow_color, WColor, ascii_string),
+                  (padding_color, WColor, ascii_string),
+                  (background_color, WColor, ascii_string),
+                  (highlight_pixels, int),
+                  (shadow_pixels, int),
+                  (padding_pixels, int),
+                  (spacing, int),
+                  (label_horizontal_padding, int),
+                  (label_vertical_padding, int),
+                  (cell_spacing, int)))
 
-
-                     /* regular features */
-                     ()
-                     ((int, highlight_pixels))
-                     ((int, shadow_pixels))
-                     ((int, padding_pixels))
-                     ((int, spacing))
-                     ((int, label_horizontal_padding))
-                     ((int, label_vertical_padding))
-                     ((int, cell_spacing))
-
-                     )
-
-WM_DEFINE_STYLE_TYPE(WBarCellStyle,
-                     /* style type features */
-                     ()
-                     ((WColor, ascii_string, foreground_color))
-                     ((WColor, ascii_string, background_color)),
-                     
-                     /* regular features */
-                     ()
-                     )
-
+STYLE_DEFINITION(WBarCellStyle,
+                 ((foreground_color, WColor, ascii_string),
+                  (background_color, WColor, ascii_string)))
 
 class WM;
 
@@ -220,7 +204,7 @@ public:
     return p;
   }
 
-  WBar(WM &wm, const WBarStyle::Spec &style_spec);
+  WBar(WM &wm, const style::Spec &style_spec);
   ~WBar();
 
   CellRef insert(const InsertPosition &pos,
