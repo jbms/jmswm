@@ -57,6 +57,17 @@ public:
     return get();
   }
 
+  bool operator==(const T &x) const
+  {
+    const T *other = this->operator->();
+    return other && (*other == x);
+  }
+
+  bool operator!=(const T &x) const
+  {
+    return !(*this == x);
+  }
+
   void remove() const
   {
     container.properties_.erase(name);
@@ -113,6 +124,17 @@ public:
   ConstProperty(const PropertyContainer &container, const std::string &name)
     : container(container), name(name)
   {}
+
+  bool operator==(const T &x) const
+  {
+    const T *other = this->operator->();
+    return other && (*other == x);
+  }
+
+  bool operator!=(const T &x) const
+  {
+    return !(*this == x);
+  }
     
   const T &operator*() const
   {

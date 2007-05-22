@@ -4,7 +4,7 @@
 #include <wm/commands.hpp>
 #include <util/path.hpp>
 
-void update_client_visible_name_and_context(WClient *client)
+bool update_client_visible_name_and_context(WClient *client)
 {
   /* Handle xterm */
   if (client->class_name() == "XTerm")
@@ -45,9 +45,10 @@ void update_client_visible_name_and_context(WClient *client)
     else
       client->set_visible_name(client->name());
 
+    return true;
   }
   /* Handle emacs */
-  else if (client->class_name() == "Emacs")
+  if (client->class_name() == "Emacs")
   {
     const utf8_string &name = client->name();
 
@@ -75,9 +76,10 @@ void update_client_visible_name_and_context(WClient *client)
         client_cwd(client).remove();
       }
     }
+    return true;
   }
   /* Handle firefox */
-  else if (client->class_name() == "Firefox-bin")
+  if (client->class_name() == "Firefox-bin")
   {
     utf8_string suffix = " - Conkeror";
     utf8_string::size_type pos = client->name().rfind(suffix);
@@ -89,39 +91,8 @@ void update_client_visible_name_and_context(WClient *client)
         client->set_visible_name(client->name().substr(0, pos));
     } else
       client->set_visible_name(client->name());
+    return true;
   }
 
-  // Handle Conkeror
-  else if (client->class_name() == "Xulrunner-bin"
-           && !(client->window_type_flags() & WClient::WINDOW_TYPE_DIALOG))
-  {
-    std::vector<utf8_string> parts;
-    utf8_string sep = "<#!#!#>";
-    for (utf8_string::size_type x = 0, next; x < client->name().size(); x = next)
-    {
-      utf8_string::size_type end = client->name().find(sep, x);
-      if (end == utf8_string::npos)
-      {
-        next = end;
-        parts.push_back(client->name().substr(x));
-      }
-      else
-      {
-        next = end + sep.size();
-        parts.push_back(client->name().substr(x, end - x));
-      }
-    }
-    if (parts.size() >= 4)
-    {
-      web_browser_title(client) = parts[1];
-      web_browser_url(client) = parts[0];
-      web_browser_frame_id(client) = parts[2];
-      web_browser_frame_tag(client) = parts[3];
-      if (parts[1].empty())
-        client->set_visible_name(parts[0]);
-      else
-        client->set_visible_name(parts[1]);
-      client->set_context_info(parts[0]);
-    }
-  }
+  return false;
 }

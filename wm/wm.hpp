@@ -38,6 +38,8 @@
 
 #include <util/property.hpp>
 
+#include <util/hook.hpp>
+
 
 const long WM_UNMANAGED_CLIENT_EVENT_MASK = (StructureNotifyMask |
                                              PropertyChangeMask);
@@ -93,7 +95,7 @@ STYLE_DEFINITION(WFrameStyle,
                   (label_vertical_padding, int),
                   (label_component_spacing, int)))
 
-class WM : public WXContext
+class WM : public WXContext, public PropertyContainer
 {
 public:
 
@@ -257,6 +259,8 @@ public:
     return 0;
   }
 
+  WView *get_or_create_view(const utf8_string &name);
+
   WFrame *selected_frame();
   WColumn *selected_column();
 
@@ -322,7 +326,8 @@ public:
 
   boost::signal<void (WClient *)> manage_client_hook;
   boost::signal<void (WClient *)> unmanage_client_hook;
-  boost::signal<void (WClient *)> update_client_name_hook;
+  boost::signal<bool (WClient *), util::RunUntilSuccess> update_client_name_hook;
+  boost::signal<bool (WClient *), util::RunUntilSuccess> place_client_hook;
 
   /**
    * }}}
@@ -335,12 +340,12 @@ public:
   void save_state_to_server();
   void load_state_from_server();
   bool place_existing_client(WClient *client);
+  void start_saving_state_to_server();
 
 private:
 
   TimerEvent save_state_event;
 
-  void handle_save_state_event();
   
   /**
    * }}}
@@ -690,7 +695,9 @@ class WFrame
   /* For WM::frames_by_activity */
   public boost::intrusive::ilist_base_hook<3, false>,
 
-  public weak_iptr<WFrame>::base
+  public weak_iptr<WFrame>::base,
+
+  public PropertyContainer
 {
 private:
   WClient &client_;
@@ -767,7 +774,9 @@ class WColumn
   /* For WM::scheduled_task_columns */
   public boost::intrusive::ilist_auto_base_hook<1>,
 
-  public weak_iptr<WColumn>::base
+  public weak_iptr<WColumn>::base,
+
+  public PropertyContainer
 {
   friend class WFrame;
   friend class WView;
@@ -885,7 +894,9 @@ class WView
   /* For WM::deferred_task_views */
   public boost::intrusive::ilist_auto_base_hook<1>,
 
-  public weak_iptr<WView>::base
+  public weak_iptr<WView>::base,
+
+  public PropertyContainer
 {
 private:
   WM &wm_;
@@ -997,8 +1008,6 @@ public:
       return column->selected_frame();
     return 0;
   }
-
-  void place_frame_in_smallest_column(WFrame *frame);
 
   /**
    * }}}

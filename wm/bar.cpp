@@ -213,8 +213,11 @@ void WBar::initialize()
 
   compute_bounds();
 
+  // FIXME: Set override_redirect to True as a convenient way to make
+  // load_state_from_server ignore these windows.
   XSetWindowAttributes wa;
   wa.event_mask = ExposureMask;
+  wa.override_redirect = True;
   
   xwin_ = XCreateWindow(wm().display(), wm().root_window(),
                         bounds.x, bounds.y, bounds.width, bounds.height,
@@ -222,7 +225,7 @@ void WBar::initialize()
                         wm().default_depth(),
                         InputOutput,
                         wm().default_visual(),
-                        CWEventMask, &wa);
+                        CWEventMask | CWOverrideRedirect, &wa);
 
   current_window_bounds = bounds;
   

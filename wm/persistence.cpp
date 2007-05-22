@@ -284,7 +284,12 @@ void WM::load_state_from_server()
                &top_level_windows, &top_level_window_count);
     for (unsigned int i = 0; i < top_level_window_count; ++i)
     {
-      WARN("managing client");
+      Window w = top_level_windows[i];
+
+      if (w == bar.xwin() || w == menu.xwin() || w == menu.completions_xwin())
+        continue;
+      
+      WARN("managing client");      
       manage_client(top_level_windows[i], false);
     }
     XFree(top_level_windows);
@@ -365,7 +370,7 @@ bool WM::place_existing_client(WClient *client)
   return placed;
 }
 
-void WM::handle_save_state_event()
+void WM::start_saving_state_to_server()
 {
   save_state_event.wait(time_duration::seconds(10));
   

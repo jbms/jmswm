@@ -1,7 +1,8 @@
 #+CATEGORY: jmswm
 
 * Configuration
-** TODO Support loading styles from a configuration file
+** DONE Support loading styles from a configuration file
+   CLOSED: [2007-05-21 Mon 01:00]
 * Miscellaneous
 ** TODO Perhaps implement a sticky frame feature
 Perhaps have it show the frame on any view it is tagged for, and also
@@ -45,14 +46,15 @@ Perhaps this can be done by simply saving values for each view name.
 ** Volume applet
 *** TODO Use ALSA notification to avoid update delay
 ** Music applet
-*** Implement this after setting up music playing system for laptop
-** CPU speed applet perhaps
+*** TODO Implement this after setting up music playing system for laptop
+** TODO CPU speed applet perhaps
 ** Mail status applet
 *** DONE Support key binding for switching to next mail group
     CLOSED: [2007-05-10 Thu 02:03]
 Perhaps mod4-x m
 Maybe also support a key for composing mail.
-** Devices info (USB, cdrom, mounted devices)
+** TODO Devices info (USB, cdrom, mounted devices)
+** TODO ERC applet
 * Menu system
 ** DONE Make completion window not full width of screen for better readability
    CLOSED: [2007-05-10 Thu 02:03]
@@ -63,9 +65,9 @@ Maybe also support a key for composing mail.
 * Program launching
 ** TODO Add support for startup notification
 * Views
-** Perhaps store previously-used view names
-** Perhaps keep track of common directories for view names
-** Perhaps always do automatic frame layout, rather than manual placement
+** TODO Perhaps store previously-used view names
+** TODO Perhaps keep track of common directories for view names
+** TODO Perhaps always do automatic frame layout, rather than manual placement
 There would need to be ways to give hints to the system, or perhaps
 override it.
 
@@ -88,11 +90,10 @@ Maybe support showing multiple views at a time.
    CLOSED: [2007-05-10 Thu 02:02]
 Perhaps because /tmp/jbms is not getting created.
 * Coding style
-** Using namespaces
+** TODO Using namespaces
 
-** Make X event handling more generic/simpler
+** TODO Make X event handling more generic/simpler
 * Screen locking
-
-
+** TODO Add screen locking support directly to WM
 * Visual apperance
 ** TODO Look into SYNC extension and _NET_WM_SYNC_REQUEST

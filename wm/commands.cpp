@@ -4,6 +4,7 @@
 #include <util/spawn.hpp>
 #include <util/path.hpp>
 #include <wm/extra/cwd.hpp>
+#include <wm/extra/place.hpp>
 
 void WCommandList::add(const ascii_string &name,
                        const Action &action)
@@ -282,14 +283,10 @@ void execute_shell_command_cwd_interactive(WM &wm)
 
 void switch_to_view(WM &wm, const utf8_string &name)
 {
-  WView *view = wm.view_by_name(name);
-  if (!view)
-  {
-    if (!wm.valid_view_name(name))
-      return;
-    view = new WView(wm, name);
-  }
-  wm.select_view(view);
+  if (!wm.valid_view_name(name))
+    return;
+
+  wm.select_view(wm.get_or_create_view(name));
 }
 
 void switch_to_view_interactive(WM &wm)
@@ -330,7 +327,7 @@ void move_frame_to_view(const weak_iptr<WFrame> &weak_frame,
       return;
     
     frame->remove();
-    view->place_frame_in_smallest_column(frame);
+    place_frame_in_smallest_column(view, frame);
   }
 }
 
@@ -361,8 +358,7 @@ void copy_frame_to_view(const weak_iptr<WFrame> &weak_frame,
     if (frame->client().frame_by_view(view))
       return;
 
-    WFrame *new_frame = new WFrame(frame->client());
-    view->place_frame_in_smallest_column(new_frame);
+    place_client_in_smallest_column(view, &frame->client());
   }
 }
 
@@ -405,9 +401,8 @@ void copy_marked_frames_to_current_view(WM &wm)
         if (frame.client().frame_by_view(wm.selected_view()))
           return;
 
-        WFrame *new_frame = new WFrame(frame.client());
-        wm.selected_view()->place_frame_in_smallest_column(new_frame);
-        wm.selected_view()->select_frame(new_frame);
+        wm.selected_view()->select_frame
+          (place_client_in_smallest_column(wm.selected_view(), &frame.client()));
       }
     }
   }
@@ -431,7 +426,7 @@ void move_marked_frames_to_current_view(WM &wm)
           return;
 
         frame.remove();
-        wm.selected_view()->place_frame_in_smallest_column(&frame);
+        place_frame_in_smallest_column(wm.selected_view(), &frame);
         wm.selected_view()->select_frame(&frame);
       }
     }

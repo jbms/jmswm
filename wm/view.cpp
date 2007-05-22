@@ -694,21 +694,9 @@ WColumn *WM::selected_column()
   return 0;
 }
 
-void WView::place_frame_in_smallest_column(WFrame *frame)
+WView *WM::get_or_create_view(const utf8_string &name)
 {
-  iterator col;
-  // 3 should not be hardcoded here
-  if (columns.size() < 2)
-    col = create_column(columns.end());
-  else
-  {
-    col = columns.begin();
-    for (iterator it = boost::next(col); it != columns.end(); ++it)
-    {
-      if (col->frames.size() > it->frames.size())
-        col = it;
-    }
-  }
-
-  col->add_frame(frame, col->frames.end());
+  if (WView *view = view_by_name(name))
+    return view;
+  return new WView(*this, name);
 }

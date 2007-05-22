@@ -66,7 +66,7 @@ WM::WM(int argc, char **argv,
     frame_style(dc, style_spec),
     selected_view_(0),
     frame_activity_event(event_service_, boost::bind(&WM::handle_frame_activity, this)),
-    save_state_event(event_service_, boost::bind(&WM::handle_save_state_event, this)),
+    save_state_event(event_service_, boost::bind(&WM::start_saving_state_to_server, this)),
     global_bindctx(*this, mod_info,
                    root_window(), true),
     menu(*this, mod_info),
@@ -111,15 +111,8 @@ WM::WM(int argc, char **argv,
   key_sequence_timeout.tv_sec = 5;
   key_sequence_timeout.tv_usec = 0;
 
-  /* Manage existing clients */
-  load_state_from_server();
-
-  /* Initialize menu and bar after managing existing clients to avoid
-     changing their event mask. */
   menu.initialize();
   bar.initialize();
-
-  handle_save_state_event();
 }
 
 WM::~WM()

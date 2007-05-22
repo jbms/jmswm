@@ -6,6 +6,7 @@
 #include <boost/filesystem/path.hpp>
 #include <boost/shared_ptr.hpp>
 #include <util/range.hpp>
+#include <boost/signals/connection.hpp>
 
 class BookmarkSpec
 {
@@ -54,5 +55,11 @@ void write_bookmark(const ascii_string &url, const utf8_string &title,
 
 void bookmark_current_url(WM &wm, const boost::filesystem::path &output_org_path);
 
+class WebBrowserModule
+{
+  boost::signals::scoped_connection c;
+public:
+  WebBrowserModule(WM &wm);
+};
 
 #endif /* _WM_EXTRA_WEB_BROWSER_HPP */

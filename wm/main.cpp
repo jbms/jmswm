@@ -9,6 +9,8 @@
 #include <wm/extra/bar_view_applet.hpp>
 #include <wm/extra/battery_applet.hpp>
 #include <wm/extra/gnus_applet.hpp>
+#include <wm/extra/erc_applet.hpp>
+#include <wm/extra/view_columns.hpp>
 #include <wm/extra/network_applet.hpp>
 #include <wm/extra/cwd.hpp>
 
@@ -174,7 +176,7 @@ int main(int argc, char **argv)
           boost::bind(&execute_shell_command, "~/bin/browser-clipboard"));
 
   wm.bind("mod4-z",
-          boost::bind(&execute_shell_command, "xscreensaver-command -lock"));
+          boost::bind(&execute_shell_command, "~/bin/xscreensaver-lock"));
 
   wm.bind("mod4-c", close_current_client);
   wm.bind("mod4-k c", kill_current_client);
@@ -250,6 +252,9 @@ int main(int argc, char **argv)
   GnusApplet gnus_applet(wm, style_db["gnus_applet"],
                          WBar::begin(WBar::RIGHT));
 
+  ErcApplet erc_applet(wm, style_db["erc_applet"],
+                       WBar::begin(WBar::RIGHT));
+
   for (char c = 'a'; c <= 'z'; ++c)
   {
     ascii_string str;
@@ -263,6 +268,11 @@ int main(int argc, char **argv)
 
   PreviousViewInfo prev_info(wm);
 
+  WebBrowserModule web_browser_module(wm);
+
+  DesiredColumnCountByName desired_column_count(wm);
+  desired_column_count.set("erc", 3);
+
   wm.bind("mod4-r", boost::bind(&PreviousViewInfo::switch_to, boost::ref(prev_info)));
 
   wm.bind("mod4-k m", move_current_frame_to_other_view_interactive);
@@ -274,6 +284,20 @@ int main(int argc, char **argv)
   wm.bind("mod4-x p", switch_to_agenda);
 
   wm.bind("mod4-x m", boost::bind(&GnusApplet::switch_to_mail, boost::ref(gnus_applet), _1));
+
+  wm.bind("mod4-x r", boost::bind(&ErcApplet::switch_to_buffer, boost::ref(erc_applet), _1));
+
+
+  // Finally start window management
+
+  // This is called here rather than in the WM constructor so that the
+  // initialization code that precedes this can run first.
+  
+  /* Manage existing clients */
+  wm.load_state_from_server();
+
+  // Re-save state
+  wm.start_saving_state_to_server();
 
   do
   {

@@ -14,7 +14,11 @@
 #include <boost/regex.hpp>
 #include <boost/algorithm/string.hpp>
 #include <util/spawn.hpp>
-#include <wm/extra/cwd.hpp>
+
+PROPERTY_ACCESSOR(WClient, utf8_string, web_browser_title)
+PROPERTY_ACCESSOR(WClient, ascii_string, web_browser_url)
+PROPERTY_ACCESSOR(WClient, ascii_string, web_browser_frame_id)
+PROPERTY_ACCESSOR(WClient, ascii_string, web_browser_frame_tag)
 
 WMenu::Completer url_completer(const boost::shared_ptr<BookmarkSource> &source);
 
@@ -577,3 +581,47 @@ void bookmark_current_url(WM &wm, const boost::filesystem::path &output_org_path
       write_bookmark(url.get(), title.get(), output_org_path);
   }
 }
+
+static bool handle_client_name(WClient *client)
+{
+  // Handle Conkeror
+  if (client->class_name() == "Xulrunner-bin"
+           && !(client->window_type_flags() & WClient::WINDOW_TYPE_DIALOG))
+  {
+    std::vector<utf8_string> parts;
+    utf8_string sep = "<#!#!#>";
+    for (utf8_string::size_type x = 0, next; x < client->name().size(); x = next)
+    {
+      utf8_string::size_type end = client->name().find(sep, x);
+      if (end == utf8_string::npos)
+      {
+        next = end;
+        parts.push_back(client->name().substr(x));
+      }
+      else
+      {
+        next = end + sep.size();
+        parts.push_back(client->name().substr(x, end - x));
+      }
+    }
+    if (parts.size() >= 4)
+    {
+      web_browser_title(client) = parts[1];
+      web_browser_url(client) = parts[0];
+      web_browser_frame_id(client) = parts[2];
+      web_browser_frame_tag(client) = parts[3];
+      if (parts[1].empty())
+        client->set_visible_name(parts[0]);
+      else
+        client->set_visible_name(parts[1]);
+      client->set_context_info(parts[0]);
+      return true;
+    }
+  }
+  return false;
+}
+
+WebBrowserModule::WebBrowserModule(WM &wm)
+  // -1, so it loads early
+  : c(wm.update_client_name_hook.connect(-1, &handle_client_name))
+{}

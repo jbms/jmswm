@@ -16,9 +16,12 @@ WMenu::WMenu(WM &wm_, const WModifierInfo &mod_info)
 
 void WMenu::initialize()
 {
+  // FIXME: Set override_redirect to True as a convenient way to make
+  // load_state_from_server ignore these windows.
   XSetWindowAttributes wa;
   wa.event_mask = MENU_WINDOW_EVENT_MASK;
   wa.save_under = True;
+  wa.override_redirect = True;
   
   xwin_ = XCreateWindow(wm().display(), wm().root_window(),
                         0, 0, 100, 100,
@@ -26,7 +29,7 @@ void WMenu::initialize()
                         wm().default_depth(),
                         InputOutput,
                         wm().default_visual(),
-                        CWEventMask | CWSaveUnder, &wa);
+                        CWEventMask | CWSaveUnder | CWOverrideRedirect, &wa);
 
   wa.event_mask = COMPLETIONS_WINDOW_EVENT_MASK;
 
@@ -36,7 +39,7 @@ void WMenu::initialize()
                                     wm().default_depth(),
                                     InputOutput,
                                     wm().default_visual(),
-                                    CWEventMask | CWSaveUnder, &wa);
+                                    CWEventMask | CWSaveUnder | CWOverrideRedirect, &wa);
 
   current_window_bounds.x = 0;
   current_window_bounds.y = 0;

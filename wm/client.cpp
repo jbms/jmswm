@@ -121,11 +121,14 @@ void WM::manage_client(Window w, bool map_request)
   c->current_iconic_state = WClient::ICONIC_STATE_UNKNOWN;
 
   WClient *ptr = c.release();
+  
+  manage_client_hook(ptr);
 
   if (map_request || !place_existing_client(ptr))
-    place_client(ptr);
-
-  manage_client_hook(ptr);
+  {
+    if (!place_client_hook(ptr))
+      place_client(ptr);
+  }
 }
 
 void WClient::update_size_hints_from_server()
