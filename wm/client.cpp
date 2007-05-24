@@ -339,9 +339,16 @@ void WM::unmanage_client(WClient *client)
   WARN("here");
   unmanage_client_hook(client);
 
-  BOOST_FOREACH (WFrame *f, boost::make_transform_range(client->view_frames_, select2nd))
+  // Note: BOOST_FOREACH is not used because the contents of
+  // view_frames_ changes during the loop.  (This is why next is
+  // computed at the beginning of each iteration.)
+  for (WClient::ViewFrameMap::iterator it = client->view_frames_.begin(),
+         end = client->view_frames_.end(), next;
+       it != end;
+       it = next)
   {
-    f->remove();
+    next = boost::next(it);
+    WFrame *f = it->second;
     delete f;
   }
 

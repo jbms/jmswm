@@ -295,10 +295,24 @@ void WM::load_state_from_server()
     XFree(top_level_windows);
   }
 
-  BOOST_FOREACH (WView *view, boost::make_transform_range(views_, select2nd))
+  // Note: BOOST_FOREACH cannot be used here because views_ and
+  // columns change during the loop.
+  for (WM::ViewMap::const_iterator view_it = wm.views().begin(),
+         view_next, view_end = wm.views().end();
+       view_it != view_end;
+       view_it = view_next)
   {
-    BOOST_FOREACH (WColumn &col, view->columns)
+    view_next = boost::next(view_it);
+    WView *view = view_it->second;
+
+    for (WView::ColumnList::iterator col_it = view->columns.begin(),
+           col_next, col_end = view->columns.end();
+         col_it != col_end;
+         col_it = col_next)
     {
+      col_next = boost::next(col_it);
+      WColumn &col = *col_it;
+      
       if (col.frames.empty())
       {
         WARN("deleting column");

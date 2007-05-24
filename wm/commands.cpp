@@ -300,6 +300,13 @@ void switch_to_view_interactive(WM &wm)
 
 void switch_to_view_by_letter(WM &wm, char c)
 {
+  /** Note: the contents of views() may change during the loop, because
+   * select_view may cause the existing selected view to be destroyed
+   * if it contains no columns.
+   *
+   * BOOST_FOREACH can be used, nonetheless, because the loop ends
+   * immediately after any changes might occur.
+   */
   BOOST_FOREACH (const WM::ViewMap::value_type &x, wm.views())
   {
     if (x.first[0] == c)
@@ -389,6 +396,9 @@ void copy_marked_frames_to_current_view(WM &wm)
   if (!wm.selected_view())
     return;
 
+  /**
+   * Note: BOOST_FOREACH can be used here because the loop contents 
+   */
   BOOST_FOREACH (WView *view, boost::make_transform_range(wm.views(), select2nd))
   {
     BOOST_FOREACH (WColumn &col, view->columns)
@@ -399,7 +409,7 @@ void copy_marked_frames_to_current_view(WM &wm)
           continue;
         frame.set_marked(false);
         if (frame.client().frame_by_view(wm.selected_view()))
-          return;
+          continue;
 
         wm.selected_view()->select_frame
           (place_client_in_smallest_column(wm.selected_view(), &frame.client()));
@@ -413,21 +423,43 @@ void move_marked_frames_to_current_view(WM &wm)
   if (!wm.selected_view())
     return;
 
-  BOOST_FOREACH (WView *view, boost::make_transform_range(wm.views(), select2nd))
+  // Note: BOOST_FOREACH cannot be used here because the columns and
+  // frames lists may change.
+  for (WM::ViewMap::const_iterator view_it = wm.views().begin(),
+         view_next, view_end = wm.views().end();
+       view_it != view_end;
+       view_it = view_next)
   {
-    BOOST_FOREACH (WColumn &col, view->columns)
+    view_next = boost::next(view_it);
+    WView *view = view_it->second;
+
+    for (WView::ColumnList::iterator col_it = view->columns.begin(),
+           col_next, col_end = view->columns.end();
+         col_it != col_end;
+         col_it = col_next)
     {
-      BOOST_FOREACH (WFrame &frame, col.frames)
+      col_next = boost::next(col_it);
+      WColumn &col = *col_it;
+
+      for (WColumn::FrameList::iterator frame_it = col.frames.begin(),
+           frame_next, frame_end = col.frames.end();
+           frame_it != frame_end;
+           frame_it = frame_next)
       {
+        WFrame &frame = *frame_it;
+        
         if (!frame.marked())
           continue;
         frame.set_marked(false);
-        if (frame.client().frame_by_view(wm.selected_view()))
-          return;
-
+        
         frame.remove();
-        place_frame_in_smallest_column(wm.selected_view(), &frame);
-        wm.selected_view()->select_frame(&frame);
+        if (frame.client().frame_by_view(wm.selected_view()))
+          delete &frame;
+        else
+        {
+          place_frame_in_smallest_column(wm.selected_view(), &frame);
+          wm.selected_view()->select_frame(&frame);
+        }
       }
     }
   }
