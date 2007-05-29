@@ -18,7 +18,9 @@ private:
   int lines;
   int line_height;
 public:
-  WMenuListCompletions(const CompletionList &list, const StringCompletionApplicator &applicator,
+  WMenuListCompletions(const WMenu::InputState &initial_input,
+                       const CompletionList &list,
+                       const StringCompletionApplicator &applicator,
                        bool complete_common_prefix);
 
   virtual void compute_dimensions(WMenu &menu, int width, int height, int &out_width, int &out_height);
@@ -27,15 +29,31 @@ public:
   virtual ~WMenuListCompletions();
 };
 
-WMenuListCompletions::WMenuListCompletions(const CompletionList &list, const StringCompletionApplicator &applicator,
+WMenuListCompletions::WMenuListCompletions(const WMenu::InputState &initial_input,
+                                           const CompletionList &list,
+                                           const StringCompletionApplicator &applicator,
                                            bool complete_common_prefix)
   : completions(list),
     applicator(applicator),
     complete_common_prefix(complete_common_prefix),
     selected(-1)
 {
-  if (list.empty())
+  if (completions.empty())
     throw std::invalid_argument("empty completion list");
+
+  /* For improved appearance, if there is only a single completion and
+     it is equal to the current input, select that completion. */
+  if (completions.size() == 1)
+  {
+    WMenu::InputState temp_state(initial_input);
+    applicator(temp_state, completions.front());
+    if (temp_state.text == initial_input.text
+        && temp_state.cursor_position == initial_input.cursor_position)
+    {
+      selected = 0;
+      this->complete_common_prefix = false;
+    }
+  }
 }
 
 void WMenuListCompletions::compute_dimensions(WMenu &menu, int width, int height, int &out_width, int &out_height)
@@ -123,19 +141,28 @@ void WMenuListCompletions::draw(WMenu &menu, const WRect &rect, WDrawable &d)
   WRect rect2 = rect.inside_border(style.highlight_pixels,
                                    style.highlight_pixels,
                                    style.shadow_pixels, 0);
-  
-  int max_pos_index = lines * columns;
-    
-  // FIXME: allow an offset
-  if (max_pos_index > (int)completions.size())
-    max_pos_index = (int)completions.size();
 
+  size_t begin_pos_index, end_pos_index;
+  
+  if (selected >= lines * columns)
+  {
+    end_pos_index = selected - (selected % columns) + columns;
+    begin_pos_index = end_pos_index - lines * columns;
+  } else
+  {
+    end_pos_index = lines * columns;
+    begin_pos_index = 0;
+  }
+  
+  if (end_pos_index > completions.size())
+    end_pos_index = completions.size();
+  
   int base_y = rect2.y + style.spacing;
 
-  for (int pos_index = 0; pos_index < max_pos_index; ++pos_index)
+  for (size_t pos_index = begin_pos_index; pos_index < end_pos_index; ++pos_index)
   {
-    int row = pos_index / columns;
-    int col = pos_index % columns;
+    int row = (pos_index - begin_pos_index) / columns;
+    int col = (pos_index - begin_pos_index) % columns;
 
     WRect label_rect1(rect2.x + column_width * col,
                       base_y + line_height * row,
@@ -147,7 +174,7 @@ void WMenuListCompletions::draw(WMenu &menu, const WRect &rect, WDrawable &d)
       (style.label_horizontal_padding,
        style.label_vertical_padding);
 
-    if (pos_index == selected)
+    if ((int)pos_index == selected)
     {
       const WColor &text_color = substyle.background_color;
       draw_label_with_text_background(d, completions[pos_index],
@@ -171,25 +198,15 @@ bool WMenuListCompletions::complete(WMenu::InputState &input)
     // Find the largest common prefix
 
     utf8_string prefix = completions[0];
-    int perfect_match_index = 0;
     for (size_t i = 1; i < completions.size(); ++i)
     {
       const utf8_string &str = completions[i];
       if (prefix.empty())
         break;
       if (prefix.length() > str.length())
-      {
         prefix.resize(str.length());
-        perfect_match_index = -1;
-      }
       utf8_string::iterator it = boost::mismatch(prefix, str.begin()).first;
-      if (it != prefix.end())
-      {
-        prefix.erase(it, prefix.end());
-        perfect_match_index = -1;
-      }
-      if (str == prefix)
-        perfect_match_index = i;
+      prefix.erase(it, prefix.end());
     }
 
     WMenu::InputState new_state = input;
@@ -198,11 +215,6 @@ bool WMenuListCompletions::complete(WMenu::InputState &input)
     if (new_state.text != input.text || new_state.cursor_position != input.cursor_position)
     {
       input = new_state;
-      if (perfect_match_index != -1)
-      {
-        selected = perfect_match_index;
-        return false;
-      }
       return true;
     }
   }
@@ -226,13 +238,14 @@ void apply_completion_simple(WMenu::InputState &state, const utf8_string &comple
   state.cursor_position = completion.size();
 }
 
-boost::shared_ptr<WMenuCompletions> completion_list(const std::vector<utf8_string> &list,
+boost::shared_ptr<WMenuCompletions> completion_list(const WMenu::InputState &initial_input,
+                                                    const std::vector<utf8_string> &list,
                                                     const StringCompletionApplicator &applicator,
                                                     bool complete_common_prefix)
 {
   boost::shared_ptr<WMenuCompletions> result;
   if (!list.empty())
-    result.reset(new WMenuListCompletions(list, applicator, complete_common_prefix));
+    result.reset(new WMenuListCompletions(initial_input, list, applicator, complete_common_prefix));
   
   return result;
 }
@@ -257,7 +270,7 @@ public:
       if (boost::algorithm::starts_with(str, state.text))
         results.push_back(str);
     }
-    return completion_list(results);
+    return completion_list(state, results);
   }
 };
 
