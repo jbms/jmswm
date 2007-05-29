@@ -27,7 +27,10 @@ void ErcApplet::update()
     {
       ascii_string buffer_name, server_name, network_name, count, face;
       if (ifs >> buffer_name >> server_name >> network_name >> count >> face)
-        new_status.push_back(BufferInfo(network_name, buffer_name));
+      {
+        if (buffer_name != "#digitalhive")
+          new_status.push_back(BufferInfo(network_name, buffer_name));
+      }
       else
         break;
     } while (1);
@@ -58,28 +61,22 @@ static bool handle_update_client_name(WClient *client)
   if (client_matches(client))
   {
     const utf8_string &name = client->name();
-    if (name != client->instance_name() + "@jlaptop")
+    utf8_string::size_type dir_start = name.find(" [");
+    if (dir_start != utf8_string::npos && name[name.size() - 1] == ']')
     {
-      utf8_string::size_type dir_start = name.find(" [");
-      if (dir_start != utf8_string::npos && name[name.size() - 1] == ']')
-      {
-        utf8_string network = name.substr(dir_start + 2,
-                                          name.size() - dir_start - 2 - 1);
-        utf8_string target = name.substr(0, dir_start);
-        client->set_context_info(network);
-        client->set_visible_name(target);
-        erc_target(client) = target;
-        erc_network(client) = network;
-
-        // Hack to handle emacs setting a bogus title when iconified
-      } else if (client->iconic_state() != WClient::ICONIC_STATE_ICONIC
-                 || client->context_info().empty())
-      {
-        erc_target(client).remove();
-        erc_network(client).remove();
-        client->set_visible_name(name);
-        client->set_context_info(utf8_string());
-      }
+      utf8_string network = name.substr(dir_start + 2,
+                                        name.size() - dir_start - 2 - 1);
+      utf8_string target = name.substr(0, dir_start);
+      client->set_context_info(network);
+      client->set_visible_name(target);
+      erc_target(client) = target;
+      erc_network(client) = network;
+    } else
+    {
+      erc_target(client).remove();
+      erc_network(client).remove();
+      client->set_visible_name(name);
+      client->set_context_info(utf8_string());
     }
     return true;
   }
@@ -136,7 +133,6 @@ void ErcApplet::switch_to_buffer(WM &wm)
       {
         view->select_frame(matching_frame, true);
         wm.select_view(view);
-        execute_shell_command("~/bin/erc-update-modified-channels");
       }
     }
   }
