@@ -18,16 +18,13 @@
 
 #include <boost/filesystem/path.hpp>
 
+#include <menu/file_completion.hpp>
+
 #include <util/spawn.hpp>
 
 #include <style/db.hpp>
 
-static ascii_string rgb(unsigned char r, unsigned char g, unsigned char b)
-{
-  char buf[30];
-  sprintf(buf, "#%02x%02x%02x", r, g, b);
-  return ascii_string(buf);
-}
+#include <util/path.hpp>
 
 void switch_to_agenda(WM &wm)
 {
@@ -57,6 +54,33 @@ void switch_to_agenda(WM &wm)
 
   if (!matching_frame)
     execute_shell_command("~/bin/org-agenda");
+}
+
+void edit_file(const std::string &cwd,
+               const utf8_string &filename)
+{
+  const char *program = "/home/jbms/bin/emacs";
+  if (filename.empty())
+    spawnl(cwd.c_str(), program, program, (const char *)0);
+  spawnl(cwd.c_str(), program, program, filename.c_str(), (const char *)0);
+}
+
+void edit_file_interactive(WM &wm)
+{
+  utf8_string cwd = get_selected_cwd(wm);
+  if (cwd.empty())
+  {
+    char buf[256];
+    buf[255] = 0;
+    getcwd(buf, 256);
+    cwd = compact_path_home(buf);
+  }
+  wm.menu.read_string("Edit [" + cwd + "]", "",
+                      boost::bind(&edit_file, expand_path_home(cwd), _1),
+                      WMenu::FailureAction(),
+                      file_completer(expand_path_home(cwd)),
+                      true, /* use delay */
+                      true); /* use separate thread */
 }
 
 int main(int argc, char **argv)
@@ -158,10 +182,13 @@ int main(int argc, char **argv)
 
   wm.bind("mod4-t", switch_to_view_interactive);
 
+  /*
   wm.bind("mod4-x e",
               boost::bind(&execute_shell_command_selected_cwd,
                           boost::ref(wm),
                           "~/bin/emacs"));
+  */
+  wm.bind("mod4-x e", edit_file_interactive);
 
   boost::shared_ptr<AggregateBookmarkSource> bookmark_source(new AggregateBookmarkSource());
   bookmark_source->add_source(html_bookmark_source("/home/jbms/.firefox-profile/bookmarks.html"));
