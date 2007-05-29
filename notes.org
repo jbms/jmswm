@@ -54,6 +54,7 @@ Perhaps this can be done by simply saving values for each view name.
 Perhaps mod4-x m
 Maybe also support a key for composing mail.
 ** TODO Devices info (USB, cdrom, mounted devices)
+Use inotify on /dev/disk/by-uuid
 ** TODO ERC applet
 * Menu system
 ** DONE Make completion window not full width of screen for better readability
