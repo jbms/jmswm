@@ -269,6 +269,9 @@ void WM::load_state_from_server()
       } catch (boost::archive::archive_exception &e)
       {
         WARN("archive_exception occurred: %s", e.what());
+      } catch (std::exception &e)
+      {
+        WARN("std::exception occurred: %s", e.what());
       }
     }
   }
@@ -297,8 +300,8 @@ void WM::load_state_from_server()
 
   // Note: BOOST_FOREACH cannot be used here because views_ and
   // columns change during the loop.
-  for (WM::ViewMap::const_iterator view_it = wm.views().begin(),
-         view_next, view_end = wm.views().end();
+  for (WM::ViewMap::const_iterator view_it = views().begin(),
+         view_next, view_end = views().end();
        view_it != view_end;
        view_it = view_next)
   {
@@ -349,6 +352,10 @@ bool WM::place_existing_client(WClient *client)
   } catch (boost::archive::archive_exception &e)
   {
     WARN("archive_exception occurred: %s", e.what());
+    return false;
+  } catch (std::exception &e)
+  {
+    WARN("std::exception occurred: %s", e.what());
     return false;
   }
 
