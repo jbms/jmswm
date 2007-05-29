@@ -92,18 +92,27 @@ void WMenuURLCompletions::draw(WMenu &menu, const WRect &rect, WDrawable &d)
   //draw_border(d, substyle.padding_color, style.padding_pixels, rect2);
 
     
-  size_t max_pos_index = lines;
-    
-  // FIXME: allow an offset
-  if (max_pos_index > completions.size())
-    max_pos_index = completions.size();
+  size_t begin_pos_index, end_pos_index;
+
+  if (selected >= lines)
+  {
+    end_pos_index = selected + 1;
+    begin_pos_index = end_pos_index - lines;
+  } else
+  {
+    end_pos_index = lines;
+    begin_pos_index = 0;
+  }
+  if (end_pos_index > completions.size())
+    end_pos_index = completions.size();
 
   size_t base_y = rect2.y;
 
-  for (size_t pos_index = 0; pos_index < max_pos_index; ++pos_index)
+  for (size_t pos_index = begin_pos_index; pos_index < end_pos_index; ++pos_index)
   {
+    int row = pos_index - begin_pos_index;
     WRect cell_rect(rect2.x,
-                    base_y + style.spacing + line_height * pos_index,
+                    base_y + style.spacing + line_height * row,
                     rect2.width, line_height);
 
     const WColor *url_color, *title_color;
