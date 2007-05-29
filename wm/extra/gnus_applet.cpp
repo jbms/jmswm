@@ -82,6 +82,7 @@ GnusApplet::GnusApplet(WM &wm, const style::Spec &style_spec,
   abbrevs["list.wmii-hackers"] = "wmii-hackers";
   abbrevs["list.ipw2100-devel"] = "ipw";
   abbrevs["list.ion"] = "ion";
+  abbrevs["list.emacs-devel"] = "emacs";
   
   wd = inotify.add_watch(mail_status_filename, IN_CLOSE_WRITE);
   placeholder = wm.bar.placeholder(pos);
