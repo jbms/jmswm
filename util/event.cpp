@@ -3,7 +3,6 @@
 #include <util/log.hpp>
 #include <assert.h>
 #include <sys/inotify.h>
-#include <sys/inotify-syscalls.h>
 #include <util/close_on_exec.hpp>
 
 EventService::EventService()
