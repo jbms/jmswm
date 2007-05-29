@@ -72,4 +72,7 @@ void move_next_by_activity(WM &wm);
 void copy_marked_frames_to_current_view(WM &wm);
 void move_marked_frames_to_current_view(WM &wm);
 
+utf8_string get_selected_cwd(WM &wm);
+
+
 #endif /* _WM_COMMANDS_HPP */
