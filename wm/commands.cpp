@@ -446,6 +446,7 @@ void move_marked_frames_to_current_view(WM &wm)
            frame_it != frame_end;
            frame_it = frame_next)
       {
+        frame_next = boost::next(frame_it);
         WFrame &frame = *frame_it;
         
         if (!frame.marked())
