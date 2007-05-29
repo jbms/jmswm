@@ -23,6 +23,9 @@ SOURCES := $(OBJECTS:%.o=%.cpp)
 clean:
 	rm -f $(OBJECTS) $(COMPONENT_LIBS) $(FINAL_TARGET)
 
+veryclean: clean
+	rm -f $(COMPONENT_LIBS:.a=.d) $(OBJECTS:.o=.d)
+
 $(OBJECTS): Makefile $(CONFIG)/compile-flags
 
 # PCH support does not work with anonymous namespaces until GCC 4.2.0
@@ -44,5 +47,9 @@ $(FINAL_TARGET): $(COMPONENT_LIBS) $(CONFIG)/link-flags Makefile $(CONFIG)/compo
 $(OBJECTS:.o=.d): %.d: %.cpp Makefile $(CONFIG)/compile-flags
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -M -MF $@ -MP $< -MT $(@:.d=.o)
 
+ifneq ($(MAKECMDGOALS),clean)
+ifneq ($(MAKECMDGOALS),veryclean)
 -include $(OBJECTS:.o=.d)
 -include $(COMPONENT_LIBS:.a=.d)
+endif
+endif
