@@ -89,7 +89,7 @@ GnusApplet::GnusApplet(WM &wm, const style::Spec &style_spec,
   update();
 }
 
-void GnusApplet::switch_to_mail(WM &wm)
+void GnusApplet::switch_to_mail()
 {
   WView *view = wm.view_by_name("plan");
   WFrame *matching_frame = 0;

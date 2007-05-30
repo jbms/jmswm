@@ -111,7 +111,7 @@ ErcApplet::ErcApplet(WM &wm, const style::Spec &style_spec,
   update();
 }
 
-void ErcApplet::switch_to_buffer(WM &wm)
+void ErcApplet::switch_to_buffer()
 {
   WView *view = wm.view_by_name("erc");
   WFrame *matching_frame = 0;

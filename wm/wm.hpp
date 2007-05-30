@@ -102,7 +102,8 @@ public:
   WM(int argc, char **argv,
      Display *dpy, EventService &event_service_,
      const style::Spec &style_spec,
-     const style::Spec &bar_style_spec);
+     const style::Spec &bar_style_spec,
+     const style::Spec &menu_style_spec);
   ~WM();
 
   /**
@@ -415,7 +416,7 @@ public:
    * {{{ Menu
    */
 public:
-  WMenu menu;
+  menu::Menu menu;
 
   /**
    * }}}

@@ -52,7 +52,8 @@ static void set_root_window_cursor(WXContext &xc)
 WM::WM(int argc, char **argv,
        Display *dpy, EventService &event_service_,
        const style::Spec &style_spec,
-       const style::Spec &bar_style_spec)
+       const style::Spec &bar_style_spec,
+       const style::Spec &menu_style_spec)
   : WXContext(dpy),
     event_service_(event_service_),
     x_connection_event(event_service_, ConnectionNumber(dpy), EV_READ,
@@ -69,7 +70,7 @@ WM::WM(int argc, char **argv,
     save_state_event(event_service_, boost::bind(&WM::start_saving_state_to_server, this)),
     global_bindctx(*this, mod_info,
                    root_window(), true),
-    menu(*this, mod_info),
+    menu(*this, mod_info, menu_style_spec),
     bar(*this, bar_style_spec)
 {
   XSetErrorHandler(xwindow_error_handler);

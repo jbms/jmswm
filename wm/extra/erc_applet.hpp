@@ -29,7 +29,7 @@ public:
   ErcApplet(WM &wm, const style::Spec &style_spec,
              const WBar::InsertPosition &pos);
 
-  void switch_to_buffer(WM &wm);
+  void switch_to_buffer();
   
 };
 

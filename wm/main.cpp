@@ -65,7 +65,7 @@ void edit_file(const std::string &cwd,
   spawnl(cwd.c_str(), program, program, filename.c_str(), (const char *)0);
 }
 
-void edit_file_interactive(WM &wm)
+void edit_file_interactive(WM &wm, const menu::file_completion::EntryStyler &entry_styler)
 {
   utf8_string cwd = get_selected_cwd(wm);
   if (cwd.empty())
@@ -75,10 +75,10 @@ void edit_file_interactive(WM &wm)
     getcwd(buf, 256);
     cwd = compact_path_home(buf);
   }
-  wm.menu.read_string("Edit [" + cwd + "]", "",
+  wm.menu.read_string("Emacs", menu::InitialState::selected_prefix(cwd + "/"),
                       boost::bind(&edit_file, expand_path_home(cwd), _1),
-                      WMenu::FailureAction(),
-                      file_completer(expand_path_home(cwd)),
+                      menu::Menu::FailureAction(),
+                      menu::file_completion::file_completer(expand_path_home(cwd), entry_styler),
                       true, /* use delay */
                       true); /* use separate thread */
 }
@@ -121,28 +121,43 @@ int main(int argc, char **argv)
   }
   
   WM wm(argc, argv, xdisplay.display(), event_service,
-        style_db["wm_frame"], style_db["bar"]);
+        style_db["wm_frame"], style_db["bar"], style_db["menu"]);
+  /**
+   * List completion style
+   */
+  menu::list_completion::EntryStyle default_list_entry_style(wm.dc, style_db["list_completion_entry_default"]);
+
+  /**
+   * File completion style
+   */
+  menu::file_completion::EntryStyler file_completion_styler(wm.dc, style_db["file_completion"]);
+  
+  /**
+   * URL completion style
+   */
+  menu::url_completion::Style url_completion_style(wm.dc, style_db["url_completion"]);
+
   /**
    * Commands
    */
 
   WCommandList command_list;
 
-  command_list.add("quit", boost::bind(&WM::quit, _1));
-  command_list.add("restart", boost::bind(&WM::restart, _1));
+  command_list.add("quit", boost::bind(&WM::quit, boost::ref(wm)));
+  command_list.add("restart", boost::bind(&WM::restart, boost::ref(wm)));
   
-  command_list.WM_COMMAND_ADD(select_right);
-  command_list.WM_COMMAND_ADD(select_left);
-  command_list.WM_COMMAND_ADD(select_up);
-  command_list.WM_COMMAND_ADD(select_down);
+  command_list.add("select_right", boost::bind(&select_right, boost::ref(wm)));
+  command_list.add("select_left", boost::bind(&select_left, boost::ref(wm)));
+  command_list.add("select_up", boost::bind(&select_up, boost::ref(wm)));
+  command_list.add("select_down", boost::bind(&select_down, boost::ref(wm)));
   
-  command_list.WM_COMMAND_ADD(move_left);
-  command_list.WM_COMMAND_ADD(move_right);
-  command_list.WM_COMMAND_ADD(move_up);
-  command_list.WM_COMMAND_ADD(move_down);
+  command_list.add("move_left", boost::bind(&move_left, boost::ref(wm)));
+  command_list.add("move_right", boost::bind(&move_right, boost::ref(wm)));
+  command_list.add("move_up", boost::bind(&move_up, boost::ref(wm)));
+  command_list.add("move_down", boost::bind(&move_down, boost::ref(wm)));
 
-  command_list.WM_COMMAND_ADD(toggle_fullscreen);
-  command_list.add("save_state", boost::bind(&WM::save_state_to_server, _1));
+  command_list.add("toggle_fullscreen", boost::bind(&toggle_fullscreen, boost::ref(wm)));
+  command_list.add("save_state", boost::bind(&WM::save_state_to_server, boost::ref(wm)));
 
   wm.bind("mod4-f", select_right);
   wm.bind("mod4-b", select_left);
@@ -178,9 +193,11 @@ int main(int argc, char **argv)
   wm.bind("mod4-x mod4-x", execute_shell_command_cwd_interactive);
 
   wm.bind("mod4-a", boost::bind(&WCommandList::execute_interactive,
-                                boost::ref(command_list),  _1));
+                                boost::ref(command_list), boost::ref(wm),
+                                boost::cref(default_list_entry_style)));
 
-  wm.bind("mod4-t", switch_to_view_interactive);
+  wm.bind("mod4-t", boost::bind(&switch_to_view_interactive,
+                                boost::ref(wm), boost::cref(default_list_entry_style)));
 
   /*
   wm.bind("mod4-x e",
@@ -188,15 +205,19 @@ int main(int argc, char **argv)
                           boost::ref(wm),
                           "~/bin/emacs"));
   */
-  wm.bind("mod4-x e", edit_file_interactive);
+  wm.bind("mod4-x e", boost::bind(&edit_file_interactive,
+                                  boost::ref(wm),
+                                  boost::cref(file_completion_styler)));
 
   boost::shared_ptr<AggregateBookmarkSource> bookmark_source(new AggregateBookmarkSource());
   bookmark_source->add_source(html_bookmark_source("/home/jbms/.firefox-profile/bookmarks.html"));
   bookmark_source->add_source(org_file_list_bookmark_source("/home/jbms/misc/plan/org-agenda-files"));
   bookmark_source->add_source(org_file_bookmark_source("/home/jbms/.jmswm/bookmarks.org"));
   
-  wm.bind("mod4-x b", boost::bind(&launch_browser_interactive, boost::ref(wm), bookmark_source));
-  wm.bind("mod4-x mod4-b", boost::bind(&load_url_existing_interactive, boost::ref(wm), bookmark_source));
+  wm.bind("mod4-x b", boost::bind(&launch_browser_interactive, boost::ref(wm), bookmark_source,
+                                  boost::cref(url_completion_style)));
+  wm.bind("mod4-x mod4-b", boost::bind(&load_url_existing_interactive, boost::ref(wm), bookmark_source,
+                                       boost::cref(url_completion_style)));
   wm.bind("mod4-x k", boost::bind(&bookmark_current_url, boost::ref(wm), "/home/jbms/.jmswm/bookmarks.org"));
 
   wm.bind("mod4-x c",
@@ -227,23 +248,23 @@ int main(int argc, char **argv)
     update_client_visible_name_and_context(it->second);
   }
 
-  wm.menu.bind("BackSpace", menu_backspace);
-  wm.menu.bind("any-Return", menu_enter);
-  wm.menu.bind("control-c", menu_abort);
-  wm.menu.bind("Escape", menu_abort);
-  wm.menu.bind("control-f", menu_forward_char);
-  wm.menu.bind("control-b", menu_backward_char);
-  wm.menu.bind("Right", menu_forward_char);
-  wm.menu.bind("Left", menu_backward_char);
-  wm.menu.bind("control-a", menu_beginning_of_line);
-  wm.menu.bind("control-e", menu_end_of_line);
-  wm.menu.bind("Home", menu_beginning_of_line);
-  wm.menu.bind("End", menu_end_of_line);
-  wm.menu.bind("control-d", menu_delete);
-  wm.menu.bind("Delete", menu_delete);
-  wm.menu.bind("control-k", menu_kill_line);
-  wm.menu.bind("Tab", menu_complete);
-  wm.menu.bind("control-space", menu_set_mark);
+  wm.menu.bind("BackSpace", boost::bind(&menu::Menu::backspace, boost::ref(wm.menu)));
+  wm.menu.bind("any-Return", boost::bind(&menu::Menu::enter, boost::ref(wm.menu)));
+  wm.menu.bind("control-c", boost::bind(&menu::Menu::abort, boost::ref(wm.menu)));
+  wm.menu.bind("Escape", boost::bind(&menu::Menu::abort, boost::ref(wm.menu)));
+  wm.menu.bind("control-f", boost::bind(&menu::Menu::forward_char, boost::ref(wm.menu)));
+  wm.menu.bind("control-b", boost::bind(&menu::Menu::backward_char, boost::ref(wm.menu)));
+  wm.menu.bind("Right", boost::bind(&menu::Menu::forward_char, boost::ref(wm.menu)));
+  wm.menu.bind("Left", boost::bind(&menu::Menu::backward_char, boost::ref(wm.menu)));
+  wm.menu.bind("control-a", boost::bind(&menu::Menu::beginning_of_line, boost::ref(wm.menu)));
+  wm.menu.bind("control-e", boost::bind(&menu::Menu::end_of_line, boost::ref(wm.menu)));
+  wm.menu.bind("Home", boost::bind(&menu::Menu::beginning_of_line, boost::ref(wm.menu)));
+  wm.menu.bind("End", boost::bind(&menu::Menu::end_of_line, boost::ref(wm.menu)));
+  wm.menu.bind("control-d", boost::bind(&menu::Menu::delete_char, boost::ref(wm.menu)));
+  wm.menu.bind("Delete", boost::bind(&menu::Menu::delete_char, boost::ref(wm.menu)));
+  wm.menu.bind("control-k", boost::bind(&menu::Menu::kill_line, boost::ref(wm.menu)));
+  wm.menu.bind("Tab", boost::bind(&menu::Menu::complete, boost::ref(wm.menu)));
+  wm.menu.bind("control-space", boost::bind(&menu::Menu::set_mark, boost::ref(wm.menu)));
 
   BarViewApplet bar_view_info(wm, style_db["view_applet"]);
 
@@ -302,17 +323,21 @@ int main(int argc, char **argv)
 
   wm.bind("mod4-r", boost::bind(&PreviousViewInfo::switch_to, boost::ref(prev_info)));
 
-  wm.bind("mod4-k m", move_current_frame_to_other_view_interactive);
-  wm.bind("mod4-k j", copy_current_frame_to_other_view_interactive);
+  wm.bind("mod4-k m", boost::bind(&move_current_frame_to_other_view_interactive,
+                                  boost::ref(wm),
+                                  boost::cref(default_list_entry_style)));
+  wm.bind("mod4-k j", boost::bind(&copy_current_frame_to_other_view_interactive,
+                                  boost::ref(wm),
+                                  boost::cref(default_list_entry_style)));
   wm.bind("mod4-k k", remove_current_frame);
   wm.bind("mod4-y", move_marked_frames_to_current_view);
   wm.bind("mod4-k y", copy_marked_frames_to_current_view);
 
   wm.bind("mod4-x p", switch_to_agenda);
 
-  wm.bind("mod4-x m", boost::bind(&GnusApplet::switch_to_mail, boost::ref(gnus_applet), _1));
+  wm.bind("mod4-x m", boost::bind(&GnusApplet::switch_to_mail, boost::ref(gnus_applet)));
 
-  wm.bind("mod4-x r", boost::bind(&ErcApplet::switch_to_buffer, boost::ref(erc_applet), _1));
+  wm.bind("mod4-x r", boost::bind(&ErcApplet::switch_to_buffer, boost::ref(erc_applet)));
 
 
   // Finally start window management

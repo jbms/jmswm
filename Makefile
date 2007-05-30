@@ -47,9 +47,9 @@ $(FINAL_TARGET): $(COMPONENT_LIBS) $(CONFIG)/link-flags Makefile $(CONFIG)/compo
 $(OBJECTS:.o=.d): %.d: %.cpp Makefile $(CONFIG)/compile-flags
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -M -MF $@ -MP $< -MT $(@:.d=.o)
 
-ifneq ($(MAKECMDGOALS),clean)
-ifneq ($(MAKECMDGOALS),veryclean)
+#ifneq ($(MAKECMDGOALS),clean)
+#ifneq ($(MAKECMDGOALS),veryclean)
 -include $(OBJECTS:.o=.d)
 -include $(COMPONENT_LIBS:.a=.d)
-endif
-endif
+#endif
+#endif

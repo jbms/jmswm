@@ -7,6 +7,7 @@
 #include <boost/shared_ptr.hpp>
 #include <util/range.hpp>
 #include <boost/signals/connection.hpp>
+#include <menu/url_completion.hpp>
 
 class BookmarkSpec
 {
@@ -47,8 +48,10 @@ void launch_browser(const utf8_string &text, bool direct);
 void load_url_in_existing_frame(const ascii_string &frame_id,
                                 const utf8_string &text,
                                 bool direct);
-void load_url_existing_interactive(WM &wm, const boost::shared_ptr<BookmarkSource> &source);
-void launch_browser_interactive(WM &wm, const boost::shared_ptr<BookmarkSource> &source);
+void load_url_existing_interactive(WM &wm, const boost::shared_ptr<BookmarkSource> &source,
+                                   const menu::url_completion::Style &style);
+void launch_browser_interactive(WM &wm, const boost::shared_ptr<BookmarkSource> &source,
+                                const menu::url_completion::Style &style);
 
 void write_bookmark(const ascii_string &url, const utf8_string &title,
                     const boost::filesystem::path &output_org_path);

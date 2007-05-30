@@ -1,5 +1,6 @@
 #include <wm/all.hpp>
 #include <wm/commands.hpp>
+#include <menu/menu.hpp>
 #include <menu/list_completion.hpp>
 #include <util/spawn.hpp>
 #include <util/path.hpp>
@@ -14,12 +15,12 @@ void WCommandList::add(const ascii_string &name,
   commands.insert(std::make_pair(name, action));
 }
 
-WMenu::Completer WCommandList::completer() const
+menu::Menu::Completer WCommandList::completer(const menu::list_completion::EntryStyle &style) const
 {
-  return prefix_completer(boost::make_transform_range(commands, select1st));
+  return prefix_completer(boost::make_transform_range(commands, select1st), style);
 }
 
-void WCommandList::execute(WM &wm, const ascii_string &name) const
+void WCommandList::execute(const ascii_string &name) const
 {
   CommandMap::const_iterator it = commands.find(name);
   if (it == commands.end())
@@ -28,15 +29,15 @@ void WCommandList::execute(WM &wm, const ascii_string &name) const
     return;
   }
 
-  it->second(wm);
+  it->second();
 }
 
-void WCommandList::execute_interactive(WM &wm) const
+void WCommandList::execute_interactive(WM &wm, const menu::list_completion::EntryStyle &style) const
 {
-  wm.menu.read_string("Command:", "",
-                      boost::bind(&WCommandList::execute, this, boost::ref(wm), _1),
-                      boost::function<void (void)>(),
-                      completer(),
+  wm.menu.read_string("Command:", menu::InitialState(),
+                      boost::bind(&WCommandList::execute, this, _1),
+                      menu::Menu::FailureAction(),
+                      completer(style),
                       false /* no delay */);
 }
 
@@ -261,11 +262,6 @@ void kill_current_client(WM &wm)
     frame->client().kill();
 }
 
-void execute_shell_command_interactive(WM &wm)
-{
-  wm.menu.read_string("Command:", "", boost::bind(&execute_shell_command, _1));
-}
-
 void execute_shell_command_cwd_interactive(WM &wm)
 {
   utf8_string cwd = get_selected_cwd(wm);
@@ -277,7 +273,7 @@ void execute_shell_command_cwd_interactive(WM &wm)
     cwd = compact_path_home(buf);
   }
   
-  wm.menu.read_string(cwd + " $", "",
+  wm.menu.read_string(cwd + " $", menu::InitialState(),
                       boost::bind(&execute_shell_command_cwd, _1, cwd));
 }
 
@@ -289,12 +285,12 @@ void switch_to_view(WM &wm, const utf8_string &name)
   wm.select_view(wm.get_or_create_view(name));
 }
 
-void switch_to_view_interactive(WM &wm)
+void switch_to_view_interactive(WM &wm, const menu::list_completion::EntryStyle &style)
 {
-  wm.menu.read_string("Switch to tag:", "",
+  wm.menu.read_string("Switch to tag:", menu::InitialState(),
                       boost::bind(&switch_to_view, boost::ref(wm), _1),
-                      WMenu::FailureAction(),
-                      prefix_completer(boost::make_transform_range(wm.views(), select1st)),
+                      menu::Menu::FailureAction(),
+                      prefix_completer(boost::make_transform_range(wm.views(), select1st), style),
                       false /* no delay */);
 }
 
@@ -339,13 +335,16 @@ void move_frame_to_view(const weak_iptr<WFrame> &weak_frame,
 }
 
 
-void move_current_frame_to_other_view_interactive(WM &wm)
+void move_current_frame_to_other_view_interactive(WM &wm, const menu::list_completion::EntryStyle &style)
 {
   if (WFrame *frame = wm.selected_frame())
   {
-    wm.menu.read_string("Move to view:", "",
-                        boost::bind(&move_frame_to_view, weak_iptr<WFrame>(frame),
-                                    _1));
+    wm.menu.read_string("Move to view:", menu::InitialState(),
+                        boost::bind(&move_frame_to_view, weak_iptr<WFrame>(frame), _1),
+                        menu::Menu::FailureAction(),
+                        menu::list_completion::prefix_completer
+                        (boost::make_transform_range(wm.views(), select1st), style),
+                        false /* no delay */);
   }
 }
 
@@ -369,13 +368,16 @@ void copy_frame_to_view(const weak_iptr<WFrame> &weak_frame,
   }
 }
 
-void copy_current_frame_to_other_view_interactive(WM &wm)
+void copy_current_frame_to_other_view_interactive(WM &wm, const menu::list_completion::EntryStyle &style)
 {
   if (WFrame *frame = wm.selected_frame())
   {
-    wm.menu.read_string("Duplicate to view:", "",
-                        boost::bind(&copy_frame_to_view, weak_iptr<WFrame>(frame),
-                                    _1));
+    wm.menu.read_string("Duplicate to view:", menu::InitialState(),
+                        boost::bind(&copy_frame_to_view, weak_iptr<WFrame>(frame), _1),
+                        menu::Menu::FailureAction(),
+                        menu::list_completion::prefix_completer
+                        (boost::make_transform_range(wm.views(), select1st), style),
+                        false /* no delay */);
   }
 }
 
@@ -397,7 +399,7 @@ void copy_marked_frames_to_current_view(WM &wm)
     return;
 
   /**
-   * Note: BOOST_FOREACH can be used here because the loop contents 
+   * Note: BOOST_FOREACH can be used here because the loop contents doesn't change
    */
   BOOST_FOREACH (WView *view, boost::make_transform_range(wm.views(), select2nd))
   {

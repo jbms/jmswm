@@ -15,12 +15,15 @@
 #include <boost/algorithm/string.hpp>
 #include <util/spawn.hpp>
 
+using menu::url_completion::URLSpec;
+
 PROPERTY_ACCESSOR(WClient, utf8_string, web_browser_title)
 PROPERTY_ACCESSOR(WClient, ascii_string, web_browser_url)
 PROPERTY_ACCESSOR(WClient, ascii_string, web_browser_frame_id)
 PROPERTY_ACCESSOR(WClient, ascii_string, web_browser_frame_tag)
 
-WMenu::Completer url_completer(const boost::shared_ptr<BookmarkSource> &source);
+menu::Menu::Completer url_completer(const boost::shared_ptr<BookmarkSource> &source,
+                                    const menu::url_completion::Style &style);
 
 
 
@@ -371,9 +374,11 @@ static void remove_duplicate_bookmarks(std::vector<BookmarkSpec> &spec)
   spec.erase(boost::unique(spec, compare_url_to_remove_duplicates), spec.end());
 }
 
-static WMenu::Completions url_completions(const boost::shared_ptr<boost::optional<std::vector<BookmarkSpec> > > &bookmarks,
-                                          const boost::shared_ptr<BookmarkSource> &source,
-                                          const WMenu::InputState &input)
+static menu::Menu::CompletionsPtr
+url_completions(const boost::shared_ptr<boost::optional<std::vector<BookmarkSpec> > > &bookmarks,
+                const boost::shared_ptr<BookmarkSource> &source,
+                const menu::url_completion::Style &style,
+                const menu::InputState &input)
 {
   if (!*bookmarks)
   {
@@ -382,7 +387,7 @@ static WMenu::Completions url_completions(const boost::shared_ptr<boost::optiona
     remove_duplicate_bookmarks(bookmarks->get());
   }
 
-  WMenu::Completions completions;
+  menu::Menu::CompletionsPtr completions;
 
   std::vector<std::pair<int, URLSpec> > results;
   std::vector<utf8_string> words;
@@ -428,18 +433,19 @@ static WMenu::Completions url_completions(const boost::shared_ptr<boost::optiona
     std::vector<URLSpec> specs;
     boost::copy(boost::make_transform_range(results, select2nd),
                 std::back_inserter(specs));
-    completions = make_url_completions(specs);
+    completions = make_url_completions(specs, style);
   }
 
   return completions;
 }
 
-WMenu::Completer url_completer(const boost::shared_ptr<BookmarkSource> &source)
+menu::Menu::Completer url_completer(const boost::shared_ptr<BookmarkSource> &source,
+                                    const menu::url_completion::Style &style)
 {
   return boost::bind(&url_completions,
                      boost::shared_ptr<boost::optional<std::vector<BookmarkSpec> > >
                      (new boost::optional<std::vector<BookmarkSpec> >),
-                     source, _1);
+                     source, boost::cref(style), _1);
 }
 
 
@@ -517,42 +523,44 @@ void load_url_in_existing_frame(const ascii_string &frame_id,
   spawnl(0, program.c_str(), program.c_str(), frame_id.c_str(), url.c_str(), (const char *)0);
 }
 
-void launch_browser_interactive(WM &wm, const boost::shared_ptr<BookmarkSource> &source)
+void launch_browser_interactive(WM &wm, const boost::shared_ptr<BookmarkSource> &source,
+                                const menu::url_completion::Style &style)
 {
-  utf8_string initial_text;
+  menu::InitialState state;
   if (WFrame *frame = wm.selected_frame())
   {
     if (Property<ascii_string> url = web_browser_url(frame->client()))
-      initial_text = url.get();
+      state = menu::InitialState::selected_suffix(url.get());
   }
   
-  wm.menu.read_string("URL:", initial_text,
+  wm.menu.read_string("URL:", state,
                       boost::bind(&launch_browser, _1, false),
-                      WMenu::FailureAction(),
-                      url_completer(source),
+                      menu::Menu::FailureAction(),
+                      url_completer(source, style),
                       true /* use delay */,
                       true /* use separate thread */);
 }
 
-void load_url_existing_interactive(WM &wm, const boost::shared_ptr<BookmarkSource> &source)
+void load_url_existing_interactive(WM &wm, const boost::shared_ptr<BookmarkSource> &source,
+                                   const menu::url_completion::Style &style)
 {
-  utf8_string initial_text;
+  menu::InitialState state;
   ascii_string frame_id;
   if (WFrame *frame = wm.selected_frame())
   {
     if (Property<ascii_string> id = web_browser_frame_id(frame->client()))
       frame_id = id.get();
     else
-      return launch_browser_interactive(wm, source);
+      return launch_browser_interactive(wm, source, style);
     
     if (Property<ascii_string> url = web_browser_url(frame->client()))
-      initial_text = url.get();
+      state = menu::InitialState::selected_suffix(url.get());
   }
   
-  wm.menu.read_string("URL:", initial_text,
+  wm.menu.read_string("URL:", state,
                       boost::bind(&load_url_in_existing_frame, frame_id, _1, false),
-                      WMenu::FailureAction(),
-                      url_completer(source),
+                      menu::Menu::FailureAction(),
+                      url_completer(source, style),
                       true /* use delay */,
                       true /* use separate thread */);
 }
