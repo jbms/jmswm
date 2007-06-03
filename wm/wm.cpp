@@ -120,6 +120,11 @@ WM::~WM()
 {
 }
 
+void WM::schedule_set_input_focus_to_root()
+{
+  scheduled_set_input_focus_to_root = true;
+}
+
 void WClient::schedule_task(unsigned int task)
 {
   if (!scheduled_tasks)
@@ -156,6 +161,13 @@ void WM::flush(void)
 
   BOOST_FOREACH (WClient &c, scheduled_task_clients)
     c.perform_scheduled_tasks();
+
+  if (scheduled_set_input_focus_to_root)
+  {
+    if (!selected_frame())
+      xwindow_set_input_focus(display(), root_window());
+    scheduled_set_input_focus_to_root = false;
+  }
 
   menu.flush();
 

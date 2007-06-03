@@ -336,7 +336,6 @@ void WM::place_client(WClient *c)
 
 void WM::unmanage_client(WClient *client)
 {
-  WARN("here");
   unmanage_client_hook(client);
 
   // Note: BOOST_FOREACH is not used because the contents of

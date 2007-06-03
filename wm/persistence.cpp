@@ -249,7 +249,6 @@ void WM::load_state_from_server()
           if (view_by_name(v.name))
             continue;
           WView *view = new WView(*this, v.name);
-          WARN("creating view: %s", view->name().c_str());
 
           view->set_bar_visible(v.bar_visible);
 
@@ -258,7 +257,6 @@ void WM::load_state_from_server()
 
           BOOST_FOREACH (PersistentColumnInfo &c, v.columns)
           {
-            WARN("creating column in view");
             /* TODO: maybe handle priority here */
             WView::iterator it = view->create_column(view->columns.end());
             it->set_priority(c.priority);
@@ -292,7 +290,6 @@ void WM::load_state_from_server()
       if (w == bar.xwin() || w == menu.xwin() || w == menu.completions_xwin())
         continue;
       
-      WARN("managing client");      
       manage_client(top_level_windows[i], false);
     }
     XFree(top_level_windows);
@@ -317,17 +314,11 @@ void WM::load_state_from_server()
       WColumn &col = *col_it;
       
       if (col.frames.empty())
-      {
-        WARN("deleting column");
         delete &col;
-      }
     }
 
     if (view->columns.empty() && selected_view() != view)
-    {
-      WARN("deleting view");
       delete view;
-    }
   }
 }
 
@@ -337,8 +328,6 @@ bool WM::place_existing_client(WClient *client)
   if (!get_persistent_state_data(*this, client->xwin(), str))
     return false;
 
-  WARN("placing existing client");
-  
   remove_persistent_state_data(*this, client->xwin());
 
   PersistentClientInfo info;

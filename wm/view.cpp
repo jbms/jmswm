@@ -23,7 +23,6 @@ WView::WView(WM &wm, const utf8_string &name)
 
 WView::~WView()
 {
-  WARN("here");
   wm().destroy_view_hook(this);
   wm_.views_.erase(name_);
 }
@@ -200,6 +199,8 @@ void WM::handle_selected_frame_changed(WFrame *old_frame, WFrame *new_frame)
 {
   if (new_frame)
     frame_activity_event.wait(time_duration::milliseconds(500));
+  else
+    schedule_set_input_focus_to_root();
 
   if (old_frame &&
       old_frame == old_frame->column()->selected_frame()
@@ -359,7 +360,6 @@ void WColumn::perform_scheduled_tasks()
 
 WColumn::~WColumn()
 {
-  WARN("here");
   assert(frames.empty());
   
   WView::iterator cur_col_it = view()->make_iterator(this);
@@ -392,7 +392,6 @@ WFrame::~WFrame()
 
 void WFrame::remove()
 {
-  WARN("here");
   WColumn::iterator cur_frame_it = column()->make_iterator(this);
   if (column()->selected_frame() == this)
   {

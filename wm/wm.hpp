@@ -161,6 +161,8 @@ private:
   ScheduledTaskClientList scheduled_task_clients;
   ScheduledTaskColumnList scheduled_task_columns;
   ScheduledTaskViewList scheduled_task_views;
+  bool scheduled_set_input_focus_to_root;
+  void schedule_set_input_focus_to_root();
   
   friend class WClient;
   friend class WFrame;

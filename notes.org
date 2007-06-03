@@ -8,7 +8,8 @@
 Perhaps have it show the frame on any view it is tagged for, and also
 on the current view.
 ** TODO Proper use of window properties/standard conformance
-** TODO Fix focus-stealing robustness
+** DONE Fix focus-stealing robustness
+   CLOSED: [2007-06-03 Sun 18:05]
 ** TODO Robustness against too many frames per column or columns per view
 Perhaps this can be handled by just showing only one frame at a time
 in this case, with no indication that there are other frames behind
@@ -55,7 +56,8 @@ Perhaps mod4-x m
 Maybe also support a key for composing mail.
 ** TODO Devices info (USB, cdrom, mounted devices)
 Use inotify on /dev/disk/by-uuid
-** TODO ERC applet
+** DONE ERC applet
+   CLOSED: [2007-06-02 Sat 01:39]
 * Menu system
 ** DONE Make completion window not full width of screen for better readability
    CLOSED: [2007-05-10 Thu 02:03]
@@ -78,8 +80,11 @@ automatically.
 Maybe support showing multiple views at a time.
 
 * Bugs
-** TODO Fix Flash-related hang
-   The problem seems to also be related to the persistence system.
+** DONE Fix Flash-related hang
+   CLOSED: [2007-06-03 Sun 18:04]
+
+   The problem was due to programs that call XSetInputFocus with
+   RevertToNone.
 ** DONE Fix GDB stack traces so that they make sense
    CLOSED: [2007-03-28 Wed 19:33]
 
