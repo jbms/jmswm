@@ -54,7 +54,8 @@ Perhaps this can be done by simply saving values for each view name.
     CLOSED: [2007-05-10 Thu 02:03]
 Perhaps mod4-x m
 Maybe also support a key for composing mail.
-** TODO Devices info (USB, cdrom, mounted devices)
+** DONE Devices info (USB, cdrom, mounted devices)
+   CLOSED: [2007-06-03 Sun 20:16]
 Use inotify on /dev/disk/by-uuid
 ** DONE ERC applet
    CLOSED: [2007-06-02 Sat 01:39]

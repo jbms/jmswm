@@ -12,6 +12,7 @@
 #include <wm/extra/erc_applet.hpp>
 #include <wm/extra/view_columns.hpp>
 #include <wm/extra/network_applet.hpp>
+#include <wm/extra/device_applet.hpp>
 #include <wm/extra/cwd.hpp>
 
 #include <wm/extra/web_browser.hpp>
@@ -274,12 +275,12 @@ int main(int argc, char **argv)
   wm.bind("mod4-period", boost::bind(&BarViewApplet::select_next,
                                 boost::ref(bar_view_info)));
 
-  BatteryApplet battery_applet(wm, style_db["battery_applet"],
-                               WBar::end(WBar::RIGHT));
+  TimeApplet time_applet(wm, style_db["time_applet"],
+                         WBar::begin(WBar::RIGHT));
 
   /* TODO: check for exceptions */
   VolumeApplet volume_applet(wm, style_db["volume_applet"],
-                             WBar::end(WBar::RIGHT));
+                             WBar::begin(WBar::RIGHT));
 
   wm.bind("XF86AudioLowerVolume",
           boost::bind(&VolumeApplet::lower_volume,
@@ -291,8 +292,12 @@ int main(int argc, char **argv)
           boost::bind(&VolumeApplet::toggle_mute,
                       boost::ref(volume_applet)));
 
-  TimeApplet time_applet(wm, style_db["time_applet"],
-                         WBar::end(WBar::RIGHT));
+  DeviceApplet dev_applet(wm, style_db["device_applet"],
+                          WBar::begin(WBar::RIGHT));
+
+
+  BatteryApplet battery_applet(wm, style_db["battery_applet"],
+                               WBar::begin(WBar::RIGHT));
 
   NetworkApplet net_applet(wm, style_db["network_applet"],
                            WBar::begin(WBar::RIGHT));
