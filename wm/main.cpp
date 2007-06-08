@@ -27,6 +27,36 @@
 
 #include <util/path.hpp>
 
+
+void get_xprop_info_for_current_client(WM &wm)
+{
+  if (WFrame *frame = wm.selected_frame())
+  {
+    Window w = frame->client().xwin();
+    char id[30];
+    sprintf(id, "0x%08x", w);
+    char title[30];
+    sprintf(title, "xprop -id %s", id);
+    spawnl(0, "/usr/bin/xterm", "/usr/bin/xterm", "-T", title, "-e",
+           "/home/jbms/bin/run-and-wait", "xprop", "-id", id, (const char *)0);
+  }
+}
+
+void get_xwininfo_info_for_current_client(WM &wm)
+{
+  if (WFrame *frame = wm.selected_frame())
+  {
+    Window w = frame->client().xwin();
+    char id[30];
+    sprintf(id, "0x%08x", w);
+    char title[30];
+    sprintf(title, "xwininfo -id %s", id);
+    spawnl(0, "/usr/bin/xterm", "/usr/bin/xterm", "-T", title, "-e",
+           "/home/jbms/bin/run-and-wait", "xwininfo", "-all", "-id", id, (const char *)0);
+  }
+}
+
+
 void switch_to_agenda(WM &wm)
 {
   /* Look for plan view */
@@ -159,6 +189,9 @@ int main(int argc, char **argv)
 
   command_list.add("toggle_fullscreen", boost::bind(&toggle_fullscreen, boost::ref(wm)));
   command_list.add("save_state", boost::bind(&WM::save_state_to_server, boost::ref(wm)));
+
+  command_list.add("xprop", boost::bind(&get_xprop_info_for_current_client, boost::ref(wm)));
+  command_list.add("xwininfo", boost::bind(&get_xwininfo_info_for_current_client, boost::ref(wm)));
 
   wm.bind("mod4-f", select_right);
   wm.bind("mod4-b", select_left);
