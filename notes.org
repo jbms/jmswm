@@ -45,7 +45,8 @@ number.
 Perhaps this can be done by simply saving values for each view name.
 * Status bar applets
 ** Volume applet
-*** TODO Use ALSA notification to avoid update delay
+*** DONE Use ALSA notification to avoid update delay
+    CLOSED: [2007-06-08 Fri 16:34]
 ** Music applet
 *** TODO Implement this after setting up music playing system for laptop
 ** TODO CPU speed applet perhaps
