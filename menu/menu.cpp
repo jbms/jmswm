@@ -218,7 +218,7 @@ namespace menu
             XMapRaised(wm().display(), completions_xwin_);
             completions_map_state = STATE_MAPPED;
           }
-        }      
+        }
 
         if (!keyboard_grabbed)
         {
@@ -243,14 +243,14 @@ namespace menu
           map_state = STATE_UNMAPPED;
         }
       }
-    }
 
-    if (!active || !completions)
-    {
-      if (completions_map_state != STATE_UNMAPPED)
+      if (!active || !completions)
       {
-        XUnmapWindow(wm().display(), completions_xwin_);
-        completions_map_state = STATE_UNMAPPED;
+        if (completions_map_state != STATE_UNMAPPED)
+        {
+          XUnmapWindow(wm().display(), completions_xwin_);
+          completions_map_state = STATE_UNMAPPED;
+        }
       }
     }
 
