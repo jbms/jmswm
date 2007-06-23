@@ -7,7 +7,7 @@
 bool update_client_visible_name_and_context(WClient *client)
 {
   /* Handle xterm */
-  if (client->class_name() == "XTerm")
+  if (client->class_name() == "XTerm" || client->class_name() == "URxvt")
   {
     using boost::algorithm::split_iterator;
     using boost::algorithm::make_split_iterator;
