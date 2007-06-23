@@ -314,12 +314,12 @@ VolumeApplet::~VolumeApplet()
 
 void VolumeApplet::lower_volume()
 {
-  execute_shell_command("amixer set Master 1-");
+  execute_shell_command("~/bin/amixer-set-Master-PCM 1-");
 }
 
 void VolumeApplet::raise_volume()
 {
-  execute_shell_command("amixer set Master 1+");
+  execute_shell_command("~/bin/amixer-set-Master-PCM 1+");
 }
 
 void VolumeApplet::toggle_mute()
