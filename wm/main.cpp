@@ -27,6 +27,8 @@
 
 #include <util/path.hpp>
 
+const char *terminal_emulator = "/usr/bin/urxvtc";
+
 
 void get_xprop_info_for_current_client(WM &wm)
 {
@@ -35,10 +37,8 @@ void get_xprop_info_for_current_client(WM &wm)
     Window w = frame->client().xwin();
     char id[30];
     sprintf(id, "0x%08x", w);
-    char title[30];
-    sprintf(title, "xprop -id %s", id);
-    spawnl(0, "/usr/bin/xterm", "/usr/bin/xterm", "-T", title, "-e",
-           "/home/jbms/bin/run-and-wait", "xprop", "-id", id, (const char *)0);
+    spawnl(0, terminal_emulator, terminal_emulator, "-hold",
+           "-e", "xprop", "-id", id, (const char *)0);
   }
 }
 
@@ -49,10 +49,8 @@ void get_xwininfo_info_for_current_client(WM &wm)
     Window w = frame->client().xwin();
     char id[30];
     sprintf(id, "0x%08x", w);
-    char title[30];
-    sprintf(title, "xwininfo -id %s", id);
-    spawnl(0, "/usr/bin/xterm", "/usr/bin/xterm", "-T", title, "-e",
-           "/home/jbms/bin/run-and-wait", "xwininfo", "-all", "-id", id, (const char *)0);
+    spawnl(0, terminal_emulator, terminal_emulator, "-hold",
+           "-e", "xwininfo", "-all", "-id", id, (const char *)0);
   }
 }
 
@@ -222,7 +220,7 @@ int main(int argc, char **argv)
   wm.bind("mod4-x x",
           boost::bind(&execute_shell_command_selected_cwd,
                       boost::ref(wm),
-                      "xterm"));
+                      terminal_emulator));
 
   wm.bind("mod4-x mod4-x", execute_shell_command_cwd_interactive);
 
