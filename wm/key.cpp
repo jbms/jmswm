@@ -504,11 +504,10 @@ void WM::handle_keypress(const XKeyEvent &ev)
 {
   /* All events for key bindings should be received for the root
      window */
-  // The global bindings apply to all key presses
-  if (global_bindctx.process_keypress(ev))
-    return;
-  
-  if (ev.window == menu.xwin())
+  if (ev.window == root_window())
+  {
+    global_bindctx.process_keypress(ev);
+  } else if (ev.window == menu.xwin())
     menu.handle_keypress(ev);
 }
 
