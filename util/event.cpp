@@ -39,15 +39,17 @@ void EventService::handle_post_event(int, short, void *ptr)
   while (1)
   {
     int result = read(s->post_read, buffer, buffer_size);
-    if (result == EINTR)
-      continue;
+    if (result == -1)
+    {
+      if (errno = EINTR)
+        continue;
+      else
+        ERROR_SYS("post read");
+    }
     if (result == 0)
       ERROR("post read EOF received");
-    if (result < 0)
-      ERROR_SYS("post read");
     break;
   }
-  
   boost::mutex::scoped_lock l(s->work_queue_mutex);
   while (!s->work_queue.empty())
   {
