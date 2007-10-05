@@ -201,6 +201,9 @@ void WModifierInfo::update(Display *dpy)
     }
   }
 
+  // Also ignore all button modifiers
+  locking_mask |= (Button1Mask | Button2Mask | Button3Mask | Button4Mask | Button5Mask);
+
   XFreeModifiermap(modmap);
 }
 
@@ -516,6 +519,7 @@ bool WKeyBindingContext::process_keypress(const XKeyEvent &ev)
 {
   if (mod_info.modifier_keycodes.count(ev.keycode))
     return false;
+
   
   WKeyMap &km = state->current_kmap ? *state->current_kmap : state->kmap;
 
@@ -543,8 +547,10 @@ bool WKeyBindingContext::process_keypress(const XKeyEvent &ev)
     if (state->current_kmap)
       state->kmap_reset_event.cancel();
     else if (grab_required)
+    {
       XGrabKeyboard(wm.display(), event_window, false,
                     GrabModeAsync, GrabModeAsync, CurrentTime);
+    }
 
     state->kmap_reset_event.wait_for(wm.key_sequence_timeout.tv_sec,
                                      wm.key_sequence_timeout.tv_usec);
