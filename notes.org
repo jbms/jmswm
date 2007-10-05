@@ -70,6 +70,7 @@ Use inotify on /dev/disk/by-uuid
 * Program launching
 ** TODO Add support for startup notification
 * Views
+** TODO showing decorations need not be a frame property
 ** TODO Perhaps store previously-used view names
 ** TODO Perhaps keep track of common directories for view names
 ** TODO Perhaps always do automatic frame layout, rather than manual placement
@@ -97,6 +98,8 @@ Maybe support showing multiple views at a time.
 ** DONE Fix mail status not showing up when gnus is not started before wm
    CLOSED: [2007-05-10 Thu 02:02]
 Perhaps because /tmp/jbms is not getting created.
+** DONE Fix bookmarks getting wrong category information (risi - pittsburgh)
+   CLOSED: [2007-10-04 Thu 23:59]
 * Coding style
 ** TODO Using namespaces
 
