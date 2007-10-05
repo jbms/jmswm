@@ -131,6 +131,14 @@ namespace
         continue;
       }
 
+      // Check for an outline specification
+      if (regex_match(line, results, outline_regex))
+      {
+        int level = results[1].length();
+        categories.resize(level + 1);
+        categories[level] = results[2];
+      }
+
       // Search for URLs
       std::string::const_iterator begin = line.begin(), end = line.end();
       while (begin != end)
@@ -148,13 +156,6 @@ namespace
         } else break;
       }
 
-      // Check for an outline specification
-      if (regex_match(line, results, outline_regex))
-      {
-        int level = results[1].length();
-        categories.resize(level + 1);
-        categories[level] = results[2];
-      }
     }
 
     ifs.close();
