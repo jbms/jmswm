@@ -75,7 +75,7 @@ GnusApplet::GnusApplet(WM &wm, const style::Spec &style_spec,
   }
   abbrevs["mail.misc"] = "misc";
   abbrevs["list.boost-dev"] = "boost";
-  abbrevs["list.cmu-misc-market"] = "misc.market";
+  //abbrevs["list.cmu-misc-market"] = "misc.market";
   abbrevs["list.erc-help"] = "erc";
   abbrevs["list.linux-kernel"] = "linux";
   abbrevs["list.wmii"] = "wmii";
@@ -83,6 +83,10 @@ GnusApplet::GnusApplet(WM &wm, const style::Spec &style_spec,
   abbrevs["list.ipw2100-devel"] = "ipw";
   abbrevs["list.ion"] = "ion";
   abbrevs["list.emacs-devel"] = "emacs";
+  abbrevs["nnrss:slashdot"] = "slashdot";
+  abbrevs["nnrss:boingboing"] = "boingboing";
+  abbrevs["nnrss:bbc"] = "bbc";
+  abbrevs["nnrss:nytimes"] = "nytimes";
   
   wd = inotify.add_watch(mail_status_filename, IN_CLOSE_WRITE);
   placeholder = wm.bar.placeholder(pos);
