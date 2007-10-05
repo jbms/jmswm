@@ -112,6 +112,18 @@ void edit_file_interactive(WM &wm, const menu::file_completion::EntryStyler &ent
                       true); /* use separate thread */
 }
 
+void dictionary_lookup(const utf8_string &name)
+{
+  const char *program = "/home/jbms/bin/dictionary-lookup";
+  spawnl(0, program, program, name.c_str(), (char *)0);
+}
+
+void dictionary_lookup_interactive(WM &wm)
+{
+  wm.menu.read_string("Lookup word:", menu::InitialState(),
+                      boost::bind(&dictionary_lookup, _1));
+}
+
 int main(int argc, char **argv)
 {
 
@@ -240,6 +252,13 @@ int main(int argc, char **argv)
   wm.bind("mod4-x e", boost::bind(&edit_file_interactive,
                                   boost::ref(wm),
                                   boost::cref(file_completion_styler)));
+
+  wm.bind("mod4-x n", boost::bind(&execute_shell_command_selected_cwd,
+                                  boost::ref(wm),
+                                  "/home/jbms/bin/emacs-note"));
+
+  wm.bind("mod4-x d", boost::bind(&dictionary_lookup_interactive,
+                                  boost::ref(wm)));
 
   boost::shared_ptr<AggregateBookmarkSource> bookmark_source(new AggregateBookmarkSource());
   bookmark_source->add_source(html_bookmark_source("/home/jbms/.firefox-profile/bookmarks.html"));
