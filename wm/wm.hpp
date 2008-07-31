@@ -533,10 +533,10 @@ private:
 
 private:
 
-  const static unsigned int DRAW_FLAG =            0x1;
-  const static unsigned int UPDATE_SERVER_FLAG =   0x2;
-  const static unsigned int SET_INPUT_FOCUS_FLAG = 0x4;
-  const static unsigned int WARP_POINTER_FLAG =    0x8;
+  static const unsigned int DRAW_FLAG =            0x1;
+  static const unsigned int UPDATE_SERVER_FLAG =   0x2;
+  static const unsigned int SET_INPUT_FOCUS_FLAG = 0x4;
+  static const unsigned int WARP_POINTER_FLAG =    0x8;
 
   unsigned int scheduled_tasks;
 
@@ -569,10 +569,10 @@ private:
   int initial_border_width;
   XSizeHints size_hints_;
 
-  const static unsigned int WM_TAKE_FOCUS_FLAG =    0x1;
-  const static unsigned int WM_DELETE_WINDOW_FLAG = 0x2;
+  static const unsigned int WM_TAKE_FOCUS_FLAG =    0x1;
+  static const unsigned int WM_DELETE_WINDOW_FLAG = 0x2;
 
-  const static unsigned int PROTOCOL_FLAGS = (WM_TAKE_FOCUS_FLAG |
+  static const unsigned int PROTOCOL_FLAGS = (WM_TAKE_FOCUS_FLAG |
                                               WM_DELETE_WINDOW_FLAG);
 
   unsigned int flags_;
@@ -596,20 +596,20 @@ private:
   int fixed_height_;
   unsigned int window_type_flags_;
 public:
-  const static unsigned int WINDOW_TYPE_DESKTOP       =    0x1;
-  const static unsigned int WINDOW_TYPE_DOCK          =    0x2;
-  const static unsigned int WINDOW_TYPE_TOOLBAR       =    0x4;
-  const static unsigned int WINDOW_TYPE_MENU          =    0x8;
-  const static unsigned int WINDOW_TYPE_UTILITY       =   0x10;
-  const static unsigned int WINDOW_TYPE_SPLASH        =   0x20;
-  const static unsigned int WINDOW_TYPE_DIALOG        =   0x40;
-  const static unsigned int WINDOW_TYPE_DROPDOWN_MENU =   0x80;
-  const static unsigned int WINDOW_TYPE_POPUP_MENU    =  0x100;
-  const static unsigned int WINDOW_TYPE_TOOLTIP       =  0x200;
-  const static unsigned int WINDOW_TYPE_NOTIFICATION  =  0x400;
-  const static unsigned int WINDOW_TYPE_COMBO         =  0x800;
-  const static unsigned int WINDOW_TYPE_DND           = 0x1000;
-  const static unsigned int WINDOW_TYPE_NORMAL        = 0x2000;
+  static const unsigned int WINDOW_TYPE_DESKTOP       =    0x1;
+  static const unsigned int WINDOW_TYPE_DOCK          =    0x2;
+  static const unsigned int WINDOW_TYPE_TOOLBAR       =    0x4;
+  static const unsigned int WINDOW_TYPE_MENU          =    0x8;
+  static const unsigned int WINDOW_TYPE_UTILITY       =   0x10;
+  static const unsigned int WINDOW_TYPE_SPLASH        =   0x20;
+  static const unsigned int WINDOW_TYPE_DIALOG        =   0x40;
+  static const unsigned int WINDOW_TYPE_DROPDOWN_MENU =   0x80;
+  static const unsigned int WINDOW_TYPE_POPUP_MENU    =  0x100;
+  static const unsigned int WINDOW_TYPE_TOOLTIP       =  0x200;
+  static const unsigned int WINDOW_TYPE_NOTIFICATION  =  0x400;
+  static const unsigned int WINDOW_TYPE_COMBO         =  0x800;
+  static const unsigned int WINDOW_TYPE_DND           = 0x1000;
+  static const unsigned int WINDOW_TYPE_NORMAL        = 0x2000;
 
   unsigned int window_type_flags() const { return window_type_flags_; }
 
@@ -878,9 +878,9 @@ public:
 
   friend class WM;
 
-  const static float initial_priority = 1.0f;
-  const static float minimum_priority = 0.1f;
-  const static float maximum_priority = 10.0f;
+  static const float initial_priority = 1.0f;
+  static const float minimum_priority = 0.1f;
+  static const float maximum_priority = 10.0f;
 
   float priority() const { return priority_; }
 
