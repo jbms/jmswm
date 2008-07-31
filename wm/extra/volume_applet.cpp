@@ -158,11 +158,12 @@ VolumeAppletState::VolumeAppletState(WM &wm, const style::Spec &style_spec,
         handle = 0;
         sid = 0;
         cell = WBar::CellRef();
+        WARN("failed to get channel volume");
       }
     }
 
     
-
+    WARN("No alsa error, should be working");
   } catch (std::exception &e)
   {
     WARN("ALSA error: %s", e.what());
@@ -198,36 +199,9 @@ bool VolumeAppletState::get_channel_volume(int &volume_percent, bool &muted)
   if (snd_mixer_selem_has_common_volume(elem)
       || snd_mixer_selem_has_playback_volume(elem)) {
     snd_mixer_selem_get_playback_volume_range(elem, &pmin, &pmax);
-  }
-
-  pmono = snd_mixer_selem_has_playback_channel(elem, SND_MIXER_SCHN_MONO) &&
-    (snd_mixer_selem_is_playback_mono(elem) || 
-     (!snd_mixer_selem_has_playback_volume(elem) &&
-      !snd_mixer_selem_has_playback_switch(elem)));
-    
-  for (chn = (snd_mixer_selem_channel_id_t)0;
-       chn <= SND_MIXER_SCHN_LAST;
-       chn = snd_mixer_selem_channel_id_t((int)chn + 1)) {
-    bool found = false;
-    if (pmono || !snd_mixer_selem_has_playback_channel(elem, chn))
-      continue;
-    if (!snd_mixer_selem_has_common_volume(elem)) {
-      if (snd_mixer_selem_has_playback_volume(elem)) {
-        snd_mixer_selem_get_playback_volume(elem, chn, &pvol);
-        found = true;
-        total_found = true;
-      }
-    }
-    if (!snd_mixer_selem_has_common_switch(elem)) {
-      if (snd_mixer_selem_has_playback_switch(elem)) {
-        snd_mixer_selem_get_playback_switch(elem, chn, &psw);
-        total_found = true;
-      }
-    }
-  }
-
-  if (!total_found)
-    return false;
+    snd_mixer_selem_get_playback_volume(elem, SND_MIXER_SCHN_MONO, &pvol);
+    snd_mixer_selem_get_playback_switch(elem, SND_MIXER_SCHN_MONO, &psw);
+  } else return false;
 
   muted = psw ? false : true;
   volume_percent = convert_prange(pvol, pmin, pmax);
