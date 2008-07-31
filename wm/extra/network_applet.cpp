@@ -21,7 +21,7 @@ class NetworkAppletState
   WBar::CellRef placeholder;
   boost::optional<WBar::CellRef> cell;
 
-  ifreq req_ipw, req_bcm;
+  ifreq req_wlan, req_eth;
   int skfd;
 
   void event_handler();
@@ -46,8 +46,8 @@ NetworkAppletState::NetworkAppletState(WM &wm,
   skfd = iw_sockets_open();
 
   // Initialize req structs
-  strncpy(req_bcm.ifr_name, "bcm", IFNAMSIZ);
-  strncpy(req_ipw.ifr_name, "ipw", IFNAMSIZ);
+  strncpy(req_eth.ifr_name, "eth", IFNAMSIZ);
+  strncpy(req_wlan.ifr_name, "wlan", IFNAMSIZ);
 
   wd = inotify.add_watch(network_status_filename, IN_ATTRIB);
 
@@ -83,10 +83,10 @@ void NetworkAppletState::event_handler()
 
   ascii_string str;
 
-  if (get_iface_address(req_bcm, skfd))
+  if (get_iface_address(req_eth, skfd))
   {
-    str = "bcm";
-  } else if (get_iface_address(req_ipw, skfd))
+    str = "eth";
+  } else if (get_iface_address(req_wlan, skfd))
   {
     std::ostringstream ostr;
     
@@ -98,7 +98,7 @@ void NetworkAppletState::event_handler()
     wrq.u.essid.pointer = (caddr_t) essid;
     wrq.u.essid.length = IW_ESSID_MAX_SIZE + 1;
     wrq.u.essid.flags = 0;
-    if(iw_get_ext(skfd, "ipw", SIOCGIWESSID, &wrq) >= 0)
+    if(iw_get_ext(skfd, "wlan", SIOCGIWESSID, &wrq) >= 0)
     {
       if (wrq.u.data.flags)
         essidOn = true;
@@ -109,7 +109,7 @@ void NetworkAppletState::event_handler()
       
         // Get link quality
 
-        int linkFd = open("/sys/class/net/ipw/wireless/link", O_RDONLY);
+        int linkFd = open("/sys/class/net/wlan/wireless/link", O_RDONLY);
         char linkQualityBuffer[10];
         int linkQuality = -1;
         if (linkFd >= 0) {
@@ -123,7 +123,7 @@ void NetworkAppletState::event_handler()
 
         if (linkQuality >= 0)
         {
-          ostr << "ipw: " << essid << " " << (linkQuality + 5) / 10;
+          ostr << "wlan: " << essid << " " << (linkQuality + 5) / 10;
           str = ostr.str();
         }
       }
