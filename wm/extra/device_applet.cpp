@@ -10,7 +10,6 @@
 #include <fstream>
 #include <fcntl.h>
 
-static const char *autofs_map_file = "/etc/autofs/auto.auto";
 static const char *mount_list = "/proc/mounts";
 
 STYLE_DEFINITION(DeviceAppletStyle,
@@ -30,7 +29,6 @@ class DeviceAppletState
 
   void inotify_handler(int wd, uint32_t mask, uint32_t cookie,
                        const char *pathname);
-  void update_all_devices();
   void update_cells();
   void monitor_mounts();
 public:
@@ -48,72 +46,48 @@ DeviceAppletState::DeviceAppletState(WM &wm,
 {
   placeholder = wm.bar.placeholder(position);
 
-  inotify.add_watch("/dev/disk/by-uuid/", IN_CREATE | IN_DELETE);
+  inotify.add_watch("/dev/disk/by-path/", IN_CREATE | IN_DELETE);
 
   ignore_present.insert("cdrom");
 
-  update_all_devices();
   update_cells();
   // FIXME: make this support this applet being unloaded
   boost::thread(boost::bind(&DeviceAppletState::monitor_mounts, this));
 }
 
-void DeviceAppletState::update_all_devices()
-{
-  static const boost::regex map_regex(" *([^ ]*) *[^ ]* *:([^ ]*) *");
-  std::ifstream ifs(autofs_map_file);
-  std::string line;
-  boost::smatch match;
-  all_devices.clear();
-  while (getline(ifs, line))
-  {
-    if (regex_match(line, match, map_regex))
-      all_devices.push_back(std::make_pair(match[1], match[2]));
-  }
-}
-
 void DeviceAppletState::update_cells()
 {
-  typedef std::map<dev_t, utf8_string> DevNumMap;
   typedef std::map<utf8_string, bool> DevMountedMap;
-  DevNumMap dev_num_map;
   DevMountedMap dev_mounted_map;
-  struct stat st;
-  for (DeviceList::const_iterator it = all_devices.begin(), end = all_devices.end();
-       it != end;
-       ++it)
-  {
-    if (stat(it->second.c_str(), &st) == 0
-        && (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode)))
-    {
-      dev_num_map.insert(std::make_pair(st.st_rdev, it->first));
-      dev_mounted_map.insert(std::make_pair(it->first, false));
-    }
-  }
-
 
   {
     std::ifstream ifs(mount_list);
     std::string line;
     while (getline(ifs, line))
     {
-      std::string::size_type pos = line.find(' ');
-      if (pos != std::string::npos)
-      {
-        std::string dev = line.substr(0, pos);
-        if (stat(dev.c_str(), &st) == 0
-            && (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode)))
-        {
-          DevNumMap::const_iterator it = dev_num_map.find(st.st_rdev);
-          if (it != dev_num_map.end())
-          {
-            dev_mounted_map[it->second] = true;
-          }
-        }
+      std::string::size_type pos, pos2, pos3, mount_sep;
+      if ((pos = line.find(' ')) == std::string::npos)
+        continue;
+      if ((pos2 = line.find(' ', pos + 1)) == std::string::npos)
+        continue;
+      if ((pos3 = line.find(' ', pos2 + 1)) == std::string::npos)
+        continue;
+      std::string mount_point = line.substr(pos + 1, pos2 - pos - 1);
+      std::string fs_type = line.substr(pos2 + 1, pos3 - pos2 - 1);
+      mount_sep = mount_point.find('/', 1);
+      if (mount_sep == std::string::npos)
+        continue;
+      std::string mount_name = mount_point.substr(mount_sep + 1);
+      if (fs_type == "autofs")
+        dev_mounted_map[mount_name] = false;
+      else {
+        DevMountedMap::iterator it = dev_mounted_map.find(mount_name);
+        if (it != dev_mounted_map.end())
+          it->second = true;
       }
     }
   }
-  
+
   cells.clear();
 
   for (DevMountedMap::const_iterator it = dev_mounted_map.begin(), end = dev_mounted_map.end();
@@ -148,7 +122,7 @@ void DeviceAppletState::monitor_mounts()
     FD_ZERO(&rfds);
     FD_SET(mount_fd, &rfds);
 
-    
+
     int retval;
     while ((retval = select(mount_fd + 1, &rfds, NULL, NULL, NULL)) == -1 && errno == EINTR)
       continue;
