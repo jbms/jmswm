@@ -19,6 +19,7 @@ def v_release(env):
     env.append_unique('CXXFLAGS', ['-O2'])
 
 def v_debug(env):
+    env.append_unique('CXXFLAGS', ['-ggdb'])
     pass
 
 def v_profile(env):
@@ -45,13 +46,11 @@ def variant_list(variants = build_variants, base = [('', [])]):
     return all_out
 
 def configure(conf):
-    conf.env.CXX = 'g++-4.5.1'
     conf.load('compiler_cxx')
     conf.load('cxx_autodep', tooldir='waftools')
     conf.env.append_unique('INCLUDES', ['src'])
-    conf.env.CXXFLAGS = ['-ggdb', 
+    conf.env.CXXFLAGS = ['-ggdb',
 #                         '-DBOOST_RESULT_OF_USE_DECLTYPE',
-                         '-fno-pretty-templates',
                          '-Wall', '-march=native']
 
     conf.env.cxx_autodep_header_uselib_map = {

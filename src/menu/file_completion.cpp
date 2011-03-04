@@ -209,7 +209,7 @@ for x in $(echo $LS_COLORS | tr ':' '\n' | grep -o '\.[^=]*' | tr -d '.'); do ec
       using boost::filesystem::path;
       using boost::filesystem::directory_iterator;
       using boost::algorithm::starts_with;
-  
+
       std::string prefix;
       std::string base;
       {
@@ -225,7 +225,7 @@ for x in $(echo $LS_COLORS | tr ':' '\n' | grep -o '\.[^=]*' | tr -d '.'); do ec
           base = "";
         }
       }
-  
+
       std::vector<menu::list_completion::Entry> list;
       try
       {
@@ -233,7 +233,7 @@ for x in $(echo $LS_COLORS | tr ':' '\n' | grep -o '\.[^=]*' | tr -d '.'); do ec
              it != end; ++it)
         {
           const boost::filesystem::path &p = it->path();
-          std::string leaf = p.leaf();
+          std::string leaf = p.leaf().native();
           if (starts_with(leaf, ".") && !starts_with(prefix, "."))
             continue;
           if (starts_with(leaf, prefix))
@@ -260,6 +260,6 @@ for x in $(echo $LS_COLORS | tr ':' '\n' | grep -o '\.[^=]*' | tr -d '.'); do ec
     {
       return boost::bind(&file_completions, default_dir, _1, boost::cref(styler));
     }
-    
+
   } // namespace file_completion
 } // namespace menu

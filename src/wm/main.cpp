@@ -36,7 +36,7 @@ void get_xprop_info_for_current_client(WM &wm)
   {
     Window w = frame->client().xwin();
     char id[30];
-    sprintf(id, "0x%08x", w);
+    sprintf(id, "0x%016lx", (uint64_t)w);
     spawnl(0, terminal_emulator, terminal_emulator, "-hold",
            "-e", "xprop", "-id", id, (const char *)0);
   }
@@ -48,7 +48,7 @@ void get_xwininfo_info_for_current_client(WM &wm)
   {
     Window w = frame->client().xwin();
     char id[30];
-    sprintf(id, "0x%08x", w);
+    sprintf(id, "0x%016lx", (uint64_t)w);
     spawnl(0, terminal_emulator, terminal_emulator, "-hold",
            "-e", "xwininfo", "-all", "-id", id, (const char *)0);
   }
@@ -158,8 +158,6 @@ void dictionary_lookup_interactive(WM &wm)
 
 int main(int argc, char **argv)
 {
-
-  boost::filesystem::path::default_name_check(boost::filesystem::no_check);
 
   /* Set up child handling */
   {

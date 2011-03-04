@@ -187,7 +187,7 @@ namespace
     boost::filesystem::ifstream ifs(path());
     std::string line;
     if (!ifs)
-      WARN("failed to open org list file: %s", path().native_file_string().c_str());
+      WARN("failed to open org list file: %s", path().c_str());
     std::set<boost::filesystem::path> new_paths;
     while (getline(ifs, line))
     {

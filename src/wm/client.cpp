@@ -494,9 +494,6 @@ void WClient::perform_scheduled_tasks()
 {
   assert(scheduled_tasks != 0);
 
-  wm().scheduled_task_clients.erase(wm().scheduled_task_clients.iterator_to(*this));
-
-
   WFrame *f = visible_frame();
 
   if (scheduled_tasks & UPDATE_SERVER_FLAG)

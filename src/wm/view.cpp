@@ -72,8 +72,6 @@ void WView::perform_scheduled_tasks()
 {
   assert(scheduled_update_positions);
 
-  wm().scheduled_task_views.erase(wm().scheduled_task_views.iterator_to(*this));
-
   scheduled_update_positions = false;
 
   if (columns.empty())
@@ -226,8 +224,6 @@ void WM::handle_selected_frame_changed(WFrame *old_frame, WFrame *new_frame)
 void WColumn::perform_scheduled_tasks()
 {
   assert(scheduled_update_positions);
-
-  wm().scheduled_task_columns.erase(wm().scheduled_task_columns.iterator_to(*this));
   scheduled_update_positions = false;
 
   if (frames.empty())

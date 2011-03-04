@@ -41,7 +41,7 @@ void EventService::handle_post_event(int, short, void *ptr)
     int result = read(s->post_read, buffer, buffer_size);
     if (result == -1)
     {
-      if (errno = EINTR)
+      if (errno == EINTR)
         continue;
       else
         ERROR_SYS("post read");
@@ -199,7 +199,7 @@ void TimerEvent::wait_for(long seconds, long microsecs)
   struct timeval tv;
   tv.tv_sec = seconds;
   tv.tv_usec = microsecs;
-  
+
   if (event_add(&ev, &tv) != 0)
     ERROR_SYS("event_add");
 }
@@ -207,7 +207,7 @@ void TimerEvent::wait_for(long seconds, long microsecs)
 void TimerEvent::wait(const time_duration &duration)
 {
   struct timeval tv = to_timeval(duration);
-  
+
   if (event_add(&ev, &tv) != 0)
     ERROR_SYS("event_add");
 }

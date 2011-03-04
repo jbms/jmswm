@@ -84,7 +84,7 @@ namespace style
     const StyleEntryValue *entry;
     do
     {
-      if (entry = lookup(context, path.front()))
+      if ((entry = lookup(context, path.front())))
         break;
       context = context->context;
       if (!context)
@@ -112,8 +112,8 @@ namespace style
   public:
     typedef ScannerT scanner_type;
   private:
-    ScannerT scanner;
     DBState &db_state;
+    ScannerT scanner;
     std::stack<StyleSpecData *> context;
     int include_depth;
     boost::filesystem::path path;
@@ -143,8 +143,8 @@ namespace style
   public:
     class Error : public std::exception
     {
-      iterator error_pos;
       std::string message_;
+      iterator error_pos;
     public:
       Error(const std::string &message_, iterator error_pos)
         : message_(message_), error_pos(error_pos)

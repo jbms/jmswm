@@ -173,15 +173,26 @@ void WView::schedule_update_positions()
 
 void WM::flush(void)
 {
+  {
+    ScheduledTaskViewList temp;
+    temp.swap(scheduled_task_views);
+    BOOST_FOREACH (WView &v, temp)
+      v.perform_scheduled_tasks();
+  }
 
-  BOOST_FOREACH (WView &v, scheduled_task_views)
-    v.perform_scheduled_tasks();
+  {
+    ScheduledTaskColumnList temp;
+    temp.swap(scheduled_task_columns);
+    BOOST_FOREACH (WColumn &c, temp)
+      c.perform_scheduled_tasks();
+  }
 
-  BOOST_FOREACH (WColumn &c, scheduled_task_columns)
-    c.perform_scheduled_tasks();
-
-  BOOST_FOREACH (WClient &c, scheduled_task_clients)
-    c.perform_scheduled_tasks();
+  {
+    ScheduledTaskClientList temp;
+    temp.swap(scheduled_task_clients);
+    BOOST_FOREACH (WClient &c, temp)
+      c.perform_scheduled_tasks();
+  }
 
   if (scheduled_set_input_focus_to_root)
   {
