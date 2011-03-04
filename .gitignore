@@ -3,3 +3,5 @@
 /build/
 /external/
 /.lock-wafbuild
+/jmswm
+/jmswm.backup
