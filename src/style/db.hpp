@@ -21,7 +21,7 @@ namespace style
     LoadError(std::string message_, std::string filename_,
               std::string line_ = std::string(),
               int line_number_ = 0, int column_number_ = 0)
-      : message_(message_), filename_(filename_),
+      : filename_(filename_), message_(message_),
         line_(line_),
         line_number_(line_number_), column_number_(column_number_)
     {}
@@ -62,12 +62,12 @@ namespace style
     template<class T>
     T get(const ascii_string &identifier) const;
   };
-  
-  
+
+
   class DB
   {
     std::auto_ptr<DBState> state;
-  
+
   public:
     DB();
     ~DB();
@@ -78,7 +78,7 @@ namespace style
 
     Spec operator[](const ascii_string &identifier) const { return get(identifier); }
   };
-  
+
 } // namespace style
 
 #endif /* _STYLE_DB_HPP */

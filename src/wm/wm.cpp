@@ -1,4 +1,10 @@
 #include <wm/all.hpp>
+#include "wm/client.hpp"  // ensure that client.cpp is linked in
+#include "wm/view.hpp"  // ensure that view.cpp is linked in
+#include "wm/frame.hpp"  // ensure that frame.cpp is linked in
+#include "wm/persistence.hpp"  // ensure that persistence.cpp is linked in
+#include "wm/sizehint.hpp"  // ensure that sizehint.cpp is linked in
+#include "wm/event.hpp"  // ensure that event.cpp is linked in
 
 /* Error handler based on Ion code */
 /* Copyright (c) Tuomo Valkonen 1999-2006. */

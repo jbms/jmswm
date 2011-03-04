@@ -17,7 +17,7 @@ void WCommandList::add(const ascii_string &name,
 
 menu::Menu::Completer WCommandList::completer(const menu::list_completion::EntryStyle &style) const
 {
-  return prefix_completer(boost::make_transform_range(commands, select1st), style);
+  return prefix_completer(boost::adaptors::transform(commands, select1st_compat<const ascii_string&>()), style);
 }
 
 void WCommandList::execute(const ascii_string &name) const
@@ -140,7 +140,7 @@ void move_down(WM &wm)
       it = frame->column()->frames.begin();
     else
       it = boost::next(boost::next(cur));
-    
+
     if (it != cur)
     {
       frame->column()->frames.splice(it, frame->column()->frames, cur);
@@ -272,7 +272,7 @@ void execute_shell_command_cwd_interactive(WM &wm)
     getcwd(buf, 256);
     cwd = compact_path_home(buf);
   }
-  
+
   wm.menu.read_string(cwd + " $", menu::InitialState(),
                       boost::bind(&execute_shell_command_cwd, _1, cwd));
 }
@@ -290,7 +290,7 @@ void switch_to_view_interactive(WM &wm, const menu::list_completion::EntryStyle 
   wm.menu.read_string("Switch to tag:", menu::InitialState(),
                       boost::bind(&switch_to_view, boost::ref(wm), _1),
                       menu::Menu::FailureAction(),
-                      prefix_completer(boost::make_transform_range(wm.views(), select1st), style),
+                      prefix_completer(boost::adaptors::transform(wm.views(), select1st_compat<ascii_string const &>()), style),
                       false /* no delay */);
 }
 
@@ -328,7 +328,7 @@ void move_frame_to_view(const weak_iptr<WFrame> &weak_frame,
     }
     if (frame->client().frame_by_view(view))
       return;
-    
+
     frame->remove();
     place_frame_in_smallest_column(view, frame);
   }
@@ -343,7 +343,7 @@ void move_current_frame_to_other_view_interactive(WM &wm, const menu::list_compl
                         boost::bind(&move_frame_to_view, weak_iptr<WFrame>(frame), _1),
                         menu::Menu::FailureAction(),
                         menu::list_completion::prefix_completer
-                        (boost::make_transform_range(wm.views(), select1st), style),
+                        (boost::adaptors::transform(wm.views(), select1st_compat<ascii_string const &>()), style),
                         false /* no delay */);
   }
 }
@@ -376,7 +376,7 @@ void copy_current_frame_to_other_view_interactive(WM &wm, const menu::list_compl
                         boost::bind(&copy_frame_to_view, weak_iptr<WFrame>(frame), _1),
                         menu::Menu::FailureAction(),
                         menu::list_completion::prefix_completer
-                        (boost::make_transform_range(wm.views(), select1st), style),
+                        (boost::adaptors::transform(wm.views(), select1st_compat<ascii_string const &>()), style),
                         false /* no delay */);
   }
 }
@@ -401,8 +401,9 @@ void copy_marked_frames_to_current_view(WM &wm)
   /**
    * Note: BOOST_FOREACH can be used here because the loop contents doesn't change
    */
-  BOOST_FOREACH (WView *view, boost::make_transform_range(wm.views(), select2nd))
+  BOOST_FOREACH (WM::ViewMap::value_type const &view_pair, wm.views())
   {
+    WView *view = view_pair.second;
     BOOST_FOREACH (WColumn &col, view->columns)
     {
       BOOST_FOREACH (WFrame &frame, col.frames)
@@ -450,11 +451,11 @@ void move_marked_frames_to_current_view(WM &wm)
       {
         frame_next = boost::next(frame_it);
         WFrame &frame = *frame_it;
-        
+
         if (!frame.marked())
           continue;
         frame.set_marked(false);
-        
+
         frame.remove();
         if (frame.client().frame_by_view(wm.selected_view()))
           delete &frame;
@@ -475,7 +476,7 @@ void move_next_by_activity_in_column(WM &wm)
   {
     WColumn *column = frame->column();
     WColumn::FrameListByActivity::iterator it
-      = column->frames_by_activity().current(*frame);
+      = column->frames_by_activity().iterator_to(*frame);
     ++it;
     if (it == column->frames_by_activity().end())
       it = column->frames_by_activity().begin();
@@ -490,7 +491,7 @@ void move_next_by_activity_in_view(WM &wm)
   {
     WView *view = frame->view();
     WView::FrameListByActivity::iterator it
-      = view->frames_by_activity().current(*frame);
+      = view->frames_by_activity().iterator_to(*frame);
     ++it;
     if (it == view->frames_by_activity().end())
       it = view->frames_by_activity().begin();
@@ -504,7 +505,7 @@ void move_next_by_activity(WM &wm)
   if (WFrame *frame = wm.selected_frame())
   {
     WM::FrameListByActivity::iterator it
-      = wm.frames_by_activity().current(*frame);
+      = wm.frames_by_activity().iterator_to(*frame);
     ++it;
     if (it == wm.frames_by_activity().end())
       it = wm.frames_by_activity().begin();

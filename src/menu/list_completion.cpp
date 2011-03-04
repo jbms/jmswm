@@ -64,8 +64,9 @@ namespace menu
       int available_height = height - (style.border_pixels + 2 * style.completions_spacing);
 
       int maximum_width = 0;
-      BOOST_FOREACH (const utf8_string &str, boost::make_transform_range(completions, select1st))
-      {
+      BOOST_FOREACH (const Entry &e, completions) {
+        const utf8_string &str = e.first;
+
         if ((int)str.size() > maximum_width)
           maximum_width = (int)str.size();
       }

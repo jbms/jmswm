@@ -69,10 +69,10 @@ static WColumn::iterator get_frame_insert_position(WColumn *column, int index)
 
 struct PersistentColumnInfo
 {
-  
+
   bool selected;
   float priority;
-  
+
   template <class Archive>
   void serialize(Archive &ar, const unsigned int version)
   {
@@ -126,7 +126,7 @@ struct PersistentWMInfo
   PersistentWMInfo() {}
   PersistentWMInfo(WM &wm)
   {
-    BOOST_FOREACH (WView *view, boost::make_transform_range(wm.views(), select2nd))
+    BOOST_FOREACH (WView *view, boost::adaptors::transform(wm.views(), select2nd_compat<WView*>()))
       views.push_back(PersistentViewInfo(view));
   }
 };
@@ -178,7 +178,7 @@ struct PersistentClientInfo
   PersistentClientInfo() {}
   PersistentClientInfo(WClient *client)
   {
-    BOOST_FOREACH (WFrame *frame, boost::make_transform_range(client->view_frames(), select2nd))
+    BOOST_FOREACH (WFrame *frame, boost::adaptors::transform(client->view_frames(), select2nd_compat<WFrame*>()))
       frames.push_back(PersistentFrameInfo(frame));
   }
 };
@@ -209,7 +209,7 @@ void WM::save_state_to_server()
   /**
    * Save client information to each client
    */
-  BOOST_FOREACH (WClient *client, boost::make_transform_range(managed_clients, select2nd))
+  BOOST_FOREACH (WClient *client, boost::adaptors::transform(managed_clients, select2nd_compat<WClient*>()))
   {
     std::ostringstream ostr;
     try
@@ -289,7 +289,7 @@ void WM::load_state_from_server()
 
       if (w == bar.xwin() || w == menu.xwin() || w == menu.completions_xwin())
         continue;
-      
+
       manage_client(top_level_windows[i], false);
     }
     XFree(top_level_windows);
@@ -312,7 +312,7 @@ void WM::load_state_from_server()
     {
       col_next = boost::next(col_it);
       WColumn &col = *col_it;
-      
+
       if (col.frames.empty())
         delete &col;
     }
@@ -368,9 +368,9 @@ bool WM::place_existing_client(WClient *client)
     frame->set_priority(f.priority);
     frame->set_shaded(f.shaded);
     frame->set_decorated(f.decorated);
-    
+
     WColumn::iterator pos = get_frame_insert_position(column, f.position);
-    
+
     column->add_frame(frame, pos);
     if (f.selected)
       column->select_frame(frame);
@@ -383,6 +383,6 @@ bool WM::place_existing_client(WClient *client)
 void WM::start_saving_state_to_server()
 {
   save_state_event.wait(time_duration::seconds(10));
-  
+
   save_state_to_server();
 }

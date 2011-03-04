@@ -81,7 +81,7 @@ void WBar::draw()
 {
   WDrawable &d = wm().buffer_pixmap.drawable();
   WRect rect(0, 0, bounds.width, bounds.height);
-  
+
   fill_rect(d, style.background_color, rect);
 
   draw_border(d, style.highlight_color, style.highlight_pixels,
@@ -101,7 +101,7 @@ void WBar::draw()
     // Check for placeholders
     if (!c.foreground_color || !c.background_color || c.text.empty())
       continue;
-    
+
     int width = draw_label_with_background(d, c.text,
                                            style.label_font,
                                            *c.foreground_color,
@@ -116,12 +116,12 @@ void WBar::draw()
     rect3.x += width + style.cell_spacing;
   }
 
-  BOOST_FOREACH (Cell &c, boost::make_reverse_range(cells[RIGHT]))
+  BOOST_REVERSE_FOREACH (Cell &c, cells[RIGHT])
   {
     // Check for placeholders
     if (!c.foreground_color || !c.background_color || c.text.empty())
       continue;
-    
+
     int width = draw_label_with_background(d, c.text,
                                            style.label_font,
                                            *c.foreground_color,
@@ -145,10 +145,10 @@ void WBar::draw()
 void WBar::handle_screen_size_changed()
 {
   compute_bounds();
-  
+
   if (!wm().bar_visible())
     return;
-  
+
   scheduled_update_server = true;
 }
 
@@ -156,41 +156,41 @@ void WBar::handle_expose(const XExposeEvent &ev)
 {
   if (!wm().bar_visible())
     return;
-  
+
   scheduled_draw = true;
 }
 
 void WBar::CellRef::set_text(const utf8_string &str)
 {
   cell->text = str;
-  
+
   if (!cell->bar.wm().bar_visible())
     return;
-  
+
   cell->bar.scheduled_draw = true;
 }
 
 void WBar::CellRef::set_foreground(const WColor &c)
 {
   cell->foreground_color = &c;
-  
+
   if (!cell->bar.wm().bar_visible())
     return;
-  
+
   cell->bar.scheduled_draw = true;
 }
 
 void WBar::CellRef::set_background(const WColor &c)
 {
   cell->background_color = &c;
-  
+
   if (cell->bar.wm().bar_visible())
     cell->bar.scheduled_draw = true;
 }
 
 WBar::Cell::~Cell()
 {
-  bar.cells[position].erase(bar.cells[position].current(*this));
+  bar.cells[position].erase(bar.cells[position].iterator_to(*this));
 
   if (bar.wm().bar_visible())
     bar.scheduled_draw = true;
@@ -218,7 +218,7 @@ void WBar::initialize()
   XSetWindowAttributes wa;
   wa.event_mask = ExposureMask;
   wa.override_redirect = True;
-  
+
   xwin_ = XCreateWindow(wm().display(), wm().root_window(),
                         bounds.x, bounds.y, bounds.width, bounds.height,
                         0,
@@ -228,7 +228,7 @@ void WBar::initialize()
                         CWEventMask | CWOverrideRedirect, &wa);
 
   current_window_bounds = bounds;
-  
+
   initialized = true;
 }
 
@@ -241,10 +241,10 @@ WBar::CellRef WBar::insert_end(cell_position_t position,
                                const boost::shared_ptr<Cell> &cell)
 {
   cells[position].push_back(*cell);
-  
+
   if (wm().bar_visible())
     scheduled_draw = true;
-  
+
   return CellRef(cell);
 }
 
@@ -254,7 +254,7 @@ WBar::CellRef WBar::insert_begin(cell_position_t position,
   cells[position].push_front(*cell);
   if (wm().bar_visible())
     scheduled_draw = true;
-  
+
   return CellRef(cell);
 }
 
@@ -264,24 +264,24 @@ WBar::CellRef WBar::insert_after(const CellRef &ref,
                                  const boost::shared_ptr<Cell> &cell)
 {
   assert(ref.cell->position == position);
-  cells[position].insert(boost::next(cells[position].current(*ref.cell)), *cell);
-  
+  cells[position].insert(boost::next(cells[position].iterator_to(*ref.cell)), *cell);
+
   if (wm().bar_visible())
     scheduled_draw = true;
-  
+
   return CellRef(cell);
 }
 
 WBar::CellRef WBar::insert_before(const CellRef &ref,
                                   cell_position_t position,
-                                  const boost::shared_ptr<Cell> &cell)                                  
+                                  const boost::shared_ptr<Cell> &cell)
 {
   assert(ref.cell->position == position);
-  cells[position].insert(cells[position].current(*ref.cell), *cell);
-  
+  cells[position].insert(cells[position].iterator_to(*ref.cell), *cell);
+
   if (wm().bar_visible())
     scheduled_draw = true;
-  
+
   return CellRef(cell);
 }
 
@@ -295,13 +295,13 @@ WBar::CellRef WBar::insert(const InsertPosition &pos,
   {
   case InsertPosition::BEFORE:
     return insert_before(pos.ref, pos.ref.cell->position, cell);
-    
+
   case InsertPosition::AFTER:
     return insert_after(pos.ref, pos.ref.cell->position, cell);
-    
+
   case InsertPosition::BEGIN:
     return insert_begin(pos.side, cell);
-    
+
   case InsertPosition::END:
   default:
     return insert_end(pos.side, cell);
@@ -316,13 +316,13 @@ WBar::CellRef WBar::placeholder(const InsertPosition &pos)
   {
   case InsertPosition::BEFORE:
     return insert_before(pos.ref, pos.ref.cell->position, cell);
-    
+
   case InsertPosition::AFTER:
     return insert_after(pos.ref, pos.ref.cell->position, cell);
-    
+
   case InsertPosition::BEGIN:
     return insert_begin(pos.side, cell);
-    
+
   case InsertPosition::END:
   default:
     return insert_end(pos.side, cell);

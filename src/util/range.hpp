@@ -3,11 +3,7 @@
 
 #include <boost/foreach.hpp>
 #include <boost/range.hpp>
-//#include <boost/range_ex/algorithm.hpp>
-#include <boost/range_ex/filter.hpp>
-#include <boost/range_ex/indirect.hpp>
-#include <boost/range_ex/reverse.hpp>
-#include <boost/range_ex/transform.hpp>
+#include <boost/range/adaptors.hpp>
 
 #include <boost/type_traits/add_const.hpp>
 #include <boost/type_traits/add_reference.hpp>
@@ -57,6 +53,46 @@ static struct select1st_type
     return x.first;
   }
 } select1st;
+
+template <typename ResultType>
+struct select1st_compat {
+  typedef ResultType result_type;
+
+  template <class T>
+  typename boost::add_reference<typename T::first_type>::type
+  operator()(T &x) const
+  {
+    return x.first;
+  }
+
+  template <class T>
+  typename boost::add_reference<typename boost::add_const<typename T::first_type>::type>::type
+  operator()(const T &x) const
+  {
+    return x.first;
+  }
+};
+
+
+template <typename ResultType>
+struct select2nd_compat {
+  typedef ResultType result_type;
+
+  template <class T>
+  typename boost::add_reference<typename T::second_type>::type
+  operator()(T &x) const
+  {
+    return x.second;
+  }
+
+  template <class T>
+  typename boost::add_reference<typename boost::add_const<typename T::second_type>::type>::type
+  operator()(const T &x) const
+  {
+    return x.second;
+  }
+};
+
 
 
 static struct select2nd_type

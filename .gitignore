@@ -1,8 +1,5 @@
-syntax: glob
 
-*.d
-*.o
-jmswm*
-*.a
-boost/*
-chaos
+/*.waf*/
+/build/
+/external/
+/.lock-wafbuild

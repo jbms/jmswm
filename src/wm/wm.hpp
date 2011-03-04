@@ -4,7 +4,7 @@
 #include <sys/types.h>
 #include <util/event.hpp>
 
-#include <boost/intrusive/ilist.hpp>
+#include <boost/intrusive/list.hpp>
 #include <map>
 
 #include <X11/Xlib.h>
@@ -15,7 +15,7 @@
 #include <X11/Xatom.h>
 #include <X11/cursorfont.h>
 
-#include <draw/draw.hpp>
+#include "draw/draw.hpp"
 
 #include <signal.h>
 
@@ -62,6 +62,18 @@ const long WM_EVENT_MASK_FRAMEWIN = (SubstructureRedirectMask |
                                      KeyPressMask |
                                      EnterWindowMask |
                                      FocusChangeMask);
+
+typedef boost::intrusive::list_base_hook<boost::intrusive::link_mode<boost::intrusive::auto_unlink>,
+                                         boost::intrusive::tag<struct ScheduledTaskList_tag> > ScheduledTaskList_base_hook;
+
+typedef boost::intrusive::list_base_hook<boost::intrusive::tag<struct WColumn_FramesByActivity_tag> >
+WColumn_FramesByActivity_base_hook;
+
+typedef boost::intrusive::list_base_hook<boost::intrusive::tag<struct WView_FramesByActivity_tag> >
+WView_FramesByActivity_base_hook;
+
+typedef boost::intrusive::list_base_hook<boost::intrusive::tag<struct WM_FramesByActivity_tag> >
+WM_FramesByActivity_base_hook;
 
 class WClient;
 class WFrame;
@@ -143,20 +155,18 @@ public:
 
 private:
 
-  typedef boost::intrusive::ilist<
-    boost::intrusive::ilist_auto_base_hook<0>::value_traits<WClient>,
-    false /* constant-time size */
-  > ScheduledTaskClientList;
+  typedef boost::intrusive::list<WClient,
+                                 boost::intrusive::base_hook<ScheduledTaskList_base_hook>,
+                                 boost::intrusive::constant_time_size<false> > ScheduledTaskClientList;
 
-  typedef boost::intrusive::ilist<
-    boost::intrusive::ilist_auto_base_hook<1>::value_traits<WColumn>,
-    false /* constant-time size */
-  > ScheduledTaskColumnList;
+  typedef boost::intrusive::list<WColumn,
+                                 boost::intrusive::base_hook<ScheduledTaskList_base_hook>,
+                                 boost::intrusive::constant_time_size<false> > ScheduledTaskColumnList;
 
-  typedef boost::intrusive::ilist<
-    boost::intrusive::ilist_auto_base_hook<1>::value_traits<WView>,
-    false /* constant-time size */
-  > ScheduledTaskViewList;
+
+  typedef boost::intrusive::list<WView,
+                                 boost::intrusive::base_hook<ScheduledTaskList_base_hook>,
+                                 boost::intrusive::constant_time_size<false> > ScheduledTaskViewList;
 
   ScheduledTaskClientList scheduled_task_clients;
   ScheduledTaskColumnList scheduled_task_columns;
@@ -213,10 +223,7 @@ public:
 
   typedef std::map<utf8_string, WView *> ViewMap;
 
-  typedef boost::intrusive::ilist<
-    boost::intrusive::ilist_base_hook<3, false>::value_traits<WFrame>,
-    true /* constant-time size */
-  > FrameListByActivity;
+  typedef boost::intrusive::list<WFrame, boost::intrusive::base_hook<WM_FramesByActivity_base_hook> > FrameListByActivity;
 
 private:
   WView *selected_view_;
@@ -455,7 +462,7 @@ public:
 
 class WClient
 /* For the WM scheduled work clients list */
-  : public boost::intrusive::ilist_auto_base_hook<0>,
+  : public ScheduledTaskList_base_hook,
 
     public weak_iptr<WClient>::base,
 
@@ -699,16 +706,16 @@ public:
 class WFrame
   :
   /* For WColumn::frames */
-  public boost::intrusive::ilist_base_hook<0, false>,
+  public boost::intrusive::list_base_hook<>,
 
   /* For WColumn::frames_by_activity */
-  public boost::intrusive::ilist_base_hook<1, false>,
+  public WColumn_FramesByActivity_base_hook,
 
   /* For WView::frames_by_activity */
-  public boost::intrusive::ilist_base_hook<2, false>,
+  public WView_FramesByActivity_base_hook,
 
   /* For WM::frames_by_activity */
-  public boost::intrusive::ilist_base_hook<3, false>,
+  public WM_FramesByActivity_base_hook,
 
   public weak_iptr<WFrame>::base,
 
@@ -785,9 +792,10 @@ public:
 class WColumn
   :
   /* For WView::columns */
-  public boost::intrusive::ilist_base_hook<0, false>,
+  public boost::intrusive::list_base_hook<>,
+
   /* For WM::scheduled_task_columns */
-  public boost::intrusive::ilist_auto_base_hook<1>,
+  public ScheduledTaskList_base_hook,
 
   public weak_iptr<WColumn>::base,
 
@@ -818,16 +826,10 @@ public:
    * {{{ Frames
    */
 public:
-  typedef boost::intrusive::ilist<
-    boost::intrusive::ilist_base_hook<0, false>::value_traits<WFrame>,
-    true /* constant-time size */
-    > FrameList;
+  typedef boost::intrusive::list<WFrame> FrameList;
   FrameList frames;
 
-  typedef boost::intrusive::ilist<
-    boost::intrusive::ilist_base_hook<1, false>::value_traits<WFrame>,
-    true /* constant-time size */
-  > FrameListByActivity;
+  typedef boost::intrusive::list<WFrame, boost::intrusive::base_hook<WColumn_FramesByActivity_base_hook> > FrameListByActivity;
 
   typedef FrameList::iterator iterator;
 private:
@@ -850,7 +852,7 @@ public:
   {
     if (!frame)
       return frames.end();
-    return frames.current(*frame);
+    return frames.iterator_to(*frame);
   }
 
   WFrame *get_frame(iterator it)
@@ -907,7 +909,7 @@ public:
 class WView
   :
   /* For WM::deferred_task_views */
-  public boost::intrusive::ilist_auto_base_hook<1>,
+  public ScheduledTaskList_base_hook,
 
   public weak_iptr<WView>::base,
 
@@ -958,15 +960,9 @@ private:
    * {{{ Columns
    */
 public:
-  typedef boost::intrusive::ilist<
-    boost::intrusive::ilist_base_hook<0, false>::value_traits<WColumn>,
-    true /* constant-time size */
-    > ColumnList;
+  typedef boost::intrusive::list<WColumn> ColumnList;
 
-  typedef boost::intrusive::ilist<
-    boost::intrusive::ilist_base_hook<2, false>::value_traits<WFrame>,
-    true /* constant-time size */
-  > FrameListByActivity;
+  typedef boost::intrusive::list<WFrame, boost::intrusive::base_hook<WView_FramesByActivity_base_hook> > FrameListByActivity;
 
   ColumnList columns;
   typedef ColumnList::iterator iterator;
@@ -999,7 +995,7 @@ public:
   {
     if (!column)
       return columns.end();
-    return columns.current(*column);
+    return columns.iterator_to(*column);
   }
 
   WColumn *get_column(iterator it)

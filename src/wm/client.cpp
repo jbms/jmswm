@@ -144,7 +144,7 @@ void WClient::update_size_hints_from_server()
 
   /* Have all columns containing this client update positions, so that
      minimum size and aspect ratio hints are handled. */
-  BOOST_FOREACH (WFrame *f, boost::make_transform_range(view_frames_, select2nd))
+  BOOST_FOREACH (WFrame *f, boost::adaptors::transform(view_frames_, select2nd_compat<WFrame *>()))
     f->column()->schedule_update_positions();
 
   update_fixed_height();
@@ -248,7 +248,7 @@ void WClient::update_fixed_height()
   {
     /* Have all columns containing this client update positions, so that
        the new fixed height is taken into account. */
-    BOOST_FOREACH (WFrame *f, boost::make_transform_range(view_frames_, select2nd))
+    BOOST_FOREACH (WFrame *f, boost::adaptors::transform(view_frames_, select2nd_compat<WFrame*>()))
       f->column()->schedule_update_positions();
   }
 }
@@ -494,7 +494,7 @@ void WClient::perform_scheduled_tasks()
 {
   assert(scheduled_tasks != 0);
 
-  wm().scheduled_task_clients.erase(wm().scheduled_task_clients.current(*this));
+  wm().scheduled_task_clients.erase(wm().scheduled_task_clients.iterator_to(*this));
 
 
   WFrame *f = visible_frame();

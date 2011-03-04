@@ -9,7 +9,7 @@ const static float frame_maximum_priority = 1.0f;
 
 WView::WView(WM &wm, const utf8_string &name)
   : wm_(wm),  name_(name),
-    scheduled_update_positions(false),    
+    scheduled_update_positions(false),
     selected_column_(0),
     bar_visible_(true)
 {
@@ -71,11 +71,11 @@ WView::iterator WView::create_column(WView::iterator position)
 void WView::perform_scheduled_tasks()
 {
   assert(scheduled_update_positions);
-  
-  wm().scheduled_task_views.erase(wm().scheduled_task_views.current(*this));
+
+  wm().scheduled_task_views.erase(wm().scheduled_task_views.iterator_to(*this));
 
   scheduled_update_positions = false;
-  
+
   if (columns.empty())
     return;
 
@@ -83,7 +83,7 @@ void WView::perform_scheduled_tasks()
 
   int available_width = available_column_width();
   int remaining_width = available_width;
-  
+
   BOOST_FOREACH (WColumn &c, columns)
     total_priority += c.priority();
 
@@ -175,7 +175,7 @@ void WM::handle_frame_activity()
     {
       column->frames_by_activity_.splice(column->frames_by_activity_.begin(),
                                          column->frames_by_activity_,
-                                         column->frames_by_activity_.current(*frame));
+                                         column->frames_by_activity_.iterator_to(*frame));
       column->schedule_update_positions();
     }
 
@@ -183,14 +183,14 @@ void WM::handle_frame_activity()
     {
       view->frames_by_activity_.splice(view->frames_by_activity_.begin(),
                                        view->frames_by_activity_,
-                                       view->frames_by_activity_.current(*frame));
+                                       view->frames_by_activity_.iterator_to(*frame));
     }
 
     if (frame != &frames_by_activity_.front())
     {
       frames_by_activity_.splice(frames_by_activity_.begin(),
                                  frames_by_activity_,
-                                 frames_by_activity_.current(*frame));
+                                 frames_by_activity_.iterator_to(*frame));
     }
   }
 }
@@ -226,10 +226,10 @@ void WM::handle_selected_frame_changed(WFrame *old_frame, WFrame *new_frame)
 void WColumn::perform_scheduled_tasks()
 {
   assert(scheduled_update_positions);
-  
-  wm().scheduled_task_columns.erase(wm().scheduled_task_columns.current(*this));
+
+  wm().scheduled_task_columns.erase(wm().scheduled_task_columns.iterator_to(*this));
   scheduled_update_positions = false;
-  
+
   if (frames.empty())
     return;
 
@@ -266,7 +266,7 @@ void WColumn::perform_scheduled_tasks()
     }
 
     bool new_shaded;
-    
+
     if (&f == &frames_by_activity_.front()
         || required_height <= reserved_height)
       new_shaded = false;
@@ -282,7 +282,7 @@ void WColumn::perform_scheduled_tasks()
       if (&f == view()->selected_frame())
         f.client().schedule_set_input_focus();
     }
-    
+
     if (!f.shaded_)
     {
       reserved_height -= required_height;
@@ -324,7 +324,7 @@ void WColumn::perform_scheduled_tasks()
   {
     f.bounds.y = y;
     int height;
-    
+
     if (f.shaded())
       height = shaded_height;
     else
@@ -336,7 +336,7 @@ void WColumn::perform_scheduled_tasks()
         if (f.decorated())
           remaining_fixed_height -= decoration_height;
       }
-      
+
       if (&f == last_flexible)
         height = remaining_unshaded_height - remaining_fixed_height;
       else if (fixed_height)
@@ -361,9 +361,9 @@ void WColumn::perform_scheduled_tasks()
 WColumn::~WColumn()
 {
   assert(frames.empty());
-  
+
   WView::iterator cur_col_it = view()->make_iterator(this);
-      
+
   if (this == view()->selected_column())
   {
     WView::iterator col_it = cur_col_it;
@@ -376,7 +376,7 @@ WColumn::~WColumn()
     else
       view()->select_column(0);
   }
-  
+
   view()->columns.erase(cur_col_it);
   view()->schedule_update_positions();
 
@@ -397,7 +397,7 @@ void WFrame::remove()
   {
     // Select most recently active frame
     WColumn::FrameListByActivity::iterator cur_activity_it
-      = column()->frames_by_activity_.current(*this), it;
+      = column()->frames_by_activity_.iterator_to(*this), it;
     it = column()->frames_by_activity_.begin();
     if (it == cur_activity_it)
       ++it;
@@ -408,13 +408,13 @@ void WFrame::remove()
   }
 
   client().schedule_update_server();
-  client().view_frames_.erase(view());  
-  
+  client().view_frames_.erase(view());
+
   column()->frames.erase(cur_frame_it);
-  column()->frames_by_activity_.erase(column()->frames_by_activity_.current(*this));
-  view()->frames_by_activity_.erase(view()->frames_by_activity_.current(*this));
-  wm().frames_by_activity_.erase(wm().frames_by_activity_.current(*this));
-  
+  column()->frames_by_activity_.erase(column()->frames_by_activity_.iterator_to(*this));
+  view()->frames_by_activity_.erase(view()->frames_by_activity_.iterator_to(*this));
+  wm().frames_by_activity_.erase(wm().frames_by_activity_.iterator_to(*this));
+
   column()->schedule_update_positions();
 
   if (column()->frames.empty())
@@ -655,7 +655,7 @@ void WM::select_view(WView *view)
   select_view_hook(view, old_view);
   handle_selected_frame_changed(old_view ? old_view->selected_frame() : 0,
                                 view ? view->selected_frame() : 0);
-  
+
   if (old_view)
   {
     /* Remove the old selected view if it is empty */

@@ -11,7 +11,7 @@ public:
   /* This is the actual set of modifiers used; it is equal to
      modifiers() with locking modifiers removed. */
   mutable unsigned int clean_modifiers;
-  
+
   boost::tuple<KeySym, unsigned int> keysym_map_key() const
   {
     return boost::make_tuple(keysym(), modifiers());
@@ -24,12 +24,12 @@ public:
 
   mutable boost::shared_ptr<WKeyMap> submap;
   mutable KeyAction action;
-  
+
   bool is_submap() const
   {
     return !!submap;
   }
-  
+
   WKeyBinding(const WKeySpec &spec)
     : WKeySpec(spec)
   {}
@@ -43,7 +43,7 @@ public:
     WKeyBinding,
     boost::multi_index::indexed_by<
       boost::multi_index::ordered_unique<
-        /*        
+        /*
         boost::multi_index::composite_key<
           boost::multi_index::const_mem_fun<WKeySpec, KeySym,
                                             &WKeySpec::keysym>,
@@ -105,7 +105,7 @@ public:
 class WKeyBindingState
 {
 public:
-  
+
   WKeyMap kmap;
 
   /* If this is non-NULL, the keyboard is grabbed. */
@@ -187,12 +187,12 @@ void WModifierInfo::update(Display *dpy)
     {
       modifier_keycodes.insert(modmap->modifiermap[j]);
     }
-    
+
     for (int i=0; i < num_lookup; i++)
     {
       if (keycodes[i] == 0)
         continue;
-      
+
       if (modmap->modifiermap[j] == keycodes[i])
       {
         locking_modifiers[i] = modmasks[j/modmap->max_keypermod];
@@ -225,7 +225,7 @@ static void for_each_mod_combo(const WModifierInfo &info,
       continue;
     unsigned int mods = modifiers | info.locking_modifiers[i];
     f(mods);
-    
+
     for (int j = i+1; j < info.locking_modifier_count; ++j)
     {
       if (info.locking_modifiers[j] == 0)
@@ -270,7 +270,7 @@ void WM::ungrab_key(int keycode, unsigned int modifiers,
                     Window grab_window)
 {
   if (grab_window == None)
-    grab_window = root_window();  
+    grab_window = root_window();
   for_each_mod_combo(mod_info, modifiers,
                      boost::bind(XUngrabKey, display(), keycode, _1,
                                  grab_window));
@@ -291,7 +291,7 @@ static void keymap_to_binding_list(const WKeyMap &kmap,
   BOOST_FOREACH (const WKeyBinding &b, kmap.keysym_map)
   {
     WKeySequence seq(partial);
-    seq.push_back(b);    
+    seq.push_back(b);
     if (b.is_submap())
       keymap_to_binding_list(*b.submap, out, seq);
     else
@@ -317,21 +317,21 @@ bool WKeyBindingContext::bind(const WKeySequence &seq,
 
   bool keycode_mapping_exists
     = (std::find(keycodes.begin(), keycodes.end(), 0) == keycodes.end());
-                            
+
   if (!keycode_mapping_exists)
     WARN("No keycode mapping for key sequence: %s",
          to_string(seq).c_str());
 
   std::vector<int>::const_iterator keycode_it = keycodes.begin();
 
-  WKeySequence::const_iterator seq_it = seq.begin(), seq_end = seq.end();  
+  WKeySequence::const_iterator seq_it = seq.begin(), seq_end = seq.end();
 
   do
   {
     const WKeySpec &spec = *seq_it;
 
     bool inserted = false;
-    
+
     WKeyMap::KeysymMap::iterator it
       = cur->keysym_map.find(boost::make_tuple(spec.keysym(), spec.modifiers()));
 
@@ -349,7 +349,7 @@ bool WKeyBindingContext::bind(const WKeySequence &seq,
       it->keycode = *keycode_it;
       inserted = true;
     }
-    
+
     const WKeyBinding *binding = &*it;
     int clean_modifiers = spec.modifiers()
       & ~mod_info.locking_mask;
@@ -358,7 +358,7 @@ bool WKeyBindingContext::bind(const WKeySequence &seq,
     if (spec.modifiers() & mod_info.locking_mask)
       WARN("Locking modifiers ignored in binding key %d with modifiers 0x%x",
            keycode, spec.modifiers());
-    
+
     if (keycode_mapping_exists)
     {
       WKeyMap::KeycodeMap::iterator it2
@@ -370,20 +370,20 @@ bool WKeyBindingContext::bind(const WKeySequence &seq,
         {
           WARN("Conflicting keycode mapping for key sequence: %s",
                to_string(seq).c_str());
-          
+
           keycode_mapping_exists = false;
         }
       } else
       {
         binding->keycode = keycode;
         binding->clean_modifiers = clean_modifiers;
-        
+
         /* If this is a top-level keycode mapping that is being added,
            grab the new key combination */
         if (grab_required && cur == &state->kmap)
           wm.grab_key(binding->keycode, binding->clean_modifiers,
                       event_window);
-        
+
         cur->keycode_map.insert(binding);
       }
     }
@@ -412,10 +412,10 @@ bool WKeyBindingContext::unbind(const WKeySequence &seq)
   WKeyMap *cur = &state->kmap;
 
   WKeySequence::const_iterator seq_it = seq.begin(), seq_end = seq.end();
-  
+
   typedef WKeyMap::KeysymMap::iterator KeysymMapIterator;
   typedef std::vector<std::pair<WKeyMap *, KeysymMapIterator> > BindingList;
-  
+
   BindingList bindings;
 
   do
@@ -458,7 +458,7 @@ bool WKeyBindingContext::unbind(const WKeySequence &seq)
           wm.ungrab_key(keycode, it->second->modifiers(), event_window);
       }
     }
-    
+
     it->first->keysym_map.erase(it->second);
   }
 
@@ -467,8 +467,9 @@ bool WKeyBindingContext::unbind(const WKeySequence &seq)
 
 static void unbind_all(WKeyBindingContext &c, const KeyBindingSpecList &list)
 {
-  BOOST_FOREACH (const WKeySequence &seq, boost::make_transform_range(list, select1st))
-    c.unbind(seq);
+  BOOST_FOREACH (const KeyBindingSpec &spec, list) {
+    c.unbind(spec.first);
+  }
 }
 
 static void bind_all(WKeyBindingContext &c, const KeyBindingSpecList &list)
@@ -483,7 +484,7 @@ void WM::handle_mapping_notify(const XMappingEvent &ev)
     XMappingEvent ev_tmp = ev;
     XRefreshKeyboardMapping(&ev_tmp);
   }
-  
+
   /* Get the list of bindings from the keymap tree */
   KeyBindingSpecList global_bindings;
   keymap_to_binding_list(global_bindctx.state->kmap, global_bindings);
@@ -520,7 +521,7 @@ bool WKeyBindingContext::process_keypress(const XKeyEvent &ev)
   if (mod_info.modifier_keycodes.count(ev.keycode))
     return false;
 
-  
+
   WKeyMap &km = state->current_kmap ? *state->current_kmap : state->kmap;
 
   int clean_state = ev.state & ~mod_info.locking_mask;
@@ -666,7 +667,7 @@ void WKeySequence::initialize(const ascii_string &str)
   if (parts.empty())
     throw std::invalid_argument(str);
 
-  assign(parts.begin(), parts.end());  
+  assign(parts.begin(), parts.end());
 }
 
 WKeySequence::WKeySequence(const ascii_string &str)

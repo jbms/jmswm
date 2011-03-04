@@ -222,9 +222,8 @@ namespace
   void OrgFileListBookmarkSource::get_bookmarks(std::vector<BookmarkSpec> &result)
   {
     update_cache();
-    std::for_each(boost::make_transform_range(sources, select2nd).begin(),
-                  boost::make_transform_range(sources, select2nd).end(),
-                  boost::bind(&OrgFileBookmarkSource::get_bookmarks, _1, boost::ref(result)));
+    BOOST_FOREACH (const Sources::value_type &s, sources)
+      s.second->get_bookmarks(result);
   }
 
   OrgFileListBookmarkSource::~OrgFileListBookmarkSource() {}
@@ -434,9 +433,9 @@ url_completions(const boost::shared_ptr<boost::optional<std::vector<BookmarkSpec
   if (!results.empty())
   {
     std::vector<URLSpec> specs;
-    std::copy(boost::make_transform_range(results, select2nd).begin(),
-              boost::make_transform_range(results, select2nd).end(),
-              std::back_inserter(specs));
+    typedef std::pair<int,URLSpec> ResultValue;
+    BOOST_FOREACH(ResultValue const &v, results)
+      specs.push_back(v.second);
     completions = make_url_completions(specs, style);
   }
 

@@ -8,8 +8,8 @@
 
 #include <util/string.hpp>
 
-#include <boost/spirit/iterator/file_iterator.hpp>
-#include <boost/spirit/iterator/position_iterator.hpp>
+#include <boost/spirit/include/classic_file_iterator.hpp>
+#include <boost/spirit/include/classic_position_iterator.hpp>
 
 #include <boost/utility.hpp>
 
@@ -38,7 +38,7 @@ namespace style
     typedef std::map<ascii_string, StyleEntryValue> PropertyMap;
     PropertyMap properties;
   };
-  
+
   class DBState
   {
   public:
@@ -77,7 +77,7 @@ namespace style
   {
     if (path.empty())
       return 0;
-  
+
     if (!context || path.absolute)
       context = &root;
 
@@ -107,7 +107,7 @@ namespace style
 
   class Parser
   {
-    typedef boost::spirit::position_iterator2<boost::spirit::file_iterator<> > iterator;
+    typedef boost::spirit::classic::position_iterator2<boost::spirit::classic::file_iterator<> > iterator;
     typedef Scanner<iterator> ScannerT;
   public:
     typedef ScannerT scanner_type;
@@ -131,15 +131,15 @@ namespace style
     };
   private:
     static const int max_include_depth = 255;
-    
+
     static iterator get_begin_iterator(const std::string &filename)
     {
-      boost::spirit::file_iterator<> file_begin(filename);
+      boost::spirit::classic::file_iterator<> file_begin(filename);
       if (!file_begin)
         throw FileOpenError(filename);
       return iterator(file_begin, file_begin.make_end(), filename);
     }
-    
+
   public:
     class Error : public std::exception
     {
@@ -220,7 +220,7 @@ namespace style
   void Parser::parse_include()
   {
     iterator include_pos = scanner.token_start();
-    
+
     expect(ScannerT::IDENTIFIER);
     if (scanner.text_data() != "include")
       unexpected_token();
@@ -269,11 +269,11 @@ namespace style
       throw Error("duplicate definition", scanner.token_start());
 
     scanner.next_token();
-    
+
     StyleEntryValue value;
     const StyleSpecData *parent = 0;
     bool style_spec = false;
-    
+
     switch (scanner.current_token())
     {
     case ScannerT::EQUALS:
@@ -329,7 +329,7 @@ namespace style
     if (style_spec)
       context.push(boost::get<StyleSpecData>(&pair.first->second));
   }
-  
+
   void DBState::load(const boost::filesystem::path &path)
   {
     Parser p(*this, path.string(), &root, 0);
@@ -405,5 +405,5 @@ namespace style
   {
     return Spec(*state, 0).get<Spec>(identifier);
   }
-  
+
 } // namespace style

@@ -3,7 +3,7 @@
 
 #include <draw/draw.hpp>
 
-#include <boost/intrusive/ilist.hpp>
+#include <boost/intrusive/list.hpp>
 
 #include <style/style.hpp>
 
@@ -45,13 +45,13 @@ private:
   WRect bounds, current_window_bounds;
 
   Window xwin() { return xwin_; }
-  
+
 public:
   enum cell_position_t { LEFT = 0, RIGHT = 1};
-  
+
 private:
 
-  class Cell : public boost::intrusive::ilist_base_hook<0>
+  class Cell : public boost::intrusive::list_base_hook<>
   {
   public:
     WBar &bar;
@@ -83,9 +83,7 @@ private:
     ~Cell();
   };
 
-  typedef boost::intrusive::ilist<
-    boost::intrusive::ilist_base_hook<0>::value_traits<Cell>,
-    true /* constant-time size */ > CellList;
+  typedef boost::intrusive::list<Cell> CellList;
 
   CellList cells[2];
 
@@ -139,12 +137,12 @@ public:
     {
       return *cell->foreground_color;
     }
-    
+
     const WColor &background() const
     {
       return *cell->background_color;
     }
-    
+
     const utf8_string &text() const
     {
       return cell->text;
@@ -227,7 +225,7 @@ private:
 
   CellRef insert_end(cell_position_t position,
                      const boost::shared_ptr<Cell> &cell);
-  
+
   CellRef insert_begin(cell_position_t position,
                        const boost::shared_ptr<Cell> &cell);
 

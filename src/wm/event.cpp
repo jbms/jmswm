@@ -300,7 +300,7 @@ void WM::handle_xrandr_event(const XEvent &ev)
 
     buffer_pixmap.reset(screen_width(), screen_height());
 
-    BOOST_FOREACH (WView *view, boost::make_transform_range(views_, select2nd))
+    BOOST_FOREACH (WView *view, boost::adaptors::transform(views_, select2nd_compat<WView*>()))
     {
       view->compute_bounds();
       view->schedule_update_positions();
