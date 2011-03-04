@@ -3,7 +3,7 @@
 
 #include <boost/foreach.hpp>
 #include <boost/range.hpp>
-#include <boost/range_ex/algorithm.hpp>
+//#include <boost/range_ex/algorithm.hpp>
 #include <boost/range_ex/filter.hpp>
 #include <boost/range_ex/indirect.hpp>
 #include <boost/range_ex/reverse.hpp>
@@ -49,7 +49,7 @@ static struct select1st_type
   {
     return x.first;
   }
-  
+
   template <class T>
   typename boost::add_reference<typename boost::add_const<typename T::first_type>::type>::type
   operator()(const T &x) const
@@ -84,7 +84,7 @@ static struct select2nd_type
   struct result<select2nd_type(T const)>
     : boost::add_reference<typename boost::add_const<typename T::second_type>::type> {};
   */
-  
+
   template <class T>
   typename boost::add_reference<typename T::second_type>::type
   operator()(T &x) const

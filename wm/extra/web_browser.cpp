@@ -14,13 +14,14 @@
 #include <boost/regex.hpp>
 #include <boost/algorithm/string.hpp>
 #include <util/spawn.hpp>
+#include <wm/commands.hpp>
+#include <wm/extra/cwd.hpp>
 
 using menu::url_completion::URLSpec;
 
 PROPERTY_ACCESSOR(WClient, utf8_string, web_browser_title)
 PROPERTY_ACCESSOR(WClient, ascii_string, web_browser_url)
-PROPERTY_ACCESSOR(WClient, ascii_string, web_browser_frame_id)
-PROPERTY_ACCESSOR(WClient, ascii_string, web_browser_frame_tag)
+PROPERTY_ACCESSOR(WClient, ascii_string, web_browser_tag)
 
 menu::Menu::Completer url_completer(const boost::shared_ptr<BookmarkSource> &source,
                                     const menu::url_completion::Style &style);
@@ -40,7 +41,7 @@ void AggregateBookmarkSource::add_source(const boost::shared_ptr<BookmarkSource>
 
 void AggregateBookmarkSource::get_bookmarks(std::vector<BookmarkSpec> &result)
 {
-  boost::for_each(sources,
+  std::for_each(sources.begin(), sources.end(),
                   boost::bind(&BookmarkSource::get_bookmarks, _1, boost::ref(result)));
 }
 
@@ -78,7 +79,7 @@ namespace
       return false;
     }
   }
-  
+
   class OrgFileBookmarkSource : public BookmarkSource
   {
     FileCacheManager file_manager;
@@ -217,14 +218,15 @@ namespace
       }
     }
   }
-  
+
   void OrgFileListBookmarkSource::get_bookmarks(std::vector<BookmarkSpec> &result)
   {
     update_cache();
-    boost::for_each(boost::make_transform_range(sources, select2nd),
-                    boost::bind(&OrgFileBookmarkSource::get_bookmarks, _1, boost::ref(result)));
+    std::for_each(boost::make_transform_range(sources, select2nd).begin(),
+                  boost::make_transform_range(sources, select2nd).end(),
+                  boost::bind(&OrgFileBookmarkSource::get_bookmarks, _1, boost::ref(result)));
   }
-  
+
   OrgFileListBookmarkSource::~OrgFileListBookmarkSource() {}
 
 
@@ -280,11 +282,11 @@ namespace
     }
     return result;
   }
-  
+
   void HTMLBookmarkSource::update_cache()
   {
     static const boost::regex bookmark_regex("<A HREF=\"([^\"]*)\"[^>]*>([^<]*)</A>");
-    
+
     if (!file_manager.update_needed())
       return;
 
@@ -371,8 +373,8 @@ static bool compare_url_to_remove_duplicates(const BookmarkSpec &a,
 
 static void remove_duplicate_bookmarks(std::vector<BookmarkSpec> &spec)
 {
-  boost::sort(spec, order_url_to_remove_duplicates);
-  spec.erase(boost::unique(spec, compare_url_to_remove_duplicates), spec.end());
+  std::sort(spec.begin(), spec.end(), order_url_to_remove_duplicates);
+  spec.erase(std::unique(spec.begin(), spec.end(), compare_url_to_remove_duplicates), spec.end());
 }
 
 static menu::Menu::CompletionsPtr
@@ -394,7 +396,7 @@ url_completions(const boost::shared_ptr<boost::optional<std::vector<BookmarkSpec
   std::vector<utf8_string> words;
   boost::algorithm::split(words, input.text, boost::algorithm::is_any_of(" "),
                           boost::algorithm::token_compress_on);
-  
+
   BOOST_FOREACH (const BookmarkSpec &b, bookmarks->get())
   {
     bool good = true;
@@ -414,7 +416,7 @@ url_completions(const boost::shared_ptr<boost::optional<std::vector<BookmarkSpec
       BOOST_FOREACH (const utf8_string &cat, b.categories)
         if (boost::algorithm::ifind_first(cat, word))
           ++cur_score;
-      
+
       if (cur_score == 0)
       {
         good = false;
@@ -428,12 +430,13 @@ url_completions(const boost::shared_ptr<boost::optional<std::vector<BookmarkSpec
       results.push_back(std::make_pair(score, URLSpec(b.url, b.title)));
   }
 
-  boost::sort(results, compare_url_results);  
+  std::sort(results.begin(), results.end(), compare_url_results);
   if (!results.empty())
   {
     std::vector<URLSpec> specs;
-    boost::copy(boost::make_transform_range(results, select2nd),
-                std::back_inserter(specs));
+    std::copy(boost::make_transform_range(results, select2nd).begin(),
+              boost::make_transform_range(results, select2nd).end(),
+              std::back_inserter(specs));
     completions = make_url_completions(specs, style);
   }
 
@@ -508,20 +511,29 @@ const ascii_string get_url_from_user_input(const utf8_string &text, bool direct)
     return text;
 }
 
-void launch_browser(const utf8_string &text, bool direct)
+void launch_browser(WM &wm, const utf8_string &text, bool direct)
 {
   ascii_string program = "/home/jbms/bin/conkeror";
   utf8_string arg = get_url_from_user_input(text, direct);
-  spawnl(0, program.c_str(), program.c_str(), arg.c_str(), (const char *)0);
+  utf8_string cwd = get_selected_cwd(wm);
+  ascii_string resolved_cwd(expand_path_home(cwd));
+
+  spawnl(cwd.empty() ? 0 : resolved_cwd.c_str(),
+         program.c_str(), program.c_str(), arg.c_str(), (const char *)0);
 }
 
-void load_url_in_existing_frame(const ascii_string &frame_id,
+void load_url_in_existing_frame(WM &wm,
+                                const ascii_string &frame_id,
                                 const utf8_string &text,
                                 bool direct)
 {
   const ascii_string &url = get_url_from_user_input(text, direct);
   ascii_string program = "/home/jbms/bin/conkeror-load-existing";
-  spawnl(0, program.c_str(), program.c_str(), frame_id.c_str(), url.c_str(), (const char *)0);
+  utf8_string cwd = get_selected_cwd(wm);
+  ascii_string resolved_cwd(expand_path_home(cwd));
+
+  spawnl(cwd.empty() ? 0 : resolved_cwd.c_str(),
+         program.c_str(), program.c_str(), frame_id.c_str(), url.c_str(), (const char *)0);
 }
 
 void launch_browser_interactive(WM &wm, const boost::shared_ptr<BookmarkSource> &source,
@@ -533,9 +545,9 @@ void launch_browser_interactive(WM &wm, const boost::shared_ptr<BookmarkSource> 
     if (Property<ascii_string> url = web_browser_url(frame->client()))
       state = menu::InitialState::selected_suffix(url.get());
   }
-  
+
   wm.menu.read_string("URL:", state,
-                      boost::bind(&launch_browser, _1, false),
+                      boost::bind(&launch_browser, boost::ref(wm), _1, false),
                       menu::Menu::FailureAction(),
                       url_completer(source, style),
                       true /* use delay */,
@@ -549,17 +561,17 @@ void load_url_existing_interactive(WM &wm, const boost::shared_ptr<BookmarkSourc
   ascii_string frame_id;
   if (WFrame *frame = wm.selected_frame())
   {
-    if (Property<ascii_string> id = web_browser_frame_id(frame->client()))
+    if (Property<ascii_string> id = web_browser_tag(frame->client()))
       frame_id = id.get();
     else
       return launch_browser_interactive(wm, source, style);
-    
+
     if (Property<ascii_string> url = web_browser_url(frame->client()))
       state = menu::InitialState::selected_suffix(url.get());
   }
-  
+
   wm.menu.read_string("URL:", state,
-                      boost::bind(&load_url_in_existing_frame, frame_id, _1, false),
+                      boost::bind(&load_url_in_existing_frame, boost::ref(wm), frame_id, _1, false),
                       menu::Menu::FailureAction(),
                       url_completer(source, style),
                       true /* use delay */,
@@ -594,7 +606,8 @@ void bookmark_current_url(WM &wm, const boost::filesystem::path &output_org_path
 static bool handle_client_name(WClient *client)
 {
   // Handle Conkeror
-  if (client->class_name() == "Xulrunner-bin"
+  if ((client->class_name() == "Xulrunner-bin"
+       || client->class_name() == "Conkeror")
            && !(client->window_type_flags() & WClient::WINDOW_TYPE_DIALOG))
   {
     std::vector<utf8_string> parts;
@@ -617,8 +630,8 @@ static bool handle_client_name(WClient *client)
     {
       web_browser_title(client) = parts[1];
       web_browser_url(client) = parts[0];
-      web_browser_frame_id(client) = parts[2];
-      web_browser_frame_tag(client) = parts[3];
+      web_browser_tag(client) = parts[2];
+      client_cwd(client) = compact_path_home(parts[3]);
       if (parts[1].empty())
         client->set_visible_name(parts[0]);
       else

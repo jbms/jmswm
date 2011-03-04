@@ -5,6 +5,6 @@ class WM;
 class WClient;
 
 void toggle_fullscreen(WM &wm);
-void check_fullscreen_on_unmanage_client(WClient *client);
+void fullscreen_init(WM &wm);
 
 #endif /* _WM_EXTRA_FULLSCREEN_HPP */

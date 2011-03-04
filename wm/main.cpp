@@ -88,11 +88,15 @@ void switch_to_agenda(WM &wm)
 void edit_file(const std::string &cwd,
                const utf8_string &filename)
 {
-  const char *program = "/home/jbms/bin/emacs";
+  const char *program = "/home/jbms/bin/e";
   if (filename.empty())
     spawnl(cwd.c_str(), program, program, (const char *)0);
-  spawnl(cwd.c_str(), program, program, filename.c_str(), (const char *)0);
+  else {
+    utf8_string f = expand_path_home(filename);
+    spawnl(cwd.c_str(), program, program, f.c_str(), (const char *)0);
+  }
 }
+
 
 void edit_file_interactive(WM &wm, const menu::file_completion::EntryStyler &entry_styler)
 {
@@ -111,6 +115,34 @@ void edit_file_interactive(WM &wm, const menu::file_completion::EntryStyler &ent
                       true, /* use delay */
                       true); /* use separate thread */
 }
+
+
+void see_file(const std::string &cwd,
+               const utf8_string &filename)
+{
+  const char *program = "/home/jbms/bin/see";
+  spawnl(cwd.c_str(), program, program, expand_path_home(filename).c_str(), (const char *)0);
+}
+
+void see_file_interactive(WM &wm, const menu::file_completion::EntryStyler &entry_styler)
+{
+  utf8_string cwd = get_selected_cwd(wm);
+  if (cwd.empty())
+  {
+    char buf[256];
+    buf[255] = 0;
+    getcwd(buf, 256);
+    cwd = compact_path_home(buf);
+  }
+  wm.menu.read_string("View:", menu::InitialState::selected_prefix(cwd + "/"),
+                      boost::bind(&see_file, expand_path_home(cwd), _1),
+                      menu::Menu::FailureAction(),
+                      menu::file_completion::file_completer(expand_path_home(cwd), entry_styler),
+                      true, /* use delay */
+                      true); /* use separate thread */
+}
+
+
 
 void dictionary_lookup(const utf8_string &name)
 {
@@ -136,7 +168,7 @@ int main(int argc, char **argv)
     act.sa_handler = SIG_IGN;
     while (sigaction(SIGCHLD, &act, 0) != 0 && errno == EINTR);
   }
-  
+
   WXDisplay xdisplay(NULL);
   set_close_on_exec_flag(ConnectionNumber(xdisplay.display()), true);
 
@@ -160,7 +192,7 @@ int main(int argc, char **argv)
     }
     ERROR("fatal error");
   }
-  
+
   WM wm(argc, argv, xdisplay.display(), event_service,
         style_db["wm_frame"], style_db["bar"], style_db["menu"]);
   /**
@@ -172,7 +204,7 @@ int main(int argc, char **argv)
    * File completion style
    */
   menu::file_completion::EntryStyler file_completion_styler(wm.dc, style_db["file_completion"]);
-  
+
   /**
    * URL completion style
    */
@@ -186,12 +218,12 @@ int main(int argc, char **argv)
 
   command_list.add("quit", boost::bind(&WM::quit, boost::ref(wm)));
   command_list.add("restart", boost::bind(&WM::restart, boost::ref(wm)));
-  
+
   command_list.add("select_right", boost::bind(&select_right, boost::ref(wm)));
   command_list.add("select_left", boost::bind(&select_left, boost::ref(wm)));
   command_list.add("select_up", boost::bind(&select_up, boost::ref(wm)));
   command_list.add("select_down", boost::bind(&select_down, boost::ref(wm)));
-  
+
   command_list.add("move_left", boost::bind(&move_left, boost::ref(wm)));
   command_list.add("move_right", boost::bind(&move_right, boost::ref(wm)));
   command_list.add("move_up", boost::bind(&move_up, boost::ref(wm)));
@@ -212,7 +244,7 @@ int main(int argc, char **argv)
   wm.bind("mod4-k any-b", move_left);
   wm.bind("mod4-k any-p", move_up);
   wm.bind("mod4-k any-n", move_down);
-  
+
   //wm.bind("mod4-d", toggle_shaded);
   /* JUST FOR TESTING */
   wm.bind("mod4-k d", toggle_decorated);
@@ -220,8 +252,8 @@ int main(int argc, char **argv)
 
   wm.bind("mod4-space", toggle_marked);
 
-  
-  
+
+
   /* */
   wm.bind("mod4-u", decrease_priority);
   wm.bind("mod4-i", increase_priority);
@@ -253,6 +285,10 @@ int main(int argc, char **argv)
                                   boost::ref(wm),
                                   boost::cref(file_completion_styler)));
 
+  wm.bind("mod4-x v", boost::bind(&see_file_interactive,
+                                  boost::ref(wm),
+                                  boost::cref(file_completion_styler)));
+
   wm.bind("mod4-x n", boost::bind(&execute_shell_command_selected_cwd,
                                   boost::ref(wm),
                                   "/home/jbms/bin/emacs-note"));
@@ -264,7 +300,7 @@ int main(int argc, char **argv)
   bookmark_source->add_source(html_bookmark_source("/home/jbms/.firefox-profile/bookmarks.html"));
   bookmark_source->add_source(org_file_list_bookmark_source("/home/jbms/misc/plan/org-agenda-files"));
   bookmark_source->add_source(org_file_bookmark_source("/home/jbms/.jmswm/bookmarks.org"));
-  
+
   wm.bind("mod4-x b", boost::bind(&launch_browser_interactive, boost::ref(wm), bookmark_source,
                                   boost::cref(url_completion_style)));
   wm.bind("mod4-x mod4-b", boost::bind(&load_url_existing_interactive, boost::ref(wm), bookmark_source,
@@ -279,7 +315,7 @@ int main(int argc, char **argv)
 
   wm.bind("mod4-c", close_current_client);
   wm.bind("mod4-k c", kill_current_client);
-  
+
   wm.bind("mod4-k r", move_next_by_activity);
 
   wm.bind("mod4-l", move_next_by_activity_in_column);
@@ -287,8 +323,7 @@ int main(int argc, char **argv)
 
 
   wm.bind("mod4-Return", toggle_fullscreen);
-
-  wm.unmanage_client_hook.connect(&check_fullscreen_on_unmanage_client);
+  fullscreen_init(wm);
 
   wm.update_client_name_hook.connect(&update_client_visible_name_and_context);
 
@@ -321,7 +356,7 @@ int main(int argc, char **argv)
 
   wm.bind("mod4-comma", boost::bind(&BarViewApplet::select_prev,
                                 boost::ref(bar_view_info)));
-  
+
   wm.bind("mod4-period", boost::bind(&BarViewApplet::select_next,
                                 boost::ref(bar_view_info)));
 
@@ -338,6 +373,10 @@ int main(int argc, char **argv)
   wm.bind("XF86AudioRaiseVolume",
           boost::bind(&VolumeApplet::raise_volume,
                       boost::ref(volume_applet)));
+
+  wm.bind("mod4-minus", boost::bind(&execute_shell_command,  "/home/jbms/bin/change_screenres"));
+  wm.bind("mod4-equal", boost::bind(&execute_shell_command,  "/home/jbms/bin/change_screenres -i"));
+
   wm.bind("XF86AudioMute",
           boost::bind(&VolumeApplet::toggle_mute,
                       boost::ref(volume_applet)));
@@ -374,7 +413,7 @@ int main(int argc, char **argv)
   WebBrowserModule web_browser_module(wm);
 
   DesiredColumnCountByName desired_column_count(wm);
-  desired_column_count.set("erc", 3);
+  //desired_column_count.set("erc", 3);
 
   wm.bind("mod4-r", boost::bind(&PreviousViewInfo::switch_to, boost::ref(prev_info)));
 
@@ -399,7 +438,7 @@ int main(int argc, char **argv)
 
   // This is called here rather than in the WM constructor so that the
   // initialization code that precedes this can run first.
-  
+
   /* Manage existing clients */
   wm.load_state_from_server();
 

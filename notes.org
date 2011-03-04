@@ -108,3 +108,4 @@ Perhaps because /tmp/jbms is not getting created.
 ** TODO Add screen locking support directly to WM
 * Visual apperance
 ** TODO Look into SYNC extension and _NET_WM_SYNC_REQUEST
+** TODO Show which is the next-most-recently-visited visually somehow, to make mod4-l more useful.

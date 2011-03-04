@@ -49,7 +49,7 @@ static const char *event_type_to_string(int type)
 
   return name_arr[type - KeyPress];
 }
-#endif 
+#endif
 
 /**
  * Timestamp-related code copied from Ion.  Copyright (c) Tuomo
@@ -60,7 +60,7 @@ static void update_timestamp(Time &last_timestamp, XEvent *ev)
   Time tm;
 
   const unsigned int CLOCK_SKEW_MS = 30000;
-  
+
 #define CHKEV(E, T) case E: tm=((T*)ev)->time; break;
 
   switch(ev->type)
@@ -79,7 +79,7 @@ static void update_timestamp(Time &last_timestamp, XEvent *ev)
   default:
     return;
   }
-  
+
   if (tm > last_timestamp || last_timestamp - tm > CLOCK_SKEW_MS)
     last_timestamp = tm;
 }
@@ -106,7 +106,7 @@ Time WM::get_timestamp()
     update_timestamp(last_timestamp, &ev);
     XPutBackEvent(display(), &ev);
   }
-  
+
   return last_timestamp;
 }
 
@@ -114,7 +114,7 @@ static bool safe_XPending(Display *dpy)
 {
   // Use an extra call to XPending to work around Xlib bugs
   XPending(dpy);
-  
+
   return XPending(dpy);
 }
 
@@ -131,7 +131,7 @@ void WM::xwindow_handle_event()
 
 #ifdef DEBUG_DISPLAY_XEVENTS
     DEBUG("Got event: %s 0x%08x", event_type_to_string(ev.type), ev.xany.window);
-#endif 
+#endif
 
     switch (ev.type)
     {
@@ -140,6 +140,9 @@ void WM::xwindow_handle_event()
       break;
     case ConfigureRequest:
       handle_configure_request(ev.xconfigurerequest);
+      break;
+    case ClientMessage:
+      handle_client_message(ev.xclient);
       break;
     case Expose:
       handle_expose(ev.xexpose);
@@ -186,8 +189,14 @@ void WM::handle_map_request(const XMapRequestEvent &ev)
   if (ev.send_event)
     return;
 
-  if (client_of_win(ev.window))
+  if (WClient *client = client_of_win(ev.window)) {
+    // Client requests to be de-iconified
+    if (WFrame *frame = client->visible_frame()) {
+      frame->view()->select_frame(frame, true);
+      handle_frame_activity(); // immediately unshade it
+    }
     return;
+  }
 
   manage_client(ev.window, true);
 }
@@ -218,13 +227,13 @@ void WM::handle_expose(const XExposeEvent &ev)
   {
     if (ev.count > 0)
       return;
-    
+
     client->schedule_draw();
   }
   // TODO: maybe separate these two cases
   else if (ev.window == menu.xwin() || ev.window == menu.completions_xwin())
     menu.handle_expose(ev);
-  
+
   else if (ev.window == bar.xwin())
     bar.handle_expose(ev);
 }
@@ -307,7 +316,7 @@ void WM::handle_focus_in(const XFocusChangeEvent &ev)
   /* Prevent programs like matlab from stealing the input focus.
      Allow programs like emacs to switch input focus (if white list is
      enabled). */
-  
+
   if (ev.detail == NotifyNonlinear
       || ev.detail == NotifyNonlinearVirtual)
   {
@@ -322,16 +331,41 @@ void WM::handle_focus_in(const XFocusChangeEvent &ev)
            * needed.  Selecting a frame by setting input focus is
            * fragile and doesn't work in many cases.
            */
-#if 0 
+#if 0
           WFrame *visible_frame = client->visible_frame();
           // White-listed programs can receive input focus.
           if (visible_frame && client->class_name() == "Emacs")
             visible_frame->view()->select_frame(visible_frame, true);
           else
-#endif 
+#endif
             frame->client().schedule_set_input_focus();
         }
       }
     }
+  }
+}
+
+void WM::handle_client_message(const XClientMessageEvent &ev)
+{
+  if (ev.message_type == atom_net_active_window) {
+    if (ev.format != 32)
+      return; // invalid message, format must be 32
+    if (WClient *client = client_of_win(ev.window)) {
+      if (WFrame *frame = client->visible_frame()) {
+        frame->view()->select_frame(frame, true);
+        handle_frame_activity(); // immediately unshade it
+      }
+    }
+    return;
+  }
+  if (ev.message_type == atom_net_wm_state) {
+    if (ev.format != 32)
+      return; // invalid message, format must be 32
+    if (WClient *client = client_of_win(ev.window)) {
+      if (WFrame *frame = client->visible_frame()) {
+        request_net_wm_state_change_hook(frame, ev);
+      }
+    }
+    return;
   }
 }

@@ -43,7 +43,7 @@ WRect WFrame::client_bounds() const
     r.width = bounds.width;
     r.height = bounds.height;
   }
-  
+
   return r;
 }
 
@@ -94,10 +94,12 @@ void WFrame::draw()
     utf8_string tags;
     {
       std::vector<utf8_string> tag_names;
-      boost::transform(client().view_frames(), std::back_inserter(tag_names),
-                       boost::bind(&WView::name,
-                                   boost::bind(&WClient::ViewFrameMap::value_type::first, _1)));
-      boost::sort(tag_names);
+      std::transform(client().view_frames().begin(),
+                     client().view_frames().end(),
+                     std::back_inserter(tag_names),
+                     boost::bind(&WView::name,
+                                 boost::bind(&WClient::ViewFrameMap::value_type::first, _1)));
+      std::sort(tag_names.begin(), tag_names.end());
       BOOST_FOREACH(const utf8_string &str, tag_names)
       {
         tags += str;
@@ -139,12 +141,12 @@ void WFrame::draw()
 
     const utf8_string &name = client().visible_name().empty() ?
       client().name() : client().visible_name();
-    
+
     draw_label(d, name, style.label_font, substyle.label_foreground_color,
                rect3.inside_lr_tb_border(style.label_horizontal_padding,
                                          style.label_vertical_padding));
   }
-  
+
   if (!shaded())
   {
     WRect client_rect = client_bounds();
@@ -152,7 +154,7 @@ void WFrame::draw()
     fill_rect(d, style.client_background_color, client_rect);
   }
 
-  
+
   XCopyArea(wm().display(), d.drawable(),
             client().frame_xwin(),
             wm().dc.gc(),

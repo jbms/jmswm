@@ -21,7 +21,7 @@ class NetworkAppletState
   WBar::CellRef placeholder;
   boost::optional<WBar::CellRef> cell;
 
-  ifreq req_wlan, req_eth;
+  ifreq req_wlan, req_eth, req_ipheth;
   int skfd;
 
   void event_handler();
@@ -48,6 +48,7 @@ NetworkAppletState::NetworkAppletState(WM &wm,
   // Initialize req structs
   strncpy(req_eth.ifr_name, "eth", IFNAMSIZ);
   strncpy(req_wlan.ifr_name, "wlan", IFNAMSIZ);
+  strncpy(req_ipheth.ifr_name, "ipheth", IFNAMSIZ);
 
   wd = inotify.add_watch(network_status_filename, IN_ATTRIB);
 
@@ -86,12 +87,15 @@ void NetworkAppletState::event_handler()
   if (get_iface_address(req_eth, skfd))
   {
     str = "eth";
+  } else if (get_iface_address(req_ipheth, skfd))
+  {
+    str = "ipheth";
   } else if (get_iface_address(req_wlan, skfd))
   {
     std::ostringstream ostr;
-    
+
     iwreq wrq;
-    
+
     /* Get ESSID */
     char essid[IW_ESSID_MAX_SIZE + 1];
     bool essidOn = false;
@@ -106,7 +110,7 @@ void NetworkAppletState::event_handler()
 
       if (essidOn)
       {
-      
+
         // Get link quality
 
         int linkFd = open("/sys/class/net/wlan/wireless/link", O_RDONLY);

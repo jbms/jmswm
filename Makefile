@@ -1,9 +1,10 @@
 
 FINAL_TARGET := jmswm
+FINAL_TARGET_STATIC := jmswm.static
 
 .PHONY: all clean
 
-all: $(FINAL_TARGET)
+all: $(FINAL_TARGET) $(FINAL_TARGET_STATIC)
 
 
 CONFIG := build-config
@@ -43,6 +44,9 @@ $(COMPONENT_LIBS): lib%.a: Makefile
 
 $(FINAL_TARGET): $(COMPONENT_LIBS) $(CONFIG)/link-flags Makefile $(CONFIG)/components
 	$(LINK.cpp) $(COMPONENT_LIBS) $(COMPONENT_LIBS) $(LOADLIBES) $(LDLIBS) -o $@
+
+$(FINAL_TARGET_STATIC): $(COMPONENT_LIBS) $(CONFIG)/link-flags Makefile $(CONFIG)/components
+	$(LINK.cpp) -static $(COMPONENT_LIBS) $(COMPONENT_LIBS) $(LOADLIBES) $(LDLIBS) -o $@
 
 $(OBJECTS:.o=.d): %.d: %.cpp Makefile $(CONFIG)/compile-flags
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -M -MF $@ -MP $< -MT $(@:.d=.o)

@@ -127,7 +127,7 @@ public:
   EventService &event_service() { return event_service_; }
 
   Time get_timestamp();
-  
+
   WDrawContext dc;
 
   /* This is used as a buffer for all drawing operations. */
@@ -136,13 +136,13 @@ public:
   /**
    * }}}
    */
-  
+
   /**
    * {{{ Deferred operation handling
    */
-  
+
 private:
-  
+
   typedef boost::intrusive::ilist<
     boost::intrusive::ilist_auto_base_hook<0>::value_traits<WClient>,
     false /* constant-time size */
@@ -152,7 +152,7 @@ private:
     boost::intrusive::ilist_auto_base_hook<1>::value_traits<WColumn>,
     false /* constant-time size */
   > ScheduledTaskColumnList;
-  
+
   typedef boost::intrusive::ilist<
     boost::intrusive::ilist_auto_base_hook<1>::value_traits<WView>,
     false /* constant-time size */
@@ -163,20 +163,20 @@ private:
   ScheduledTaskViewList scheduled_task_views;
   bool scheduled_set_input_focus_to_root;
   void schedule_set_input_focus_to_root();
-  
+
   friend class WClient;
   friend class WFrame;
   friend class WColumn;
   friend class WView;
 
 public:
-  
+
   void flush();
-  
+
   /**
    * }}}
    */
-  
+
 
   /**
    * {{{ Atoms
@@ -192,7 +192,7 @@ public:
   /**
    * {{{ Style
    */
-public:  
+public:
 
   WFrameStyle frame_style;
 
@@ -201,7 +201,7 @@ public:
   int shaded_height() const;
 
   int frame_decoration_height() const;
-  
+
   /**
    * }}}
    */
@@ -210,20 +210,20 @@ public:
    * {{{ Frame layout
    */
 public:
-  
+
   typedef std::map<utf8_string, WView *> ViewMap;
 
   typedef boost::intrusive::ilist<
     boost::intrusive::ilist_base_hook<3, false>::value_traits<WFrame>,
     true /* constant-time size */
   > FrameListByActivity;
-  
+
 private:
   WView *selected_view_;
   ViewMap views_;
 
   TimerEvent frame_activity_event;
-  
+
   FrameListByActivity frames_by_activity_;
 
   void handle_frame_activity();
@@ -289,6 +289,7 @@ private:
   void handle_keypress(const XKeyEvent &ev);
   void handle_xrandr_event(const XEvent &ev);
   void handle_focus_in(const XFocusChangeEvent &ev);
+  void handle_client_message(const XClientMessageEvent &ev);
 
   /**
    * }}}
@@ -321,16 +322,20 @@ public:
       return it->second;
     return 0;
   }
-  
+
   void manage_client(Window w, bool map_request);
   void unmanage_client(WClient *client);
-  
+
   void place_client(WClient *client);
 
   boost::signal<void (WClient *)> manage_client_hook;
   boost::signal<void (WClient *)> unmanage_client_hook;
+  boost::signal<void (WClient *, const XConfigureRequestEvent &)> client_configure_request_hook;
+  boost::signal<bool (WFrame *, const XClientMessageEvent &),  util::RunUntilSuccess> request_net_wm_state_change_hook;
   boost::signal<bool (WClient *), util::RunUntilSuccess> update_client_name_hook;
   boost::signal<bool (WClient *), util::RunUntilSuccess> place_client_hook;
+  boost::signal<void (WClient *)> post_place_client_hook;
+  boost::signal<void (WFrame *, unsigned int &)> update_desired_net_wm_state_hook;
 
   /**
    * }}}
@@ -349,15 +354,15 @@ private:
 
   TimerEvent save_state_event;
 
-  
+
   /**
    * }}}
    */
-  
+
   /**
    * {{{ X windows utility functions
    */
-public:  
+public:
   void set_window_WM_STATE(Window w, int state);
   bool get_window_WM_STATE(Window w, int &state_ret);
 
@@ -366,7 +371,7 @@ public:
   {
     send_client_message(w, a, get_timestamp());
   }
-  
+
   /**
    * }}}
    */
@@ -374,7 +379,7 @@ public:
   /**
    * {{{ Key bindings
    */
-  
+
 private:
 
   WModifierInfo mod_info;
@@ -394,7 +399,7 @@ private:
   /* grab_window = None implies grab_window = xc.root_window() */
   void ungrab_key(int keycode, unsigned int modifiers,
                   Window grab_window);
-  
+
 public:
 
   struct timeval key_sequence_timeout;
@@ -409,7 +414,7 @@ public:
   {
     return global_bindctx.unbind(seq);
   }
-  
+
   /**
    * }}}
    */
@@ -435,7 +440,7 @@ public:
   /**
    * }}}
    */
-  
+
 
   /**
    * Actions
@@ -466,12 +471,12 @@ private:
   /**
    * {{{ Constructor and destructor
    */
-  
+
   /* Instances should not be constructed or destructed directly. */
   friend class WM;
 
   WClient(WM &wm, Window w);
-  
+
   /**
    * }}}
    */
@@ -486,7 +491,7 @@ private:
   friend class WColumn;
   ViewFrameMap view_frames_;
 public:
-  
+
   const ViewFrameMap &view_frames() const { return view_frames_; }
   WFrame *visible_frame();
   WFrame *frame_by_view(WView *v)
@@ -496,7 +501,7 @@ public:
       return 0;
     return it->second;
   }
-  
+
   /**
    * }}}
    */
@@ -512,11 +517,15 @@ private:
 public:
   typedef enum { ICONIC_STATE_NORMAL, ICONIC_STATE_ICONIC,
                  ICONIC_STATE_UNKNOWN } iconic_state_t;
+  const static unsigned int NET_WM_STATE_SHADED = 1;
+  const static unsigned int NET_WM_STATE_FULLSCREEN = 2;
+  const static unsigned int NET_WM_STATE_INVALID = 4;
 private:
   iconic_state_t current_iconic_state;
+  unsigned int current_net_wm_state;
 public:
   iconic_state_t iconic_state() const { return current_iconic_state; }
-  
+
 private:
 
   WRect current_frame_bounds;
@@ -542,14 +551,14 @@ private:
 
   void schedule_task(unsigned int task);
   void perform_scheduled_tasks();
-  
+
 public:
 
   void schedule_update_server() { schedule_task(UPDATE_SERVER_FLAG); }
   void schedule_draw() { schedule_task(DRAW_FLAG); }
   void schedule_set_input_focus() { schedule_task(SET_INPUT_FOCUS_FLAG); }
   void schedule_warp_pointer() { schedule_task(WARP_POINTER_FLAG); }
-  
+
   /**
    * }}}
    */
@@ -563,9 +572,11 @@ private:
 public:
   Window xwin() { return xwin_; }
   Window frame_xwin() { return frame_xwin_; }
-private:
 
   WRect initial_geometry;
+  int initial_net_wm_state;
+private:
+
   int initial_border_width;
   XSizeHints size_hints_;
 
@@ -629,13 +640,14 @@ private:
   void update_protocols_from_server();
   void update_size_hints_from_server();
   void update_window_type_from_server();
+  unsigned int get_net_wm_state_from_server();
 
   void update_fixed_height();
 
 public:
 
   const XSizeHints &size_hints() const { return size_hints_; }
-  
+
   const ascii_string &class_name() const { return class_name_; }
   const ascii_string &instance_name() const { return instance_name_; }
   const ascii_string &window_role() const { return window_role_; }
@@ -674,7 +686,7 @@ public:
   void kill();
   void destroy();
   void request_close();
-  
+
   /**
    * }}}
    */
@@ -712,26 +724,26 @@ public:
   WColumn *column() const { return column_; }
   WView *view() const;
   WM &wm() const { return client().wm(); }
-  
+
   WFrame(WClient &client);
 
 
 
   /* frame is removed from column, if it is in one */
   ~WFrame();
-  
+
   WRect bounds;
 
   friend class WColumn;
   friend class WM;
 
 private:
-  
+
   bool shaded_;
   bool decorated_;
   bool marked_;
   float priority_;
-  
+
   /* Note: this is only valid if this frame is currently focused in
      its column. */
   time_point last_focused;
@@ -763,7 +775,7 @@ public:
   void draw();
 
   void remove();
-  
+
 };
 
 /**
@@ -816,13 +828,13 @@ public:
     boost::intrusive::ilist_base_hook<1, false>::value_traits<WFrame>,
     true /* constant-time size */
   > FrameListByActivity;
-  
+
   typedef FrameList::iterator iterator;
 private:
   WFrame *selected_frame_;
 
   FrameListByActivity frames_by_activity_;
-  
+
 public:
 
   const FrameListByActivity &frames_by_activity() const { return frames_by_activity_; }
@@ -833,14 +845,14 @@ public:
   void select_frame(iterator it, bool warp = false);
   void select_frame(WFrame *frame, bool warp = false);
   iterator default_insert_position();
-  
+
   iterator make_iterator(WFrame *frame)
   {
     if (!frame)
       return frames.end();
     return frames.current(*frame);
   }
-  
+
   WFrame *get_frame(iterator it)
   {
     if (it != frames.end())
@@ -857,7 +869,7 @@ public:
   {
     return add_frame(frame, default_insert_position());
   }
-  
+
   /**
    * }}}
    */
@@ -865,7 +877,7 @@ public:
   /**
    * {{{ Bounds
    */
-  
+
   /* Computes the positions of frames */
 private:
   int available_frame_height() const;
@@ -889,7 +901,7 @@ public:
   /**
    * }}}
    */
-  
+
 };
 
 class WView
@@ -909,8 +921,8 @@ public:
 
   WView(WM &wm, const utf8_string &name);
   ~WView();
-  
-  
+
+
   /**
    * {{{ Name
    */
@@ -933,7 +945,7 @@ public:
   friend class WM;
   friend class WColumn;
   friend class WFrame;
-  
+
 private:
   bool scheduled_update_positions;
   void perform_scheduled_tasks();
@@ -958,22 +970,22 @@ public:
 
   ColumnList columns;
   typedef ColumnList::iterator iterator;
-  
-private:  
+
+private:
   WColumn *selected_column_;
 
   FrameListByActivity frames_by_activity_;
-  
+
 public:
 
   const FrameListByActivity &frames_by_activity() const { return frames_by_activity_; }
   FrameListByActivity &frames_by_activity() { return frames_by_activity_; }
 
-  
+
   WColumn *selected_column() { return selected_column_; }
   iterator selected_position() { return make_iterator(selected_column_); }
   iterator default_insert_position();
-  
+
 
   /* The new column is inserted before `position'. */
   iterator create_column(iterator position);
@@ -989,7 +1001,7 @@ public:
       return columns.end();
     return columns.current(*column);
   }
-  
+
   WColumn *get_column(iterator it)
   {
     if (it == columns.end())
@@ -999,7 +1011,7 @@ public:
 
   void select_column(iterator it, bool warp = false);
   void select_column(WColumn *column, bool warp = false);
-  
+
   void select_frame(WFrame *frame, bool warp = false);
 
   iterator next_column(iterator pos, bool wrap);

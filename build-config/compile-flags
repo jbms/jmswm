@@ -1,4 +1,4 @@
-CXXFLAGS += -g -O2 -W -Werror $(shell pkg-config --cflags pango xft pangoxft alsa) \
+CXXFLAGS += -ggdb -O2 -W $(shell pkg-config --cflags pango xft pangoxft alsa) \
             -pthread
 
 CPPFLAGS += -I. -Ichaos -DCHAOS_PP_VARIADICS

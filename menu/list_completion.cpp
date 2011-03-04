@@ -6,15 +6,15 @@ namespace menu
 {
   namespace list_completion
   {
-    
+
     class ListCompletions : public Completions
     {
     private:
       typedef std::vector<Entry> CompletionList;
       CompletionList completions;
-      StringCompletionApplicator applicator;  
+      StringCompletionApplicator applicator;
       bool complete_common_prefix;
-  
+
       int selected;
       int columns;
       int column_width;
@@ -106,10 +106,10 @@ namespace menu
         required_columns = columns;
 
       int required_width = required_columns * column_width + 2 * style.border_pixels;
-  
+
       out_width = required_width;
     }
-  
+
     void ListCompletions::draw(Menu &menu, const WRect &rect, WDrawable &d)
     {
       const menu::Style &style = menu.style();
@@ -125,10 +125,10 @@ namespace menu
       WRect rect2 = rect.inside_border(border_pixels, border_pixels,
                                        border_pixels, 0);
 
-      
+
 
       size_t begin_pos_index, end_pos_index;
-  
+
       if (selected >= lines * columns)
       {
         end_pos_index = selected - (selected % columns) + columns;
@@ -138,10 +138,10 @@ namespace menu
         end_pos_index = lines * columns;
         begin_pos_index = 0;
       }
-  
+
       if (end_pos_index > completions.size())
         end_pos_index = completions.size();
-  
+
       int base_y = rect2.y + spacing;
 
       for (size_t pos_index = begin_pos_index; pos_index < end_pos_index; ++pos_index)
@@ -186,7 +186,7 @@ namespace menu
             break;
           if (prefix.length() > str.length())
             prefix.resize(str.length());
-          utf8_string::iterator it = boost::mismatch(prefix, str.begin()).first;
+          utf8_string::iterator it = std::mismatch(prefix.begin(), prefix.end(), str.begin()).first;
           prefix.erase(it, prefix.end());
         }
 
@@ -204,11 +204,11 @@ namespace menu
         selected = 0;
       else
         selected = (selected + 1) % completions.size();
-      
+
       applicator(input, completions[selected].first);
       return false;
     }
-  
+
     ListCompletions::~ListCompletions()
     {
     }
@@ -227,7 +227,7 @@ namespace menu
       Menu::CompletionsPtr result;
       if (!list.empty())
         result.reset(new ListCompletions(initial_input, list, applicator, complete_common_prefix));
-  
+
       return result;
     }
 
@@ -243,9 +243,9 @@ namespace menu
           entry_style(style)
       {
         if (sort)
-          boost::sort(*this->list);
+          std::sort(this->list->begin(), this->list->end());
       }
-  
+
       Menu::CompletionsPtr operator()(const InputState &state) const
       {
         std::vector<Entry> results;

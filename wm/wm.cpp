@@ -14,7 +14,7 @@ static int xwindow_redirect_error_handler(Display *dpy, XErrorEvent *ev)
 static int xwindow_error_handler(Display *dpy, XErrorEvent *ev)
 {
   static char msg[128], request[64], num[32];
-    
+
   /* Just ignore bad window and similar errors; makes the rest of
    * the code simpler.
    */
@@ -36,9 +36,9 @@ static int xwindow_error_handler(Display *dpy, XErrorEvent *ev)
   else
     WARN("[%d] %s (%d) %#lx: %s", ev->serial, request,
          ev->request_code, ev->resourceid,msg);
-  
+
   kill(getpid(), SIGTRAP);
-  
+
   return 0;
 }
 
@@ -114,6 +114,21 @@ WM::WM(int argc, char **argv,
 
   menu.initialize();
   bar.initialize();
+
+  /* Use bar window for _NET_SUPPORTING_WM_CHECK */
+  {
+    Window w = bar.xwin();
+    XChangeProperty(display(), w, atom_net_supporting_wm_check, XA_WINDOW, 32, PropModeReplace,
+                    (unsigned char *)&w, 1);
+    utf8_string name = "jmswm";
+    XChangeProperty(display(), w, atom_net_wm_name, atom_utf8_string, 8, PropModeReplace,
+                    (unsigned char *)name.c_str(), name.length() + 1);
+    Atom supported_list[] = {atom_net_wm_state, atom_net_wm_state_shaded, atom_net_active_window, atom_net_wm_state_fullscreen};
+    XChangeProperty(display(), root_window(), atom_net_supported, XA_ATOM, 32, PropModeReplace,
+                    (unsigned char *)&supported_list, 4);
+    XChangeProperty(display(), root_window(), atom_net_supporting_wm_check, XA_WINDOW, 32, PropModeReplace,
+                    (unsigned char *)&w, 1);
+  }
 }
 
 WM::~WM()
@@ -172,7 +187,7 @@ void WM::flush(void)
   menu.flush();
 
   bar.flush();
-  
+
   XFlush(display());
 }
 
@@ -202,7 +217,7 @@ bool WM::valid_view_name(const utf8_string &name)
 {
   if (name.empty())
     return false;
-  
+
   /* TODO: fix this */
   BOOST_FOREACH (char c, name)
   {

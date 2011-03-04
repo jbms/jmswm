@@ -26,7 +26,7 @@ void WM::manage_client(Window w, bool map_request)
 
   /* Window might be destroyed while this function is running */
   XSelectInput(display(), w, WM_EVENT_MASK_CLIENTWIN);
-  
+
   if (!XGetWindowAttributes(display(), w, &attr))
   {
     /* Window disappeared */
@@ -55,6 +55,8 @@ void WM::manage_client(Window w, bool map_request)
   c->initial_geometry.y = attr.y;
   c->initial_geometry.width = attr.width;
   c->initial_geometry.height = attr.height;
+  c->initial_net_wm_state = c->get_net_wm_state_from_server();
+  c->current_net_wm_state = WClient::NET_WM_STATE_INVALID;
 
   XSetWindowAttributes fwa;
   fwa.event_mask = WM_EVENT_MASK_FRAMEWIN;
@@ -75,14 +77,14 @@ void WM::manage_client(Window w, bool map_request)
   XAddToSaveSet(display(), w);
 
   c->initial_border_width = attr.border_width;
-  
+
   /* Set the window border to 0 */
   {
     XWindowChanges wc;
     wc.border_width = 0;
     XConfigureWindow(display(), w, CWBorderWidth, &wc);
   }
-  
+
   XSelectInput(display(), w, WM_EVENT_MASK_CLIENTWIN & ~StructureNotifyMask);
 
   /* FIXME -- set proper x and y */
@@ -121,13 +123,14 @@ void WM::manage_client(Window w, bool map_request)
   c->current_iconic_state = WClient::ICONIC_STATE_UNKNOWN;
 
   WClient *ptr = c.release();
-  
+
   manage_client_hook(ptr);
 
   if (map_request || !place_existing_client(ptr))
   {
     if (!place_client_hook(ptr))
       place_client(ptr);
+    post_place_client_hook(ptr);
   }
 }
 
@@ -145,6 +148,32 @@ void WClient::update_size_hints_from_server()
     f->column()->schedule_update_positions();
 
   update_fixed_height();
+}
+
+unsigned int WClient::get_net_wm_state_from_server()
+{
+  Atom *atoms = 0;
+
+  unsigned long count = xwindow_get_property(wm().display(), xwin_, wm().atom_net_wm_state,
+                                             XA_ATOM, 1, true, (unsigned char **)&atoms);
+
+  count /= 4;
+
+  unsigned int flags = 0;
+
+  for (unsigned long i = 0; i < count; ++i)
+  {
+    Atom a = atoms[i];
+    if (a == wm().atom_net_wm_state_fullscreen)
+      flags |= NET_WM_STATE_FULLSCREEN;
+    else if (a == wm().atom_net_wm_state_shaded)
+      flags |= NET_WM_STATE_SHADED;
+  }
+
+  if (atoms)
+    XFree(atoms);
+
+  return flags;
 }
 
 void WClient::update_window_type_from_server()
@@ -200,7 +229,7 @@ void WClient::update_window_type_from_server()
 void WClient::update_fixed_height()
 {
   int previous_fixed_height = fixed_height_;
-  
+
   const XSizeHints &s = size_hints();
   if ((s.flags & PMaxSize) &&
       (s.flags & PMinSize) &&
@@ -228,9 +257,9 @@ void WClient::update_protocols_from_server()
 {
   Atom *protocols;
   int count;
-  
+
   flags_ &= ~PROTOCOL_FLAGS;
-  
+
   if (XGetWMProtocols(wm().display(), xwin_, &protocols, &count))
   {
     for (int i = 0; i < count; ++i)
@@ -327,7 +356,7 @@ void WM::place_client(WClient *c)
   WColumn::iterator it = column->selected_position();
   if (it != column->frames.end())
     ++it;
-  
+
   WColumn::iterator frame = column->add_frame(new WFrame(*c), it);
 
   /* TODO: don't always focus this client */
@@ -356,7 +385,7 @@ void WM::unmanage_client(WClient *client)
   XReparentWindow(display(), client->xwin_, root_window(),
                   0, 0);
   XDestroyWindow(display(), client->frame_xwin_);
-  
+
   managed_clients.erase(client->xwin_);
   framewin_map.erase(client->frame_xwin_);
 
@@ -364,9 +393,10 @@ void WM::unmanage_client(WClient *client)
 
   /* Remove WM_STATE property per ICCCM */
   XDeleteProperty(display(), client->xwin_, atom_wm_state);
+  XDeleteProperty(display(), client->xwin_, atom_net_wm_state);
 
   XSelectInput(display(), client->xwin_, 0);
-  
+
   delete client;
 }
 
@@ -380,30 +410,30 @@ void WM::set_window_WM_STATE(Window w, int state)
 bool WM::get_window_WM_STATE(Window w, int &state_ret)
 {
   CARD32 *p=NULL;
-    
+
   if (!xwindow_get_property(display(), w, atom_wm_state,
-                            atom_wm_state, 
+                            atom_wm_state,
                             2L, false, (unsigned char **)&p))
     return false;
-  
+
   state_ret=*p;
-    
+
   XFree((void*)p);
-  
+
   return true;
 }
 
 void WM::send_client_message(Window w, Atom a, Time timestamp)
 {
   XClientMessageEvent ev;
-    
+
   ev.type=ClientMessage;
   ev.window=w;
   ev.message_type=atom_wm_protocols;
   ev.format=32;
   ev.data.l[0]=a;
   ev.data.l[1]=timestamp;
-    
+
   XSendEvent(display(), w, False, 0L, (XEvent*)&ev);
 }
 
@@ -426,7 +456,7 @@ void WClient::set_frame_map_state(map_state_t state)
     {
     case STATE_MAPPED:
       XMapWindow(wm().display(), frame_xwin_);
-      
+
       /* Lower the frame window; frames should not obscure any other
          windows (such as the menu). */
       XLowerWindow(wm().display(), frame_xwin_);
@@ -463,17 +493,17 @@ void WClient::set_client_map_state(map_state_t state)
 void WClient::perform_scheduled_tasks()
 {
   assert(scheduled_tasks != 0);
-  
+
   wm().scheduled_task_clients.erase(wm().scheduled_task_clients.current(*this));
 
-  
+
   WFrame *f = visible_frame();
 
   if (scheduled_tasks & UPDATE_SERVER_FLAG)
   {
     map_state_t desired_client_state, desired_frame_state;
     iconic_state_t desired_iconic_state;
-    
+    unsigned int desired_net_wm_state = 0;
     if (f)
     {
       desired_frame_state = STATE_MAPPED;
@@ -495,7 +525,7 @@ void WClient::perform_scheduled_tasks()
 
       if (current_frame_bounds != f->bounds)
       {
-        
+
         XMoveResizeWindow(wm().display(), frame_xwin_,
                           f->bounds.x, f->bounds.y,
                           f->bounds.width, f->bounds.height);
@@ -506,10 +536,10 @@ void WClient::perform_scheduled_tasks()
       {
         desired_client_state = STATE_MAPPED;
         desired_iconic_state = ICONIC_STATE_NORMAL;
-        
+
         WRect desired_client_bounds
           = compute_actual_client_bounds(f->client_bounds());
-        
+
         if (current_client_bounds != desired_client_bounds)
         {
           XMoveResizeWindow(wm().display(), xwin_,
@@ -519,8 +549,10 @@ void WClient::perform_scheduled_tasks()
                             desired_client_bounds.height);
           current_client_bounds = desired_client_bounds;
         }
+        wm().update_desired_net_wm_state_hook(f, desired_net_wm_state);
       } else
       {
+        desired_net_wm_state = NET_WM_STATE_SHADED;
         desired_client_state = STATE_UNMAPPED;
         desired_iconic_state = ICONIC_STATE_ICONIC;
       }
@@ -534,6 +566,17 @@ void WClient::perform_scheduled_tasks()
     set_client_map_state(desired_client_state);
     set_frame_map_state(desired_frame_state);
     set_iconic_state(desired_iconic_state);
+    if (current_net_wm_state != desired_net_wm_state) {
+      Atom value[2];
+      int nelements = 0;
+      if (desired_net_wm_state & NET_WM_STATE_SHADED)
+        value[nelements++] = wm().atom_net_wm_state_shaded;
+      if (desired_net_wm_state & NET_WM_STATE_FULLSCREEN)
+        value[nelements++] = wm().atom_net_wm_state_fullscreen;
+      XChangeProperty(wm().display(), xwin_, wm().atom_net_wm_state, XA_ATOM, 32, PropModeReplace,
+                      (unsigned char *)value, nelements);
+      current_net_wm_state = desired_net_wm_state;
+    }
   }
 
   if (f && (scheduled_tasks & (UPDATE_SERVER_FLAG | DRAW_FLAG)))
@@ -555,7 +598,7 @@ void WClient::perform_scheduled_tasks()
     if (scheduled_tasks & WARP_POINTER_FLAG)
     {
       XWarpPointer(wm().display(), None, frame_xwin_, 0, 0, 0, 0,
-                   f->bounds.width / 2, f->bounds.height / 2);
+                   f->bounds.width / 2, /*f->bounds.height / 2*/ 5  /* warp to top middle instead of center */);
     }
   }
 
@@ -564,13 +607,14 @@ void WClient::perform_scheduled_tasks()
 
 void WClient::handle_configure_request(const XConfigureRequestEvent &ev)
 {
+  wm().client_configure_request_hook(this, ev);
   notify_client_of_root_position();
 }
 
 void WClient::notify_client_of_root_position()
 {
   XEvent ce;
-    
+
   ce.xconfigure.type=ConfigureNotify;
   ce.xconfigure.event=xwin_;
   ce.xconfigure.window=xwin_;

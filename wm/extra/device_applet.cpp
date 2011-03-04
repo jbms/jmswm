@@ -6,7 +6,6 @@
 #include <sys/select.h>
 #include <util/close_on_exec.hpp>
 #include <boost/thread.hpp>
-#include <sys/inotify.h>
 #include <fstream>
 #include <fcntl.h>
 
@@ -20,15 +19,12 @@ class DeviceAppletState
 {
   WM &wm;
   DeviceAppletStyle style;
-  InotifyEvent inotify;
   WBar::CellRef placeholder;
   std::set<utf8_string> ignore_present;
   typedef std::vector<std::pair<utf8_string, std::string> > DeviceList;
   DeviceList all_devices;
   std::vector<WBar::CellRef> cells;
 
-  void inotify_handler(int wd, uint32_t mask, uint32_t cookie,
-                       const char *pathname);
   void update_cells();
   void monitor_mounts();
 public:
@@ -41,14 +37,13 @@ DeviceAppletState::DeviceAppletState(WM &wm,
                                      const style::Spec &style_spec,
                                      const WBar::InsertPosition &position)
   : wm(wm),
-    style(wm.dc, style_spec),
-    inotify(wm.event_service(), boost::bind(&DeviceAppletState::inotify_handler, this, _1, _2, _3, _4))
+    style(wm.dc, style_spec)
 {
   placeholder = wm.bar.placeholder(position);
 
-  inotify.add_watch("/dev/disk/by-path/", IN_CREATE | IN_DELETE);
-
   ignore_present.insert("cdrom");
+  ignore_present.insert("winxp");
+  ignore_present.insert("dell-utility");
 
   update_cells();
   // FIXME: make this support this applet being unloaded
@@ -103,31 +98,24 @@ void DeviceAppletState::update_cells()
 
 }
 
-void DeviceAppletState::inotify_handler(int wd, uint32_t mask, uint32_t cookie,
-                                        const char *pathname)
-{
-  if (mask & (IN_CREATE | IN_DELETE))
-    update_cells();
-}
-
 void DeviceAppletState::monitor_mounts()
 {
   int mount_fd = open(mount_list, O_RDONLY);
   if (mount_fd == -1)
     return;
   set_close_on_exec_flag(mount_fd, true);
-  fd_set rfds;
+  fd_set wfds;
   while (1)
   {
-    FD_ZERO(&rfds);
-    FD_SET(mount_fd, &rfds);
-
+    FD_ZERO(&wfds);
+    FD_SET(mount_fd, &wfds);
 
     int retval;
-    while ((retval = select(mount_fd + 1, &rfds, NULL, NULL, NULL)) == -1 && errno == EINTR)
+    while ((retval = select(mount_fd + 1, NULL, &wfds, NULL, NULL)) == -1 && errno == EINTR)
       continue;
-    if (retval == 1)
+    if (retval == 1) {
       wm.event_service().post(boost::bind(&DeviceAppletState::update_cells, boost::ref(this)));
+    }
   }
 }
 

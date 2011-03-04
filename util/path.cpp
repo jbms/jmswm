@@ -24,7 +24,7 @@ const std::string compact_path_home(const std::string &str)
   if (home)
   {
     std::string home_str(home);
-    if (boost::algorithm::starts_with(str, home_str))
+    if (str == home_str || boost::algorithm::starts_with(str, home_str + "/"))
       return "~" + str.substr(home_str.size());
   }
   return str;

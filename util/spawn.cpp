@@ -36,8 +36,10 @@ int spawnl(const char *working_dir, const char *path, ...)
     // Close all open file descriptors
     for (int i = 3; i < 1024; ++i)
       close(i);
-    if (working_dir)
-      chdir(working_dir);
+    if (working_dir) {
+      (void)chdir(working_dir);
+      setenv("PWD", working_dir, 1);
+    }
     execv(path, argv);
     exit(-1);
   }
