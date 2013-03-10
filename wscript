@@ -75,15 +75,9 @@ def configure(conf):
 
     #conf.env.INCLUDES_BOOST = ['external/boost']
 
-    conf.env.INCLUDES_EIGEN = ['external/eigen']
-    conf.env.DEFINES_EIGEN = ['EIGEN2_SUPPORT']
-
     conf.env.LIB_IW = ['iw']
     do_map('iw', 'iwlib.h')
 
-
-
-    conf.env.INCLUDES_NDARRAY = ['external/ndarray/include']
 
     conf.env.INCLUDES_CHAOS = ['external/chaos-pp']
     conf.env.DEFINES_CHAOS = ['CHAOS_PP_VARIADICS=1']
@@ -121,14 +115,13 @@ def configure(conf):
 def build(bld):
     if not bld.variant:
         bld.fatal('specify a build variant')
-
     bld.program(source='src/wm/main.cpp', target = 'jmswm')
 
 from waflib.Build import BuildContext, CleanContext, \
-        InstallContext, UninstallContext
+        InstallContext, UninstallContext, ListContext
 
 for x, callbacks in variant_list():
-        for y in (BuildContext, CleanContext, InstallContext, UninstallContext):
+        for y in (BuildContext, CleanContext, InstallContext, UninstallContext, ListContext):
                 name = y.__name__.replace('Context','').lower()
                 class tmp(y):
                         cmd = name + '_' + x

@@ -25,6 +25,7 @@ namespace style
       {}
       Iterator position() const { return error_pos; }
       virtual const char *what() const throw() { return "Scanner::Error"; }
+      virtual ~Error() throw() {}
     };
     
   private:

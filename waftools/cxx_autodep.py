@@ -9,7 +9,7 @@ approach would be the creation of a specific c++ subclass, and using another
 extension mapping function (@extension).
 """
 
-header_suffix_map = {'.hpp': ['.cpp'], '.h': ['.c', '.cpp']}
+header_suffix_map = {'.hpp': ['.cpp', '.cc'], '.h': ['.c', '.cpp', '.cc']}
 
 import collections
 class task_cache_entry(collections.namedtuple('task_cache_entry',
@@ -82,6 +82,7 @@ def cxx_runnable_status(self):
             libmap = None
             
         uselib = cur_entry.inferred_uselib
+        uselib_non_recursive = set()
         if libmap:
             raw_deps = self.generator.bld.raw_deps[self.uid()]
             for dep in raw_deps:
@@ -92,6 +93,7 @@ def cxx_runnable_status(self):
                     partial += part
                     if partial in libmap:
                         uselib.update(libmap[partial])
+                        uselib_non_recursive.update(libmap[partial])
 
         for x in self.generator.bld.node_deps[self.uid()]:
             suffix = x.suffix()
@@ -104,6 +106,7 @@ def cxx_runnable_status(self):
                 if node in shared:
                     entry = shared[node]
                 else:
+                    #print 'Generating task: ' + repr(node)
                     entry = shared[node] = task_cache_entry(task = self.generator.cxx_hook(node),
                                                             parent_entries = set(),
                                                             child_entries = [],
@@ -116,6 +119,7 @@ def cxx_runnable_status(self):
 
                 for child in entry.get_all_related_entries('child_entries'):
                     object_tasks.add(child.task)
+                    uselib.update(child.inferred_uselib)
 
         # add object_tasks as inputs to all link_tasks
         for link in link_tasks:
