@@ -274,6 +274,8 @@ void WM::handle_unmap_notify(const XUnmapEvent &ev)
 
   if (WClient *client = client_of_win(ev.window))
     unmanage_client(client);
+
+  bar.handle_unmap_notify(ev);
 }
 
 void WM::handle_enter_notify(const XCrossingEvent &ev)
@@ -366,6 +368,12 @@ void WM::handle_client_message(const XClientMessageEvent &ev)
         request_net_wm_state_change_hook(frame, ev);
       }
     }
+    return;
+  }
+  if (ev.message_type == atom_net_system_tray_opcode) {
+    if (ev.format != 32)
+      return; // invalid message, format must be 32
+    bar.handle_tray_opcode(ev);
     return;
   }
 }

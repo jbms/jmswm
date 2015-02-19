@@ -2,10 +2,10 @@
 #define _WM_BAR_HPP
 
 #include <draw/draw.hpp>
-
-#include <boost/intrusive/list.hpp>
-
 #include <style/style.hpp>
+#include <memory>
+
+#include <X11/Xlib.h>
 
 #include <boost/shared_ptr.hpp>
 
@@ -32,95 +32,48 @@ class WM;
 
 class WBar
 {
-private:
-  WM &wm_;
-  WBarStyle style;
 public:
-  WM &wm() { return wm_; }
+  struct Impl;
+private:
+  std::unique_ptr<Impl> impl_;
+
+public:
+  WM &wm();
 
   friend class WM;
 
 private:
-  Window xwin_;
-  WRect bounds, current_window_bounds;
 
-  Window xwin() { return xwin_; }
+  Window xwin();
 
 public:
   enum cell_position_t { LEFT = 0, RIGHT = 1};
 
 private:
 
-  class Cell : public boost::intrusive::list_base_hook<>
-  {
-  public:
-    WBar &bar;
-    cell_position_t position;
-    utf8_string text;
-    const WColor *foreground_color;
-    const WColor *background_color;
-
-    Cell(WBar &bar,
-         cell_position_t position,
-         const WColor &foreground_color,
-         const WColor &background_color,
-         const utf8_string &text)
-      : bar(bar),
-        position(position),
-        text(text),
-        foreground_color(&foreground_color),
-        background_color(&background_color)
-    {}
-
-    Cell(WBar &bar,
-         cell_position_t position)
-      : bar(bar),
-        position(position),
-        foreground_color(0),
-        background_color(0)
-    {}
-
-    ~Cell();
-  };
-
-  typedef boost::intrusive::list<Cell> CellList;
-
-  CellList cells[2];
-
-  bool scheduled_update_server, scheduled_draw;
-
-  bool initialized;
-
-  enum map_state_t { STATE_MAPPED, STATE_UNMAPPED } map_state;
-
-  int label_height();
-  int top_left_offset();
-  int bottom_right_offset();
-
-  void compute_bounds();
   void flush();
-  void draw();
 
   void handle_screen_size_changed();
   void handle_expose(const XExposeEvent &ev);
+  void handle_tray_opcode(const XClientMessageEvent &ev);
+  void handle_unmap_notify(const XUnmapEvent &ev);
 
   void initialize();
 
 public:
+  class Cell;
 
   int height();
+  void schedule_update_server();
 
-  void schedule_update_server() { scheduled_update_server = true; }
-
-  class CellRef
+  class  CellRef
   {
-    friend class WBar;
+  public:
     boost::shared_ptr<Cell> cell;
 
     CellRef(const boost::shared_ptr<Cell> &cell)
       : cell(cell)
     {}
-  public:
 
     CellRef() {}
 
@@ -128,25 +81,12 @@ public:
       : cell(ref.cell)
     {}
 
-    bool is_placeholder() const
-    {
-      return cell->foreground_color == 0;
-    }
+    bool is_placeholder() const;
 
-    const WColor &foreground() const
-    {
-      return *cell->foreground_color;
-    }
+    const WColor &foreground() const;
+    const WColor &background() const;
 
-    const WColor &background() const
-    {
-      return *cell->background_color;
-    }
-
-    const utf8_string &text() const
-    {
-      return cell->text;
-    }
+    const utf8_string &text() const;
 
     void set_text(const utf8_string &str);
 
@@ -159,48 +99,17 @@ public:
     }
   };
 
-  class InsertPosition
+  struct InsertPosition
   {
-  private:
     cell_position_t side;
     CellRef ref;
     enum { BEFORE, AFTER, BEGIN, END } relative;
-    friend class WBar;
   };
 
-  static InsertPosition before(const CellRef &r)
-  {
-    InsertPosition p;
-    p.side = r.cell->position;
-    p.ref = r;
-    p.relative = InsertPosition::BEFORE;
-    return p;
-  }
-
-  static InsertPosition after(const CellRef &r)
-  {
-    InsertPosition p;
-    p.side = r.cell->position;
-    p.ref = r;
-    p.relative = InsertPosition::AFTER;
-    return p;
-  }
-
-  static InsertPosition begin(cell_position_t position)
-  {
-    InsertPosition p;
-    p.side = position;
-    p.relative = InsertPosition::BEGIN;
-    return p;
-  }
-
-  static InsertPosition end(cell_position_t position)
-  {
-    InsertPosition p;
-    p.side = position;
-    p.relative = InsertPosition::END;
-    return p;
-  }
+  static InsertPosition before(const CellRef &r);
+  static InsertPosition after(const CellRef &r);
+  static InsertPosition begin(cell_position_t position);
+  static InsertPosition end(cell_position_t position);
 
   WBar(WM &wm, const style::Spec &style_spec);
   ~WBar();
@@ -220,22 +129,6 @@ public:
   }
 
   CellRef placeholder(const InsertPosition &pos);
-
-private:
-
-  CellRef insert_end(cell_position_t position,
-                     const boost::shared_ptr<Cell> &cell);
-
-  CellRef insert_begin(cell_position_t position,
-                       const boost::shared_ptr<Cell> &cell);
-
-  CellRef insert_after(const CellRef &ref,
-                       cell_position_t position,
-                       const boost::shared_ptr<Cell> &cell);
-
-  CellRef insert_before(const CellRef &ref,
-                        cell_position_t position,
-                        const boost::shared_ptr<Cell> &cell);
 };
 
 #endif /* _WM_BAR_HPP */

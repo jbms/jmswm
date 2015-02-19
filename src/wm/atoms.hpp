@@ -38,3 +38,5 @@ DECLARE_ATOM(atom_net_wm_window_type_dnd, "_NET_WM_WINDOW_TYPE_DND")
 DECLARE_ATOM(atom_net_wm_window_type_normal, "_NET_WM_WINDOW_TYPE_NORMAL")
 
 DECLARE_ATOM(atom_persistence, "_JMSWM_STATE")
+
+DECLARE_ATOM(atom_net_system_tray_opcode, "_NET_SYSTEM_TRAY_OPCODE")

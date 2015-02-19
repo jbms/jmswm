@@ -67,6 +67,10 @@ void DeviceAppletState::update_cells()
         continue;
       if ((pos3 = line.find(' ', pos2 + 1)) == std::string::npos)
         continue;
+      std::string dev_path = line.substr(pos);
+      if (dev_path.empty() || dev_path[0] != '/')
+        continue;
+
       std::string mount_point = line.substr(pos + 1, pos2 - pos - 1);
       std::string fs_type = line.substr(pos2 + 1, pos3 - pos2 - 1);
       mount_sep = mount_point.find('/', 1);
@@ -114,7 +118,7 @@ void DeviceAppletState::monitor_mounts()
     while ((retval = select(mount_fd + 1, NULL, &wfds, NULL, NULL)) == -1 && errno == EINTR)
       continue;
     if (retval == 1) {
-      wm.event_service().post(boost::bind(&DeviceAppletState::update_cells, boost::ref(this)));
+      wm.event_service().post(boost::bind(&DeviceAppletState::update_cells, this));
     }
   }
 }
@@ -126,4 +130,3 @@ DeviceApplet::DeviceApplet(WM &wm,
 {}
 
 DeviceApplet::~DeviceApplet() {}
-

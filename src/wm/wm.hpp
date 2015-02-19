@@ -892,9 +892,9 @@ public:
 
   friend class WM;
 
-  static const float initial_priority = 1.0f;
-  static const float minimum_priority = 0.1f;
-  static const float maximum_priority = 10.0f;
+  static constexpr float initial_priority = 1.0f;
+  static constexpr float minimum_priority = 0.1f;
+  static constexpr float maximum_priority = 10.0f;
 
   float priority() const { return priority_; }
 

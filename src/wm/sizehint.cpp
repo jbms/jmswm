@@ -27,8 +27,6 @@ static void correct_aspect(int max_w, int max_h, int ax, int ay,
 
 WRect WClient::compute_actual_client_bounds(const WRect &available)
 {
-  WRect bounds = available;
-
   const XSizeHints &s = size_hints();
 
   int w = available.width, h = available.height;
@@ -60,14 +58,14 @@ WRect WClient::compute_actual_client_bounds(const WRect &available)
       base_h = s.min_height;
     }
     /* client_width = base_width + i * s->width_inc for an integer i */
-    
+
     if (base_w >= 0 && s.width_inc > 0)
     {
       extra_w = available.width - base_w;
       if (extra_w > 0)
         w = available.width - extra_w % s.width_inc;
     }
-    
+
     if(base_h >= 0 && s.height_inc > 0)
     {
       extra_h = available.height - base_h;

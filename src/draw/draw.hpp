@@ -48,7 +48,7 @@ public:
   int screen_width();
   int screen_height();
   int default_depth();
-  
+
 };
 
 class WDrawContext
@@ -95,12 +95,12 @@ public:
   {
     return red_;
   }
-  
+
   unsigned short green() const
   {
     return green_;
   }
-  
+
   unsigned short blue() const
   {
     return blue_;
@@ -128,12 +128,12 @@ public:
   {
     return pango_font_description_;
   }
-  
+
   int ascent() const
   {
     return ascent_;
   }
-  
+
   int descent() const
   {
     return descent_;
@@ -143,7 +143,7 @@ public:
   {
     return approx_width_;
   }
-  
+
   int height() const
   {
     return ascent_ + descent_;
@@ -153,11 +153,11 @@ public:
 class WRect
 {
 public:
-  int x, y, width, height;
+  int x = 0, y = 0, width = 0, height = 0;
 
   WRect()
   {}
-  
+
   WRect(int x, int y, int width, int height)
     : x(x), y(y), width(width), height(height)
   {}
@@ -225,7 +225,7 @@ public:
   {
     return d_;
   }
-  
+
   XftDraw *xft_draw() const
   {
     return xft_draw_;
@@ -241,7 +241,7 @@ public:
   WPixmap(WDrawContext &c, unsigned int width, unsigned int height);
   ~WPixmap();
   void reset(unsigned int width, unsigned int height);
-  
+
   WDrawable &drawable()
   {
     return d_;

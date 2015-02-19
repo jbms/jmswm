@@ -19,7 +19,6 @@ def v_release(env):
     env.append_unique('CXXFLAGS', ['-O2'])
 
 def v_debug(env):
-    env.append_unique('CXXFLAGS', ['-ggdb'])
     pass
 
 def v_profile(env):
@@ -50,6 +49,10 @@ def configure(conf):
     conf.load('cxx_autodep', tooldir='waftools')
     conf.env.append_unique('INCLUDES', ['src'])
     conf.env.CXXFLAGS = ['-ggdb',
+                         '-std=gnu++1y',
+                         '-g3',
+                         '-fvar-tracking-assignments',
+                         '-gdwarf-4',
 #                         '-DBOOST_RESULT_OF_USE_DECLTYPE',
                          '-Wall', '-march=native']
 
@@ -97,7 +100,7 @@ def configure(conf):
     conf.env.LIB_BOOST_SIGNALS = ['boost_signals']
     do_map('boost_signals', 'boost/signals', 'boost/signals.hpp')
 
-    conf.env.LIB_BOOST_FILESYSTEM = ['boost_filesystem']
+    conf.env.LIB_BOOST_FILESYSTEM = ['boost_filesystem', 'boost_system']
     do_map('boost_filesystem', 'boost/filesystem', 'boost/filesystem.hpp')
 
     conf.env.LIB_EVENT = ['event']

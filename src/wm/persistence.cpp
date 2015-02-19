@@ -48,7 +48,7 @@ static int frame_index(WFrame *frame)
 static WColumn *get_column(WView *view, int index)
 {
   if (index < 0 || (unsigned int)index >= view->columns.size())
-    return false;
+    return 0;
 
   WView::iterator it = view->columns.begin();
   std::advance(it, index);

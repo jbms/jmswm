@@ -672,7 +672,7 @@ void WM::select_view(WView *view)
     }
   }
 
-  bar.scheduled_update_server = true;
+  bar.schedule_update_server();
 }
 
 WFrame *WM::selected_frame()
