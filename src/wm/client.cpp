@@ -239,6 +239,9 @@ void WClient::update_fixed_height()
   } else if (window_type_flags() & WINDOW_TYPE_DIALOG)
   {
     fixed_height_ = initial_geometry.height;
+    if (s.flags & PMinSize) {
+      fixed_height_ = std::max(fixed_height_, s.min_height);
+    }
   } else
   {
     fixed_height_ = 0;
