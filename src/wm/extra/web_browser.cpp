@@ -466,6 +466,9 @@ static bool is_search_query(const utf8_string &text)
   if (text.find('.') != utf8_string::npos)
     return false;
 
+  if (text.find('/') != utf8_string::npos)
+    return false;
+
   return true;
 }
 
@@ -512,7 +515,7 @@ const ascii_string get_url_from_user_input(const utf8_string &text, bool direct)
 
 void launch_browser(WM &wm, const utf8_string &text, bool direct)
 {
-  ascii_string program = "/home/jbms/bin/conkeror";
+  ascii_string program = getenv("HOME") + ascii_string("/bin/browser");
   utf8_string arg = get_url_from_user_input(text, direct);
   utf8_string cwd = get_selected_cwd(wm);
   ascii_string resolved_cwd(expand_path_home(cwd));
