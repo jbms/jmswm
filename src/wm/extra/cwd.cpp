@@ -29,7 +29,7 @@ bool update_client_visible_name_and_context(WClient *client)
         parts.push_back(client->name().substr(x, end - x));
       }
     }
-        
+
     if (parts.size() >= 2 && parts.size() <= 4)
     {
       client->set_context_info(parts[1]);
@@ -37,7 +37,7 @@ bool update_client_visible_name_and_context(WClient *client)
 
       if (parts.size() == 4)
         client->set_visible_name("[" + parts[0] + "]" + " " + parts[3]);
-      else if (parts.size() == 3) 
+      else if (parts.size() == 3)
         client->set_visible_name("[" + parts[0] + "] [" + parts[2] + "]");
       else
         client->set_visible_name("[" + parts[0] + "] xterm");
@@ -48,7 +48,7 @@ bool update_client_visible_name_and_context(WClient *client)
     return true;
   }
   /* Handle emacs */
-  if (client->class_name() == "Emacs")
+  if (boost::algorithm::starts_with(client->class_name(), "Emacs"))
   {
     const utf8_string &name = client->name();
 
