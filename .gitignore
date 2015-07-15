@@ -5,3 +5,4 @@
 /.lock-wafbuild
 /jmswm
 /jmswm.backup
+__pycache__
