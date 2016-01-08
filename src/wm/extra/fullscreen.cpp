@@ -2,7 +2,17 @@
 
 static utf8_string fullscreen_client_suffix(WClient *client)
 {
-  return client->instance_name();
+  utf8_string clean_name;
+  const ascii_string &instance_name = client->instance_name();
+  for (size_t i = 0; i < instance_name.size(); ++i) {
+    char c = instance_name[i];
+    if (isalnum(c) || c == '-' || c == '_') {
+      clean_name += c;
+    } else {
+      break;
+    }
+  }
+  return clean_name;
 }
 
 static WFrame *is_fullscreen_frame(WFrame *frame)
