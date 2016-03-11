@@ -48,7 +48,7 @@ bool update_client_visible_name_and_context(WClient *client)
     return true;
   }
   /* Handle emacs */
-  if (boost::algorithm::starts_with(client->class_name(), "Emacs"))
+  if (client->class_name().find("Emacs") != std::string::npos)
   {
     const utf8_string &name = client->name();
 
