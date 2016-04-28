@@ -1,0 +1,72 @@
+if [ -n "${JMSWM}" ]; then
+    zshinit_titlebar_sep="<#!#!#>"
+    zshinit_titlebar_userstr="${USER}@${HOST%%.*}${zshinit_titlebar_sep}"
+    zshinit_titlebar_cwdstr="%~"
+
+    case $TERM in
+        xterm*|rxvt*|Eterm|screen)
+            zshinit_titlebar_text_start=$'%{\e]0;%}'
+            zshinit_titlebar_text_end=$'%{\a%}'
+            ;;
+        *)
+            unset zshinit_titlebar_text_start
+            unset zshinit_titlebar_text_end
+            ;;
+    esac
+
+
+    zshinit_titlebar_last_cmd=""
+    precmd () {
+        if [[ -n "${zshinit_titlebar_text_start}" ]] then
+            print -n -P "${zshinit_titlebar_text_start}${zshinit_titlebar_userstr}${zshinit_titlebar_cwdstr}"
+            if [[ -n "${zshinit_titlebar_last_cmd}" ]]; then
+                print -n -P "${zshinit_titlebar_sep}"
+                print -nr -- "${zshinit_titlebar_last_cmd}"
+            fi
+            print -n -P "${zshinit_titlebar_text_end}"
+        fi
+    }
+
+    preexec () {
+        if [[ -n "${zshinit_titlebar_text_start}" ]] then
+            print -n -P "${zshinit_titlebar_text_start}${zshinit_titlebar_userstr}${zshinit_titlebar_cwdstr}${zshinit_titlebar_sep}${zshinit_titlebar_sep}"
+            print -nr -- "${1}"
+            print -n -P "${zshinit_titlebar_text_end}"
+            zshinit_titlebar_last_cmd="$1"
+        fi
+    }
+else
+    zshinit_titlebar_userstr="[${USER}@${HOST%%.*}]"
+    zshinit_titlebar_cwdstr="%~"
+
+    case $TERM in
+        xterm*|rxvt*|Eterm|screen)
+            zshinit_titlebar_text_start=$'%{\e]0;%}'
+            zshinit_titlebar_text_end=$'%{\a%}'
+            ;;
+        *)
+            unset zshinit_titlebar_text_start
+            unset zshinit_titlebar_text_end
+            ;;
+    esac
+
+
+    zshinit_titlebar_last_cmd=""
+    precmd () {
+        if [[ -n "${zshinit_titlebar_text_start}" ]] then
+            print -n -P "${zshinit_titlebar_text_start}${zshinit_titlebar_userstr} ${zshinit_titlebar_cwdstr}"
+            [[ -n "${zshinit_titlebar_last_cmd}" ]] \
+                && print -nr -- "  [${zshinit_titlebar_last_cmd}]"
+            print -n -P "${zshinit_titlebar_text_end}"
+        fi
+    }
+
+    preexec () {
+        if [[ -n "${zshinit_titlebar_text_start}" ]] then
+            print -n -P "${zshinit_titlebar_text_start}${zshinit_titlebar_userstr} "
+            print -nr -- "${1}"
+            print -n -P "${zshinit_titlebar_text_end}"
+            zshinit_titlebar_last_cmd="$1"
+        fi
+    }
+fi

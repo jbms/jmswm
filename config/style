@@ -1,0 +1,344 @@
+// -*- c++ -*-
+
+wm_frame
+{
+  label_font = "Liberation Mono 10";
+  client_background_color = "black";
+
+  normal
+  {
+    active_selected
+    {
+      highlight_color = "gold1";
+      shadow_color = "gold1";
+      padding_color = "gold3";
+      background_color = "black";
+      label_foreground_color = "black";
+      label_background_color = "gold1";
+      label_extra_color = "gold1";
+    }
+
+    inactive_selected
+    {
+      highlight_color = "grey20";
+      shadow_color = "grey20";
+      padding_color = "black";
+      background_color = "black";
+      label_foreground_color = "black";
+      label_background_color = "gold3";
+      label_extra_color = "gold3";
+    }
+
+    inactive
+    {
+      highlight_color = "grey20";
+      shadow_color = "grey20";
+      padding_color = "black";
+      background_color = "black";
+      label_foreground_color = "black";
+      label_background_color = "grey85";
+      label_extra_color = "grey85";
+    }
+  }
+
+  marked
+  {
+    active_selected
+    {
+      highlight_color = "orchid";
+      shadow_color = "orchid";
+      padding_color = "medium orchid";
+      background_color = "black";
+      label_foreground_color = "black";
+      label_background_color = "orchid";
+      label_extra_color = "medium orchid";
+    }
+
+    inactive_selected
+    {
+      highlight_color = "grey20";
+      shadow_color = "grey20";
+      padding_color = "black";
+      background_color = "black";
+      label_foreground_color = "black";
+      label_background_color = "royalblue3";
+      label_extra_color = "royalblue4";
+    }
+
+    inactive
+    {
+      highlight_color = "grey20";
+      shadow_color = "grey20";
+      padding_color = "black";
+      background_color = "black";
+      label_foreground_color = "black";
+      label_background_color = "light steel blue";
+      label_extra_color = "steel blue";
+    }
+  }
+
+  highlight_pixels = 1;
+  shadow_pixels = 1;
+  padding_pixels = 1;
+  spacing = 2;
+  label_horizontal_padding = 5;
+  label_vertical_padding = 2;
+  label_component_spacing = 1;
+}
+
+
+bar : wm_frame
+{
+  cell_spacing = 2;
+  highlight_color = "grey20";
+  shadow_color = highlight_color;
+  padding_color = "black";
+  background_color = "black";
+}
+
+default_bar_cell
+{
+  foreground_color = "black";
+  background_color = "grey85";
+}
+
+view_applet
+{
+  normal = default_bar_cell;
+ selected : default_bar_cell
+  {
+    background_color = "gold1";
+  }
+}
+
+battery_applet
+{
+  inactive = default_bar_cell;
+  charging = default_bar_cell;
+  discharging
+  {
+    foreground_color = "white";
+    background_color = "grey25";
+  }
+}
+
+volume_applet
+{
+  muted
+  {
+    foreground_color = "white";
+    background_color = "red";
+  }
+
+ unmuted : muted
+  {
+    background_color = "blue";
+  }
+}
+
+time_applet = default_bar_cell;
+
+network_applet
+{
+  foreground_color = "white";
+  background_color = "#c8321e";
+}
+
+gnus_applet
+{
+  background_color = "gold1";
+  foreground_color = "black";
+}
+
+erc_applet
+{
+  foreground_color = "black";
+  background_color = "MediumOrchid1";
+}
+
+menu
+{
+  label
+  {
+    font = wm_frame.label_font;
+    horizontal_padding = wm_frame.label_horizontal_padding;
+    vertical_padding = wm_frame.label_vertical_padding;
+  }
+
+  border_pixels = 1;
+  border_color = "white";
+  prompt
+  {
+    foreground = "white";
+    background = "grey30";
+  }
+  input
+  {
+    foreground = "grey85";
+    background = "black";
+  }
+  selected
+  {
+    foreground = "grey85";
+    background = "blue";
+  }
+  cursor
+  {
+    foreground = "black";
+    background = "grey85";
+  }
+  completions_background = "black";
+  completions_spacing = 2;
+}
+
+list_completion_entry_default
+{
+  normal
+  {
+    foreground = "grey85";
+    background = "black";
+  }
+  selected
+  {
+    foreground = "black";
+    background = "grey85";
+  }
+}
+
+file_completion
+{
+
+  archive : list_completion_entry_default
+  {
+    normal : list_completion_entry_default.normal
+    {
+      foreground = "#ff4444";
+    }
+  }
+
+  image : list_completion_entry_default
+  {
+    normal : list_completion_entry_default.normal
+    {
+      foreground = "#ff44ff";
+    }
+  }
+
+  audio : list_completion_entry_default
+  {
+    normal : list_completion_entry_default.normal
+    {
+      foreground = "#00aaaa";
+    }
+  }
+
+
+  file = list_completion_entry_default;
+  dir : list_completion_entry_default
+  {
+  normal : list_completion_entry_default.normal { foreground = "#6666ff"; }// a light blue
+  }
+  link : list_completion_entry_default
+  {
+  normal : list_completion_entry_default.normal { foreground = "#44ffff"; // cyan
+    }
+  }
+  fifo = list_completion_entry_default;
+  sock = list_completion_entry_default;
+  blk = list_completion_entry_default;
+  chr = list_completion_entry_default;
+  exec  : list_completion_entry_default
+  {
+  normal : list_completion_entry_default.normal { foreground = "#44ff44"; // a light green
+    }
+  }
+  ext_cmd = list_completion_entry_default;
+  ext_exe = list_completion_entry_default;
+  ext_com = list_completion_entry_default;
+  ext_btm = list_completion_entry_default;
+  ext_bat = list_completion_entry_default;
+  ext_sh = list_completion_entry_default;
+  ext_csh = list_completion_entry_default;
+  ext_tar = archive;
+  ext_tgz = archive;
+  ext_arj = archive;
+  ext_taz = archive;
+  ext_lzh = archive;
+  ext_zip = archive;
+  ext_z = archive;
+  ext_Z = archive;
+  ext_gz = archive;
+  ext_bz2 = archive;
+  ext_bz = archive;
+  ext_tbz2 = archive;
+  ext_tz = archive;
+  ext_deb = archive;
+  ext_rpm = archive;
+  ext_rar = archive;
+  ext_ace = archive;
+  ext_zoo = archive;
+  ext_cpio = archive;
+  ext_jpg = image;
+  ext_jpeg = image;
+  ext_gif = image;
+  ext_bmp = image;
+  ext_ppm = image;
+  ext_tga = image;
+  ext_xbm = image;
+  ext_xpm = image;
+  ext_tif = image;
+  ext_tiff = image;
+  ext_png = image;
+  ext_mng = image;
+  ext_xcf = image;
+  ext_pcx = image;
+  ext_mpg = image;
+  ext_mpeg = image;
+  ext_m2v = image;
+  ext_avi = image;
+  ext_mkv = image;
+  ext_ogm = image;
+  ext_mp4 = image;
+  ext_m4v = image;
+  ext_mp4v = image;
+  ext_mov = image;
+  ext_qt = image;
+  ext_wmv = image;
+  ext_asf = image;
+  ext_rm = image;
+  ext_rmvb = image;
+  ext_flc = image;
+  ext_fli = image;
+  ext_gl = image;
+  ext_dl = image;
+  ext_mp3 = audio;
+  ext_wav = audio;
+  ext_mid = audio;
+  ext_midi = audio;
+  ext_au = audio;
+  ext_ogg = audio;
+}
+
+url_completion
+{
+  normal_title_foreground = "gold1";
+  normal_url_foreground = "grey85";
+  selected_title_foreground = "black";
+  selected_url_foreground = "black";
+  selected_background = "grey85";
+}
+
+device_applet
+{
+  present
+  {
+    background_color = "#e3988e";
+    foreground_color = "black";
+  }
+
+  mounted
+  {
+    background_color = "#c8321e";
+    foreground_color = "white";
+  }
+}
