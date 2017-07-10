@@ -107,6 +107,41 @@ STYLE_DEFINITION(WFrameStyle,
                   (label_vertical_padding, int),
                   (label_component_spacing, int)))
 
+struct MotifWMHints {
+  CARD32 flags;
+  CARD32 functions;
+  CARD32 decorations;
+  INT32 inputmode;
+  CARD32 status;
+
+  enum Constants {
+    HINTS_FUNCTIONS = 0x0001,
+    HINTS_DECORATIONS = 0x0002,
+    HINTS_INPUTMODE_MODE = 0x0004,
+    HINTS_INPUTMODE_STATUS = 0x0008,
+
+    FUNC_ALL = 0x0001,
+    FUNC_RESIZE = 0x0002,
+    FUNC_MOVE = 0x0004,
+    FUNC_ICONIFY = 0x0008,
+    FUNC_MAXIMIZE = 0x0010,
+    FUNC_CLOSE = 0x0020,
+
+    DECOR_ALL = 0x0001,
+    DECOR_BORDER = 0x0002,
+    DECOR_HANDLE = 0x0004,
+    DECOR_TITLE = 0x0008,
+    DECOR_MENU = 0x0010,
+    DECOR_ICONIFY = 0x0020,
+    DECOR_MAXIMIZE = 0x0040,
+
+    INPUTMODE_MODELESS = 0,
+    INPUTMODE_PRIMARY_APPLICATION_MODAL = 1,
+    INPUTMODE_SYSTEM_MODAL = 2,
+    INPUTMODE_FULL_APPLICATION_MODAL = 3
+  };
+};
+
 class WM : public WXContext, public PropertyContainer
 {
 public:
@@ -372,6 +407,8 @@ private:
 public:
   void set_window_WM_STATE(Window w, int state);
   bool get_window_WM_STATE(Window w, int &state_ret);
+
+  bool get_window_motif_wm_hints(Window w, MotifWMHints &hints);
 
   void send_client_message(Window w, Atom a, Time timestamp);
   void send_client_message(Window w, Atom a)

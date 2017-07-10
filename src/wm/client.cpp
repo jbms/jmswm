@@ -19,6 +19,27 @@ WFrame *WClient::visible_frame()
     return 0;
 }
 
+bool WM::get_window_motif_wm_hints(Window w, MotifWMHints &mwm_hints) {
+  CARD32 *data = nullptr;
+  const int num_values = 5;
+  unsigned long count =
+      xwindow_get_property(display(), w, atom_motif_wm_hints, atom_motif_wm_hints, num_values, false, (unsigned char **)&data);
+  bool success = (count == num_values * 4);
+  if (success) {
+    mwm_hints.flags = data[0];
+    mwm_hints.functions = data[1];
+    mwm_hints.decorations = data[2];
+    mwm_hints.inputmode = data[3];
+    mwm_hints.status = data[4];
+  }
+
+  if (data) {
+    XFree(data);
+  }
+
+  return success;
+}
+
 
 void WM::manage_client(Window w, bool map_request)
 {
@@ -39,6 +60,17 @@ void WM::manage_client(Window w, bool map_request)
   {
     XSelectInput(display(), w, 0);
     return;
+  }
+
+  MotifWMHints mwm_hints;
+  if (get_window_motif_wm_hints(w, mwm_hints)) {
+    if ((mwm_hints.flags & MotifWMHints::HINTS_FUNCTIONS) && mwm_hints.functions == 0 &&
+        (mwm_hints.flags & MotifWMHints::HINTS_DECORATIONS) && mwm_hints.decorations == 0) {
+      // Treat as override redirect.
+      XMapWindow(display(), w);
+      XSelectInput(display(), w, 0);
+      return;
+    }
   }
 
   /* Check WM_STATE and attr.map_state == IsViewable*/
