@@ -9,12 +9,12 @@ namespace menu
   {
     return InitialState(InputState(text, text.size()), 0);
   }
-  
+
   InitialState InitialState::selected_suffix(const utf8_string &text)
   {
     return InitialState(InputState(text, 0), text.size());
   }
-  
+
   const static long MENU_WINDOW_EVENT_MASK = ExposureMask | KeyPressMask;
   const static long COMPLETIONS_WINDOW_EVENT_MASK = ExposureMask;
 
@@ -36,7 +36,7 @@ namespace menu
     wa.event_mask = MENU_WINDOW_EVENT_MASK;
     wa.save_under = True;
     wa.override_redirect = True;
-  
+
     xwin_ = XCreateWindow(wm().display(), wm().root_window(),
                           0, 0, 100, 100,
                           0,
@@ -101,7 +101,7 @@ namespace menu
     scheduled_update_server = true;
     scheduled_draw = true;
     queued_completions = 0;
-  
+
     compute_bounds();
     handle_input_changed();
 
@@ -120,14 +120,20 @@ namespace menu
     WRect inner_rect = bounds.inside_border(style().border_pixels);
     if (!prompt.empty())
     {
+      int available_text_width = inner_rect.width - 2 * style().label.horizontal_padding;
       int prompt_width = compute_label_width(wm().buffer_pixmap.drawable(),
                                              prompt,
                                              style().label.font,
-                                             inner_rect.width - 2 * style().label.horizontal_padding);
+                                             available_text_width);
       prompt_rect = inner_rect;
       prompt_rect.width = prompt_width + 2 * style().label.horizontal_padding;
       prompt_text_rect = prompt_rect.inside_lr_tb_border(style().label.horizontal_padding,
                                                          style().label.vertical_padding);
+      if (prompt_text_rect.width < available_text_width * 4 / 5) {
+        // Heuristic: if the prompt is not using the full width, provide a few extra pixels to avoid
+        // spurious ellipses.
+        prompt_text_rect.width += 5;
+      }
       input_rect = inner_rect;
       input_rect.x += prompt_rect.width;
       input_rect.width -= prompt_rect.width;
@@ -169,7 +175,7 @@ namespace menu
 
     if (ev.count)
       return;
-  
+
     scheduled_draw = true;
   }
 
@@ -290,7 +296,7 @@ namespace menu
         fill_rect(d, style().prompt.background, prompt_rect);
         draw_label(d, prompt, style().label.font, style().prompt.foreground, prompt_text_rect);
       }
-      
+
       fill_rect(d, style().input.background, input_rect);
 
       utf8_string text;
@@ -304,7 +310,7 @@ namespace menu
          style().cursor.foreground, style().cursor.background,
          style().selected.foreground, style().selected.background,
          input_text_rect, input.cursor_position, mark_position);
-    
+
       XCopyArea(wm().display(), d.drawable(),
                 xwin(),
                 wm().dc.gc(),
@@ -392,7 +398,7 @@ namespace menu
 
     if (completer.empty())
       return;
-  
+
     completions_valid = false;
 
     if (completion_state)
@@ -412,7 +418,7 @@ namespace menu
   {
     if (!active)
       return;
-  
+
     if (bindctx.process_keypress(ev))
       return;
 
@@ -445,7 +451,7 @@ namespace menu
   {
     if (!active)
       return;
-  
+
     if (input.cursor_position > 0)
     {
       if (mark_position != -1 && (int)input.cursor_position > mark_position)
