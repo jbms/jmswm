@@ -190,7 +190,7 @@ void fullscreen_init(WM &wm)
   wm.post_place_client_hook.connect(&check_fullscreen_on_post_place_client);
   wm.unmanage_client_hook.connect(&check_fullscreen_on_unmanage_client);
   wm.client_configure_request_hook.connect(&check_fullscreen_on_configure_request);
-  wm.place_client_hook.connect(&check_fullscreen_on_place_client, boost::signals::at_front);
+  wm.place_client_hook.connect(&check_fullscreen_on_place_client, boost::signals2::at_front);
   wm.request_net_wm_state_change_hook.connect(&check_fullscreen_on_net_wm_state_request);
   wm.update_desired_net_wm_state_hook.connect(&maybe_set_fullscreen_net_wm_state);
 }

@@ -7,8 +7,8 @@ class NetworkAppletState;
 
 class NetworkApplet
 {
-  std::auto_ptr<NetworkAppletState> state;
-  
+  std::unique_ptr<NetworkAppletState> state;
+
 public:
 
   NetworkApplet(WM &wm,

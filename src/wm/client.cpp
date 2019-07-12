@@ -81,7 +81,7 @@ void WM::manage_client(Window w, bool map_request)
           || (wm_state != NormalState && wm_state != IconicState)))
     return;
 
-  std::auto_ptr<WClient> c(new WClient(*this, w));
+  std::unique_ptr<WClient> c(new WClient(*this, w));
 
   c->initial_geometry.x = attr.x;
   c->initial_geometry.y = attr.y;

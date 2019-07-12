@@ -66,7 +66,7 @@ namespace style
 
   class DB
   {
-    std::auto_ptr<DBState> state;
+    std::unique_ptr<DBState> state;
 
   public:
     DB();

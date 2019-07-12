@@ -15,7 +15,7 @@ include(ExternalProject)
 set_directory_properties(PROPERTIES EP_PREFIX ${CMAKE_BINARY_DIR}/third_party)
 
 include(FindPkgConfig)
-find_package(Boost COMPONENTS serialization regex system filesystem thread signals REQUIRED)
+find_package(Boost COMPONENTS serialization regex system filesystem thread REQUIRED)
 find_package(Libiw REQUIRED)
 pkg_check_modules(JMSWM REQUIRED x11 xft xrandr libevent pango pangoxft alsa)
 
@@ -75,7 +75,7 @@ add_executable(jmswm
 add_dependencies(jmswm chaos-pp)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++1y -ggdb -Wall -Wno-maybe-uninitialized")
-add_definitions(-DBOOST_SIGNALS_NO_DEPRECATION_WARNING -DCHAOS_PP_VARIADICS=1)
+add_definitions(-DCHAOS_PP_VARIADICS=1)
 
 target_link_libraries(jmswm
   ${Boost_SERIALIZATION_LIBRARY}
@@ -83,7 +83,6 @@ target_link_libraries(jmswm
   ${Boost_SYSTEM_LIBRARY}
   ${Boost_FILESYSTEM_LIBRARY}
   ${Boost_THREAD_LIBRARY}
-  ${Boost_SIGNALS_LIBRARY}
   ${LIBIW_LIBRARIES}
   ${JMSWM_LIBRARIES}
   )

@@ -1,8 +1,8 @@
 #ifndef _UTIL_HOOK_HPP
 #define _UTIL_HOOK_HPP
 
-#include <boost/signal.hpp>
-#include <boost/signals/connection.hpp>
+#include <boost/signals2.hpp>
+#include <boost/signals2/connection.hpp>
 
 namespace util
 {
@@ -39,4 +39,4 @@ namespace util
   };
 }
 
-#endif /* _UTIL_HOOK_HPP */ 
+#endif /* _UTIL_HOOK_HPP */

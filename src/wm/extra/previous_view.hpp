@@ -9,14 +9,14 @@ class PreviousViewInfo
 {
   utf8_string previous_view_;
   WM &wm_;
-  boost::signals::connection conn_;
+  boost::signals2::connection conn_;
 
   void select_view(WView *new_view, WView *old_view)
   {
     if (old_view)
       previous_view_ = old_view->name();
   }
-  
+
 public:
   PreviousViewInfo(WM &wm)
     : wm_(wm),
@@ -28,7 +28,7 @@ public:
   {
     conn_.disconnect();
   }
-  
+
   const utf8_string &name() const { return previous_view_; }
   void switch_to()
   {

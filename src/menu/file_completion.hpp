@@ -13,10 +13,10 @@ namespace menu
   {
 
     class Style;
-    
+
     class EntryStyler
     {
-      std::auto_ptr<Style> style;
+      std::unique_ptr<Style> style;
       typedef std::map<std::string, const menu::list_completion::EntryStyle *> ExtMap;
       ExtMap ext_map;
     public:
@@ -27,7 +27,7 @@ namespace menu
     };
 
     Menu::Completer file_completer(const boost::filesystem::path &default_dir, const EntryStyler &styler);
-    
+
   } // namespace menu::file_completion
 } // namespace menu
 

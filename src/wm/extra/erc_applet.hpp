@@ -11,7 +11,7 @@ class ErcApplet
   int wd;
   WBar::CellRef placeholder;
 
-  boost::signals::connection name_conn, place_conn;
+  boost::signals2::connection name_conn, place_conn;
 
   // first element is server, second is buffer name
   typedef std::pair<ascii_string, ascii_string> BufferInfo;
@@ -30,7 +30,7 @@ public:
              const WBar::InsertPosition &pos);
 
   void switch_to_buffer();
-  
+
 };
 
 #endif /* _WM_EXTRA_ERC_APPLET_HPP */

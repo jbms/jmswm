@@ -6,7 +6,7 @@
 #include <boost/filesystem/path.hpp>
 #include <boost/shared_ptr.hpp>
 #include <util/range.hpp>
-#include <boost/signals/connection.hpp>
+#include <boost/signals2/connection.hpp>
 #include <menu/url_completion.hpp>
 
 class BookmarkSpec
@@ -61,7 +61,7 @@ void bookmark_current_url(WM &wm, const boost::filesystem::path &output_org_path
 
 class WebBrowserModule
 {
-  boost::signals::scoped_connection c;
+  boost::signals2::scoped_connection c;
 public:
   WebBrowserModule(WM &wm);
 };

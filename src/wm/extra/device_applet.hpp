@@ -7,7 +7,7 @@ class DeviceAppletState;
 
 class DeviceApplet
 {
-  std::auto_ptr<DeviceAppletState> state;
+  std::unique_ptr<DeviceAppletState> state;
 
 public:
 

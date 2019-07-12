@@ -11,7 +11,7 @@ class DesiredColumnCountByName
 {
   typedef std::map<utf8_string, std::size_t> Map;
   Map map;
-  boost::signals::scoped_connection c;
+  boost::signals2::scoped_connection c;
   void handle_create_view(WView *view) const;
 public:
   DesiredColumnCountByName(WM &wm);

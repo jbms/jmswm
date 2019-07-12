@@ -8,7 +8,7 @@ class VolumeAppletState;
 
 class VolumeApplet
 {
-  std::auto_ptr<VolumeAppletState> state;
+  std::unique_ptr<VolumeAppletState> state;
 
 public:
   VolumeApplet(WM &wm,

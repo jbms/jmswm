@@ -30,7 +30,7 @@
 #include <menu/menu.hpp>
 #include <wm/bar.hpp>
 
-#include <boost/signal.hpp>
+#include <boost/signals2.hpp>
 
 #include <util/weak_iptr.hpp>
 
@@ -290,9 +290,9 @@ public:
   void select_view(WView *view);
 
   // Note: the second argument is the previously selected view.
-  boost::signal<void (WView *, WView *)> select_view_hook;
-  boost::signal<void (WView *)> create_view_hook;
-  boost::signal<void (WView *)> destroy_view_hook;
+  boost::signals2::signal<void (WView *, WView *)> select_view_hook;
+  boost::signals2::signal<void (WView *)> create_view_hook;
+  boost::signals2::signal<void (WView *)> destroy_view_hook;
 
   const ViewMap &views() { return views_; }
 
@@ -370,14 +370,14 @@ public:
 
   void place_client(WClient *client);
 
-  boost::signal<void (WClient *)> manage_client_hook;
-  boost::signal<void (WClient *)> unmanage_client_hook;
-  boost::signal<void (WClient *, const XConfigureRequestEvent &)> client_configure_request_hook;
-  boost::signal<bool (WFrame *, const XClientMessageEvent &),  util::RunUntilSuccess> request_net_wm_state_change_hook;
-  boost::signal<bool (WClient *), util::RunUntilSuccess> update_client_name_hook;
-  boost::signal<bool (WClient *), util::RunUntilSuccess> place_client_hook;
-  boost::signal<void (WClient *)> post_place_client_hook;
-  boost::signal<void (WFrame *, unsigned int &)> update_desired_net_wm_state_hook;
+  boost::signals2::signal<void (WClient *)> manage_client_hook;
+  boost::signals2::signal<void (WClient *)> unmanage_client_hook;
+  boost::signals2::signal<void (WClient *, const XConfigureRequestEvent &)> client_configure_request_hook;
+  boost::signals2::signal<bool (WFrame *, const XClientMessageEvent &),  util::RunUntilSuccess> request_net_wm_state_change_hook;
+  boost::signals2::signal<bool (WClient *), util::RunUntilSuccess> update_client_name_hook;
+  boost::signals2::signal<bool (WClient *), util::RunUntilSuccess> place_client_hook;
+  boost::signals2::signal<void (WClient *)> post_place_client_hook;
+  boost::signals2::signal<void (WFrame *, unsigned int &)> update_desired_net_wm_state_hook;
 
   /**
    * }}}
