@@ -340,6 +340,7 @@ void WM::handle_focus_in(const XFocusChangeEvent &ev)
             visible_frame->view()->select_frame(visible_frame, true);
           else
 #endif
+          if ((client->window_type_flags() & WClient::WINDOW_TYPE_DIALOG) == 0)
             frame->client().schedule_set_input_focus();
         }
       }
