@@ -1,5 +1,6 @@
 #include <wm/extra/place.hpp>
 #include <wm/extra/view_columns.hpp>
+#include <boost/next_prior.hpp>
 
 void place_frame_in_smallest_column(WView *view, WFrame *frame)
 {

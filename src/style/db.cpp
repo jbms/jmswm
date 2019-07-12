@@ -12,6 +12,7 @@
 #include <boost/spirit/include/classic_position_iterator.hpp>
 
 #include <boost/utility.hpp>
+#include <boost/next_prior.hpp>
 
 #include <style/scanner.hpp>
 
