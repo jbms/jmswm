@@ -74,7 +74,7 @@ add_executable(jmswm
 
 add_dependencies(jmswm chaos-pp)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++1y -ggdb -Wall -Wno-maybe-uninitialized")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++1y -ggdb -Wall -Wno-maybe-uninitialized -pthread")
 add_definitions(-DCHAOS_PP_VARIADICS=1)
 
 target_link_libraries(jmswm
