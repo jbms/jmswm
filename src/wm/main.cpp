@@ -250,7 +250,8 @@ int main(int argc, char **argv)
 
   wm.bind("mod4-space", toggle_marked);
 
-
+  wm.bind("XF86MonBrightnessDown", boost::bind(&execute_shell_command,  "/home/jbms/bin/backlight-adjust -10%"));
+  wm.bind("XF86MonBrightnessUp", boost::bind(&execute_shell_command,  "/home/jbms/bin/backlight-adjust +10%"));
 
   /* */
   wm.bind("mod4-u", decrease_priority);
