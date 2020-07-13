@@ -312,11 +312,19 @@ void WClient::update_name_from_server()
 {
   /* Check netwm name first */
 
-  if (!xwindow_get_utf8_property(wm().display(), xwin_, wm().atom_net_wm_name, name_)
-      && !xwindow_get_utf8_property(wm().display(), xwin_, XA_WM_NAME, name_))
-  {
+  if (!xwindow_get_utf8_property(wm().display(), xwin_, wm().atom_net_wm_name,
+                                 name_) &&
+      !xwindow_get_utf8_property(wm().display(), xwin_, XA_WM_NAME, name_)) {
     return;
   }
+
+  // Strip out non-ascii characters
+  name_.erase(std::remove_if(name_.begin(), name_.end(),
+                             [](char x) {
+                               return (static_cast<unsigned char>(x) > 127);
+                               ;
+                             }),
+              name_.end());
 
   schedule_draw();
 
